@@ -25,8 +25,12 @@ async def combined_import():
     
     csv_importer = VariantAwareCSVImporter()
     # await csv_importer.import_csv_file("data/csv/housewares.csv", "Housewares")
-    await csv_importer.import_csv_file("data/csv/tops_v2.csv", "Tops")
-    await csv_importer.import_csv_file("data/csv/bottoms.csv", "Bottoms")
+    # await csv_importer.import_csv_file("data/csv/tops_v2.csv", "Tops")
+    # await csv_importer.import_csv_file("data/csv/bottoms.csv", "Bottoms")
+    await csv_importer.import_csv_file("data/csv/accessories.csv", "Accessories")
+    await csv_importer.import_csv_file("data/csv/Dress-Up.csv", "Dress-Up")
+    await csv_importer.import_csv_file("data/csv/Headwear.csv", "Headwear")
+
     
     print(f"\n✅ CSV import complete!")
     print(f"   Imported items with comprehensive data including image URLs")

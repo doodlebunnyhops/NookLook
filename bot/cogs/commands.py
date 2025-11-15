@@ -39,7 +39,7 @@ class ACNH(commands.Cog):
         try:
             if len(current) == 0:
                 # Show 25 random clothing items when no input
-                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tops', 'Bottoms', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags'], 25)
+                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tops', 'Bottoms', 'Dress-Up', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags'], 25)
                 choices = []
                 for item in all_items:
                     choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
@@ -51,7 +51,7 @@ class ACNH(commands.Cog):
                 items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
                 
                 # Filter to only clothing categories
-                clothing_items = [item for item in items if item.category in ['Tops', 'Bottoms', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags']]
+                clothing_items = [item for item in items if item.category in ['Tops', 'Bottoms', 'Dress-Up', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags']]
                 
                 # Convert to autocomplete choices (limit to 25 as per Discord API)
                 choices = []

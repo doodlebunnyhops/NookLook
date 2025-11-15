@@ -271,7 +271,7 @@ class ACNHItem:
         embed = discord.Embed(
             title=self.display_name(),  # Use display name with color variant
             url=self.url if self.url else None,
-            description="Animal Crossing: New Horizons Item",
+            description=f"Animal Crossing: New Horizons Item",
             color=color
         )
         
@@ -306,6 +306,9 @@ class ACNHItem:
         # Variations and customization
         if self.variation_total > 0:
             embed.add_field(name="Variations", value=self.variation_summary(), inline=True)
+
+        if self.color_variant:
+            embed.add_field(name="Color Variant", value=self.color_variant, inline=True)
         
         if self.customizable:
             embed.add_field(name="Customization", value=self.customization_summary(), inline=False)
@@ -330,7 +333,7 @@ class ACNHItem:
             embed.add_field(name="Availability", value=self.availability_text(), inline=False)
         
         # Footer
-        embed.set_footer(text="Data from Nookipedia API • nookipedia.com")
+        embed.set_footer(text="Data from Nookipedia GoogleDoc • nookipedia.com")
         
         return embed
     
