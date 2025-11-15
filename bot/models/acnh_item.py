@@ -198,6 +198,18 @@ class ACNHItem:
             return self.variations[0].image_url
         return ""
     
+    def _is_valid_image_url(self, url: str) -> bool:
+        """Validate that the image URL looks correct"""
+        if not url:
+            return False
+        # Check if it's a valid ACNH CDN URL
+        if url.startswith('https://acnhcdn.com/latest/FtrIcon/') and url.endswith('.png'):
+            return True
+        # Allow other valid image URLs
+        if url.startswith(('http://', 'https://')) and any(url.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']):
+            return True
+        return False
+    
     def display_name(self) -> str:
         """Get display name with color variant if present"""
         # if self.color_variant:
@@ -277,7 +289,7 @@ class ACNHItem:
         
         # Set image if available
         image_url = self.primary_image_url()
-        if image_url:
+        if image_url and self._is_valid_image_url(image_url):
             embed.set_image(url=image_url)
         
         # Basic info

@@ -83,15 +83,56 @@ class ACNHItemsRepository:
         return await self.db.execute_command(command, params)
     
     async def search_items_by_name_fuzzy(self, name_pattern: str):
-        """Search for items using LIKE pattern matching"""
+        """Search for items using LIKE pattern matching with smart ordering"""
+        # Prioritize matches: exact -> starts with -> contains
         query = """
             SELECT * FROM acnh_items 
             WHERE name_normalized LIKE ? 
-            ORDER BY name
-            LIMIT 10
+            ORDER BY 
+                CASE 
+                    WHEN name_normalized = ? THEN 1          -- Exact match
+                    WHEN name_normalized LIKE ? THEN 2       -- Starts with
+                    ELSE 3                                   -- Contains
+                END,
+                name
+            LIMIT 100
         """
-        pattern = f"%{name_pattern.strip().lower()}%"
-        results = await self.db.execute_query(query, (pattern,))
+        pattern = name_pattern.strip().lower()
+        contains_pattern = f"%{pattern}%"
+        starts_with_pattern = f"{pattern}%"
+        
+        results = await self.db.execute_query(query, (contains_pattern, pattern, starts_with_pattern))
+        
+        # Convert each result to ACNHItem (basic data only for search results)
+        items = []
+        for item_data in results:
+            # For search results, we'll create simplified ACNHItem objects
+            # Full data can be loaded later if needed
+            item = ACNHItem.from_dict(item_data)
+            items.append(item)
+        
+        return items
+    
+    async def search_items_by_base_name_fuzzy(self, name_pattern: str):
+        """Search for items using LIKE pattern matching with smart ordering"""
+        # Prioritize matches: exact -> starts with -> contains
+        query = """
+            SELECT * FROM acnh_items 
+            WHERE name LIKE ? 
+            ORDER BY 
+                CASE 
+                    WHEN name = ? THEN 1          -- Exact match
+                    WHEN name LIKE ? THEN 2       -- Starts with
+                    ELSE 3                                   -- Contains
+                END,
+                name
+            LIMIT 100
+        """
+        pattern = name_pattern.strip().lower()
+        contains_pattern = f"%{pattern}%"
+        starts_with_pattern = f"{pattern}%"
+        
+        results = await self.db.execute_query(query, (contains_pattern, pattern, starts_with_pattern))
         
         # Convert each result to ACNHItem (basic data only for search results)
         items = []

@@ -21,7 +21,7 @@ class ACNH(commands.Cog):
             items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
             
             # Filter to only furniture categories
-            furniture_items = [item for item in items if item.category in ['Housewares', 'Miscellaneous', 'Wall-mounted']]
+            furniture_items = [item for item in items if item.category in ['Housewares']]
             
             # Convert to autocomplete choices (limit to 25 as per Discord API)
             choices = []
@@ -39,7 +39,8 @@ class ACNH(commands.Cog):
         try:
             if len(current) == 0:
                 # Show 25 random clothing items when no input
-                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tops', 'Bottoms', 'Dress-Up', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags'], 25)
+                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tops', 'Bottoms', 'Dress-Up', 'Headwear', 'Accessories'], 25)
+                
                 choices = []
                 for item in all_items:
                     choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
@@ -51,7 +52,7 @@ class ACNH(commands.Cog):
                 items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
                 
                 # Filter to only clothing categories
-                clothing_items = [item for item in items if item.category in ['Tops', 'Bottoms', 'Dress-Up', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags']]
+                clothing_items = [item for item in items if item.category in ['Tops', 'Bottoms', 'Dress-Up', 'Headwear', 'Accessories']]
                 
                 # Convert to autocomplete choices (limit to 25 as per Discord API)
                 choices = []
@@ -78,7 +79,7 @@ class ACNH(commands.Cog):
         if not item:
             await interaction.followup.send(
                 f"Sorry, I couldn't find a furniture item matching **{name}** 😿\n"
-                f"Try using `/search furniture {name}` to see similar items.",
+                f"Try using `/search {name} category:Housewares` to see similar items.",
                 ephemeral=True
             )
             return
@@ -99,7 +100,7 @@ class ACNH(commands.Cog):
         if not item:
             await interaction.followup.send(
                 f"Sorry, I couldn't find a clothing item matching **{name}** 😿\n"
-                f"Try using `/search clothing {name}` to see similar items, or check the spelling.",
+                f"Try using `/search {name}` to see similar items, or check the spelling.",
                 ephemeral=True
             )
             return
@@ -109,63 +110,115 @@ class ACNH(commands.Cog):
         embed = item.to_discord_embed()
         await interaction.followup.send(embed=embed)
 
-    # Search command group
-    search_group = app_commands.Group(name="search", description="Search for Animal Crossing: New Horizons items")
 
-    @search_group.command(name="furniture", description="Search for furniture items by name pattern")
-    @app_commands.describe(pattern="Search pattern (e.g., 'wooden', 'iron', 'chair')")
-    @app_commands.autocomplete(pattern=furniture_name_autocomplete)
-    async def search_furniture(self, interaction: discord.Interaction, pattern: str):
+
+    @app_commands.command(name="search", description="Search for items across all categories")
+    @app_commands.describe(
+        name="Item name to search for",
+        category="Optional: Filter by specific category"
+    )
+    @app_commands.choices(category=[
+        app_commands.Choice(name="All Categories", value="All"),
+        app_commands.Choice(name="Accessories", value="Accessories"),
+        app_commands.Choice(name="Bottoms", value="Bottoms"),
+        app_commands.Choice(name="Dress-Up", value="Dress-Up"),
+        app_commands.Choice(name="Headwear", value="Headwear"),
+        app_commands.Choice(name="Housewares", value="Housewares"),
+        app_commands.Choice(name="Tops", value="Tops")
+    ])
+    async def search(self, interaction: discord.Interaction, name: str, category: str = "All"):
+        """Search for items across all categories"""
         await interaction.response.defer(thinking=True)
         
         try:
             # Search for items in the cache
-            items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(pattern)
+            items = await self.bot.acnh_service.repo.search_items_by_base_name_fuzzy(name)
+            
+            # Filter by category if specified
+            if category != "All":
+                items = [item for item in items if item.category == category]
             
             if not items:
+                category_text = f" in category **{category}**" if category != "All" else ""
                 await interaction.followup.send(
-                    f"No furniture items found matching **{pattern}** 🔍\n"
-                    f"Try a different search term or use `/lookup furniture <exact_name>` if you know the item name.",
+                    f"No items found matching **{name}**{category_text} 🔍\n"
+                    f"Try a different search term or check your spelling.",
                     ephemeral=True
                 )
                 return
             
+            # Group items by category and base name (without color variants)
+            category_items = {}
+            for item in items:
+                # Extract base name (remove color variant part)
+                base_name = item.name
+                if ' (' in base_name and base_name.endswith(')'):
+                    base_name = base_name.split(' (')[0]
+                
+                if item.category not in category_items:
+                    category_items[item.category] = {}
+                
+                if base_name not in category_items[item.category]:
+                    category_items[item.category][base_name] = []
+                category_items[item.category][base_name].append(item)
+            
             # Create a search results embed
+            category_filter_text = f" in {category}" if category != "All" else ""
             embed = discord.Embed(
-                title=f"🪑 Furniture Search: '{pattern}'",
-                description=f"Found {len(items)} item(s)",
+                title=f"🔍 Search Results: '{name}'{category_filter_text}",
+                description=f"Found items in {len(category_items)} categor{'y' if len(category_items) == 1 else 'ies'}",
                 color=discord.Color.blue()
             )
             
-            for i, item in enumerate(items[:10]):  # Limit to 10 results
-                value_parts = []
-                if item.category:
-                    value_parts.append(f"**Category:** {item.category}")
-                if item.item_series:
-                    value_parts.append(f"**Series:** {item.item_series}")
-                if item.sell_price is not None:
-                    value_parts.append(f"**Sell:** {item.sell_price:,} Bells")
+            total_shown = 0
+            # If filtering by specific category, allow up to 15 results; otherwise 3 per category with 15 total max
+            max_per_category = 15 if category != "All" else 3
+            max_total = 15
+            
+            for cat_name, base_items in category_items.items():
+                if total_shown >= max_total:
+                    break
+                    
+                # Category emoji
+                category_emoji = "👕" if cat_name in ["Bottoms", "Tops", "Dress-Up", "Accessories", "Headwear"] else "🪑" if cat_name == "Housewares" else "📦"
+                
+                # Show items in this category
+                category_results = []
+                shown_in_category = 0
+                for base_name, color_variants in base_items.items():
+                    if shown_in_category >= max_per_category or total_shown >= max_total:
+                        break
+                    
+                    sample_item = color_variants[0]  # Use first variant as sample
+                    
+                    item_info = base_name
+                    if len(color_variants) > 1:
+                        item_info += f" ({len(color_variants)} variants)"
+                    # if sample_item.sell_price is not None:
+                    #     item_info += f" - {sample_item.sell_price:,} Bells"
+                    
+                    category_results.append(item_info)
+                    shown_in_category += 1
+                    total_shown += 1
+                
+                # Add remaining count if there are more items in this category
+                remaining = len(base_items) - shown_in_category
+                if remaining > 0:
+                    category_results.append(f"...and {remaining} more")
                 
                 embed.add_field(
-                    name=f"{i+1}. {item.name}",
-                    value="\n".join(value_parts) if value_parts else "Item information",
+                    name=f"{category_emoji} {cat_name} ({len(base_items)} items)",
+                    value="\n".join(category_results),
                     inline=False
                 )
             
-            if len(items) > 10:
-                embed.add_field(
-                    name="...",
-                    value=f"And {len(items) - 10} more results. Try a more specific search.",
-                    inline=False
-                )
-            
-            embed.set_footer(text="Use /lookup furniture <name> to get detailed info about a specific item")
+            embed.set_footer(text="Use /lookup clothing or /lookup furniture with the exact name to see detailed info")
             
             await interaction.followup.send(embed=embed)
             
         except Exception as e:
             await interaction.followup.send(
-                f"Error searching for furniture items: {str(e)}", 
+                f"Error searching for items: {str(e)}", 
                 ephemeral=True
             )
 
