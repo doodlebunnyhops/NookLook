@@ -26,7 +26,7 @@ class ACNH(commands.Cog):
             # Convert to autocomplete choices (limit to 25 as per Discord API)
             choices = []
             for item in furniture_items[:25]:
-                choices.append(app_commands.Choice(name=item.name, value=item.name))
+                choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
             
             return choices
         except Exception as e:
@@ -42,7 +42,7 @@ class ACNH(commands.Cog):
                 all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tops', 'Bottoms', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags'], 25)
                 choices = []
                 for item in all_items:
-                    choices.append(app_commands.Choice(name=item.name, value=item.name))
+                    choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
                 return choices
             elif len(current) < 2:
                 return []
@@ -99,10 +99,11 @@ class ACNH(commands.Cog):
         if not item:
             await interaction.followup.send(
                 f"Sorry, I couldn't find a clothing item matching **{name}** 😿\n"
-                f"Try using `/search furniture {name}` to see similar items, or check the spelling.",
+                f"Try using `/search clothing {name}` to see similar items, or check the spelling.",
                 ephemeral=True
             )
             return
+        print("Found clothing item:", item.name, "Color variant:", item.color_variant)
 
         # Use the ACNHItem's built-in Discord embed generation
         embed = item.to_discord_embed()

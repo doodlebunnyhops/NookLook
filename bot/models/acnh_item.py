@@ -200,8 +200,8 @@ class ACNHItem:
     
     def display_name(self) -> str:
         """Get display name with color variant if present"""
-        if self.color_variant:
-            return f"{self.name} ({self.color_variant})"
+        # if self.color_variant:
+        #     return f"{self.name} ({self.color_variant})"
         return self.name
     
     def size_text(self) -> str:

@@ -130,8 +130,8 @@ class ACNHCSVImporter:
             INSERT OR IGNORE INTO acnh_items 
             (name, name_normalized, category, item_series, item_set, hha_category, 
              hha_base, tag, sell_price, grid_width, grid_length, customizable, 
-             custom_kits, custom_kit_type, version_added, notes, image_filename, image_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             custom_kits, custom_kit_type, version_added, notes, image_filename, image_url, hex_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         params = (
@@ -152,7 +152,8 @@ class ACNHCSVImporter:
             item_data["version_added"],
             item_data["notes"],
             item_data["image_filename"],
-            item_data["image_url"]
+            item_data["image_url"],
+            item_data.get("hex_id")
         )
         
         await self.db.execute_command(query, params)
@@ -280,13 +281,8 @@ async def main():
     
     # Define CSV files and their categories
     csv_files = {
-        "data/csv/housewares.csv": "Housewares",
-        # Add more CSV files as you download them:
-        # "data/csv/miscellaneous.csv": "Miscellaneous", 
-        # "data/csv/wall_mounted.csv": "Wall-mounted",
-        # "data/csv/wallpaper.csv": "Wallpaper",
-        # "data/csv/flooring.csv": "Flooring",
-        # "data/csv/rugs.csv": "Rugs",
+        # Import the Bottoms CSV you provided (clothing data)
+        "data/csv/bottoms.csv": "Bottoms",
     }
     
     if not csv_files:

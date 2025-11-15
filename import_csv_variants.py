@@ -70,7 +70,7 @@ class VariantAwareCSVImporter:
             
             # Create full name with color if present
             if color and color.upper() not in ['NA', 'N/A', '']:
-                full_name = f"{base_name} ({color})"
+                full_name = f"{base_name}"
                 name_normalized = f"{base_name.strip().lower()} ({color.strip().lower()})"
             else:
                 full_name = base_name
