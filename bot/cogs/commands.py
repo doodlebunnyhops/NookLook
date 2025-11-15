@@ -21,7 +21,7 @@ class ACNH(commands.Cog):
             items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
             
             # Filter to only furniture categories
-            furniture_items = [item for item in items if item.category in ['Housewares']]
+            furniture_items = [item for item in items if item.category in ['Housewares', 'Miscellaneous', 'Wall-Mounted', 'Ceiling-Decor', 'Wallpaper']]
             
             # Convert to autocomplete choices (limit to 25 as per Discord API)
             choices = []
@@ -64,6 +64,70 @@ class ACNH(commands.Cog):
             # If there's an error, return empty list so autocomplete doesn't break
             print(f"Error in clothing autocomplete: {e}")
             return []
+        
+    async def tool_name_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """Autocomplete for clothing names"""
+        try:
+            if len(current) == 0:
+                # Show 25 random clothing items when no input
+                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tools'], 25)
+                
+                choices = []
+                for item in all_items:
+                    choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
+                return choices
+            elif len(current) < 2:
+                return []
+            else:
+                # Get clothing items that match the current input
+                items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
+                
+                # Filter to only clothing categories
+                clothing_items = [item for item in items if item.category in ['Tools']]
+                
+                # Convert to autocomplete choices (limit to 25 as per Discord API)
+                choices = []
+                for item in clothing_items[:25]:
+                    choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
+                
+                return choices
+        except Exception as e:
+            # If there's an error, return empty list so autocomplete doesn't break
+            print(f"Error in clothing autocomplete: {e}")
+            return []
+
+
+    async def collectable_name_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """Autocomplete for collectable names"""
+        try:
+            if len(current) == 0:
+                # Show 25 random collectable items when no input
+                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Collectables'], 25)
+                
+                choices = []
+                for item in all_items:
+                    choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
+                return choices
+            elif len(current) < 2:
+                return []
+            else:
+                # Get collectable items that match the current input
+                items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
+                
+                # Filter to only collectable categories
+                collectable_items = [item for item in items if item.category in ['Collectables']]
+                
+                # Convert to autocomplete choices (limit to 25 as per Discord API)
+                choices = []
+                for item in collectable_items[:25]:
+                    choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
+                
+                return choices
+        except Exception as e:
+            # If there's an error, return empty list so autocomplete doesn't break
+            print(f"Error in collectable autocomplete: {e}")
+            return []
+
 
     # Main lookup command group
     lookup_group = app_commands.Group(name="lookup", description="Look up Animal Crossing: New Horizons items")
@@ -111,6 +175,50 @@ class ACNH(commands.Cog):
         await interaction.followup.send(embed=embed)
 
 
+    @lookup_group.command(name="tools", description="Look up tools and gadgets")
+    @app_commands.describe(name="The tool item name to look up")
+    @app_commands.autocomplete(name=tool_name_autocomplete)
+    async def lookup_tools(self, interaction: discord.Interaction, name: str):
+        """Lookup tools by name"""
+        await interaction.response.defer(thinking=True)
+
+        # Use the service from the bot instance
+        item = await self.bot.acnh_service.get_item(name)
+        if not item:
+            await interaction.followup.send(
+                f"Sorry, I couldn't find a tool item matching **{name}** 😿\n"
+                f"Try using `/search {name}` to see similar items, or check the spelling.",
+                ephemeral=True
+            )
+            return
+        print("Found item:", item.name, "Color variant:", item.color_variant)
+
+        # Use the ACNHItem's built-in Discord embed generation
+        embed = item.to_discord_embed()
+        await interaction.followup.send(embed=embed)
+
+    @lookup_group.command(name="collectables", description="Look up collectable items")
+    @app_commands.describe(name="The collectable item name to look up")
+    @app_commands.autocomplete(name=collectable_name_autocomplete)
+    async def lookup_collectables(self, interaction: discord.Interaction, name: str):
+        """Lookup collectables by name"""
+        await interaction.response.defer(thinking=True)
+
+        # Use the service from the bot instance
+        item = await self.bot.acnh_service.get_item(name)
+        if not item:
+            await interaction.followup.send(
+                f"Sorry, I couldn't find a collectable item matching **{name}** 😿\n"
+                f"Try using `/search {name}` to see similar items, or check the spelling.",
+                ephemeral=True
+            )
+            return
+        print("Found item:", item.name, "Color variant:", item.color_variant)
+
+        # Use the ACNHItem's built-in Discord embed generation
+        embed = item.to_discord_embed()
+        await interaction.followup.send(embed=embed)
+
 
     @app_commands.command(name="search", description="Search for items across all categories")
     @app_commands.describe(
@@ -123,8 +231,14 @@ class ACNH(commands.Cog):
         app_commands.Choice(name="Bottoms", value="Bottoms"),
         app_commands.Choice(name="Dress-Up", value="Dress-Up"),
         app_commands.Choice(name="Headwear", value="Headwear"),
+        app_commands.Choice(name="Tops", value="Tops"),
         app_commands.Choice(name="Housewares", value="Housewares"),
-        app_commands.Choice(name="Tops", value="Tops")
+        app_commands.Choice(name="Miscellaneous", value="Miscellaneous"),
+        app_commands.Choice(name="Wall-Mounted", value="Wall-Mounted"),
+        app_commands.Choice(name="Ceiling-Decor", value="Ceiling-Decor"),
+        app_commands.Choice(name="Wallpaper", value="Wallpaper"),
+        app_commands.Choice(name="Tools", value="Tools"),
+        app_commands.Choice(name="Collectables", value="Collectables"),
     ])
     async def search(self, interaction: discord.Interaction, name: str, category: str = "All"):
         """Search for items across all categories"""

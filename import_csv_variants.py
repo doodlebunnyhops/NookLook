@@ -97,9 +97,8 @@ class VariantAwareCSVImporter:
         size_str = self._get_value(row, ['Size'])
         grid_width, grid_length = self._parse_size(size_str)
         
-        # Handle image filename and generate URL (from import_csv.py logic)
-        filename = self._get_value(row, ['Filename', 'filename'])
-        image_url = self._generate_image_url(filename) if filename else None
+        # Handle image filename - check inventory first, then storage, then fallback to regular filename
+        filename, image_url = self._extract_filename_and_url(row)
         
         return {
             "name": name,
@@ -256,6 +255,70 @@ class VariantAwareCSVImporter:
         # Use the ACNH CDN pattern discovered from the Google Sheet
         return f"https://acnhcdn.com/latest/FtrIcon/{filename.strip()}.png"
     
+    def _extract_filename_and_url(self, row: Dict[str, str]) -> tuple[Optional[str], Optional[str]]:
+        """Extract filename and generate appropriate URL, trying inventory first, then storage, then regular filename"""
+        
+        # Try inventory filename first
+        inventory_field = self._get_value(row, ['Inventory Filename'])
+        if inventory_field:
+            filename = self._extract_filename_from_image_formula(inventory_field)
+            if filename:
+                # Generate MenuIcon URL for inventory items
+                image_url = f"https://acnhcdn.com/latest/MenuIcon/{filename.strip()}.png"
+                return filename, image_url
+        
+        # Try storage filename second
+        storage_field = self._get_value(row, ['Storage Filename'])
+        if storage_field:
+            filename = self._extract_filename_from_image_formula(storage_field)
+            if filename:
+                # Generate FtrIcon URL for storage items
+                image_url = f"https://acnhcdn.com/latest/FtrIcon/{filename.strip()}.png"
+                return filename, image_url
+        
+        # Fall back to regular filename field
+        regular_filename = self._get_value(row, ['Filename', 'filename'])
+        if regular_filename:
+            # Use existing logic for regular filenames
+            image_url = self._generate_image_url(regular_filename)
+            return regular_filename, image_url
+        
+        return None, None
+    
+    def _extract_filename_from_image_formula(self, field_value: str) -> Optional[str]:
+        """Extract filename from IMAGE() formula like 'IMAGE("https://acnhcdn.com/latest/FtrIcon/SquashOrange.png")'"""
+        if not field_value:
+            return None
+        
+        # Handle cases where it's just the filename (already processed)
+        if not field_value.startswith('IMAGE('):
+            return field_value.strip() if field_value.strip() not in ['', 'NA', 'N/A'] else None
+        
+        # Extract URL from IMAGE("url") format
+        try:
+            # Find the URL inside the quotes
+            start_quote = field_value.find('"')
+            if start_quote == -1:
+                return None
+            
+            end_quote = field_value.find('"', start_quote + 1)
+            if end_quote == -1:
+                return None
+            
+            url = field_value[start_quote + 1:end_quote]
+            
+            # Extract filename from URL (last part before .png)
+            if '/' in url:
+                filename_with_ext = url.split('/')[-1]  # Get "SquashOrange.png"
+                if '.' in filename_with_ext:
+                    filename = filename_with_ext.rsplit('.', 1)[0]  # Remove ".png" to get "SquashOrange"
+                    return filename.strip() if filename.strip() else None
+            
+        except Exception:
+            pass
+        
+        return None
+    
     def _print_stats(self):
         """Print import statistics"""
         print(f"\n📊 Import Statistics:")
@@ -265,13 +328,13 @@ class VariantAwareCSVImporter:
         print(f"   Errors: {self.import_stats['errors']}")
 
 async def main():
-    """Main function - import bottoms with variants"""
+    """Main function - import collectables with enhanced filename handling"""
     # Initialize database first
     db = Database("data/acnh_cache.db")
     await db.init_from_schema("schemas/items.sql")
     
     importer = VariantAwareCSVImporter()
-    await importer.import_csv_file("data/csv/bottoms.csv", "Bottoms")
+    await importer.import_csv_file("data/csv/collectable.csv", "Collectables")
 
 if __name__ == "__main__":
     asyncio.run(main())

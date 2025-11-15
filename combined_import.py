@@ -27,9 +27,15 @@ async def combined_import():
     # await csv_importer.import_csv_file("data/csv/housewares.csv", "Housewares")
     # await csv_importer.import_csv_file("data/csv/tops_v2.csv", "Tops")
     # await csv_importer.import_csv_file("data/csv/bottoms.csv", "Bottoms")
-    await csv_importer.import_csv_file("data/csv/accessories.csv", "Accessories")
-    await csv_importer.import_csv_file("data/csv/Dress-Up.csv", "Dress-Up")
-    await csv_importer.import_csv_file("data/csv/Headwear.csv", "Headwear")
+    # await csv_importer.import_csv_file("data/csv/accessories.csv", "Accessories")
+    # await csv_importer.import_csv_file("data/csv/Dress-Up.csv", "Dress-Up")
+    # await csv_importer.import_csv_file("data/csv/Headwear.csv", "Headwear")
+    # await csv_importer.import_csv_file("data/csv/Miscellaneous.csv", "Miscellaneous")
+    # await csv_importer.import_csv_file("data/csv/Wall-mounted.csv", "Wall-Mounted")
+    # await csv_importer.import_csv_file("data/csv/Ceiling-Decor.csv", "Ceiling-Decor")
+    # await csv_importer.import_csv_file("data/csv/Wallpaper.csv", "Wallpaper")
+    # await csv_importer.import_csv_file("data/csv/Tools.csv", "Tools")
+    await csv_importer.import_csv_file("data/csv/collectable.csv", "Collectables")
 
     
     print(f"\n✅ CSV import complete!")

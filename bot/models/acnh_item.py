@@ -333,7 +333,7 @@ class ACNHItem:
             embed.add_field(name="✨ Special", value=lucky_text, inline=True)
         
         # HHA info
-        if self.hha_base is not None:
+        if self.hha_base is not None or self.hha_base > 0:
             embed.add_field(name="HHA Points", value=f"{self.hha_base:,}", inline=True)
         
         # Hex ID (important for your system)
