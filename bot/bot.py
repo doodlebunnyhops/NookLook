@@ -36,6 +36,10 @@ class ACNHBot(commands.Bot):
             await self.load_extension("bot.cogs.commands")
             self.logger.info("Loaded ACNH commands cog")
             
+            # Load the help cog
+            await self.load_extension("bot.cogs.help")
+            self.logger.info("Loaded help cog")
+            
             # Note: Command syncing will happen in on_ready() after we know if we're in any guilds
             self.logger.info("Setup complete - commands will sync when bot joins a guild")
                 
