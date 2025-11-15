@@ -56,7 +56,7 @@ class ACNH(commands.Cog):
                 # Convert to autocomplete choices (limit to 25 as per Discord API)
                 choices = []
                 for item in clothing_items[:25]:
-                    choices.append(app_commands.Choice(name=item.name, value=item.name))
+                    choices.append(app_commands.Choice(name=item.name_normalized, value=item.name_normalized))
                 
                 return choices
         except Exception as e:
