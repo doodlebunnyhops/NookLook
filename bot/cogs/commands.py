@@ -17,18 +17,51 @@ class ACNH(commands.Cog):
             return []
         
         try:
-            # Get items that match the current input
+            # Get furniture items that match the current input
             items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
+            
+            # Filter to only furniture categories
+            furniture_items = [item for item in items if item.category in ['Housewares', 'Miscellaneous', 'Wall-mounted']]
             
             # Convert to autocomplete choices (limit to 25 as per Discord API)
             choices = []
-            for item in items[:25]:
+            for item in furniture_items[:25]:
                 choices.append(app_commands.Choice(name=item.name, value=item.name))
             
             return choices
         except Exception as e:
             # If there's an error, return empty list so autocomplete doesn't break
             print(f"Error in furniture autocomplete: {e}")
+            return []
+
+    async def clothing_name_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """Autocomplete for clothing names"""
+        try:
+            if len(current) == 0:
+                # Show 25 random clothing items when no input
+                all_items = await self.bot.acnh_service.repo.get_random_items_by_category(['Tops', 'Bottoms', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags'], 25)
+                choices = []
+                for item in all_items:
+                    choices.append(app_commands.Choice(name=item.name, value=item.name))
+                return choices
+            elif len(current) < 2:
+                return []
+            else:
+                # Get clothing items that match the current input
+                items = await self.bot.acnh_service.repo.search_items_by_name_fuzzy(current)
+                
+                # Filter to only clothing categories
+                clothing_items = [item for item in items if item.category in ['Tops', 'Bottoms', 'Dresses', 'Headwear', 'Accessories', 'Socks', 'Shoes', 'Bags']]
+                
+                # Convert to autocomplete choices (limit to 25 as per Discord API)
+                choices = []
+                for item in clothing_items[:25]:
+                    choices.append(app_commands.Choice(name=item.name, value=item.name))
+                
+                return choices
+        except Exception as e:
+            # If there's an error, return empty list so autocomplete doesn't break
+            print(f"Error in clothing autocomplete: {e}")
             return []
 
     # Main lookup command group
@@ -46,6 +79,27 @@ class ACNH(commands.Cog):
             await interaction.followup.send(
                 f"Sorry, I couldn't find a furniture item matching **{name}** 😿\n"
                 f"Try using `/search furniture {name}` to see similar items.",
+                ephemeral=True
+            )
+            return
+
+        # Use the ACNHItem's built-in Discord embed generation
+        embed = item.to_discord_embed()
+        await interaction.followup.send(embed=embed)
+
+    @lookup_group.command(name="clothing", description="Look up clothing and apparel")
+    @app_commands.describe(name="The clothing item name to look up")
+    @app_commands.autocomplete(name=clothing_name_autocomplete)
+    async def lookup_clothing(self, interaction: discord.Interaction, name: str):
+        """Lookup clothing by name (uses same autocomplete/service as furniture)"""
+        await interaction.response.defer(thinking=True)
+
+        # Use the service from the bot instance
+        item = await self.bot.acnh_service.get_item(name)
+        if not item:
+            await interaction.followup.send(
+                f"Sorry, I couldn't find a clothing item matching **{name}** 😿\n"
+                f"Try using `/search furniture {name}` to see similar items, or check the spelling.",
                 ephemeral=True
             )
             return

@@ -69,6 +69,8 @@ class ACNHItem:
     name_normalized: str
     url: str = ""
     category: str = ""
+    color_variant: str = ""  # Color variant for our color-aware system
+    hex_id: str = ""         # Hex ID from ACNH data
     
     # Series and classification
     item_series: str = ""
@@ -146,6 +148,8 @@ class ACNHItem:
             name_normalized=data.get('name_normalized', ''),
             url=data.get('url', ''),
             category=data.get('category', ''),
+            color_variant=data.get('color_variant', ''),
+            hex_id=data.get('hex_id', ''),
             item_series=data.get('item_series', ''),
             item_set=data.get('item_set', ''),
             themes=data.get('themes', []),
@@ -179,14 +183,26 @@ class ACNHItem:
         )
     
     def primary_image_url(self) -> str:
-        """Get the primary image URL for this item"""
+        """Get the primary image URL for this item using your import system logic"""
         # First try the main item image URL
         if self.image_url:
             return self.image_url
+        # Then try using image_filename (from your import_csv.py logic)
+        elif self.image_filename:
+            return f"https://acnhcdn.com/latest/FtrIcon/{self.image_filename}.png"
+        # Then try hex_id (from your color-aware system)
+        elif self.hex_id:
+            return f"https://acnhcdn.com/latest/FtrIcon/{self.hex_id}.png"
         # Fallback to variation image if available
-        if self.variations and self.variations[0].image_url:
+        elif self.variations and self.variations[0].image_url:
             return self.variations[0].image_url
         return ""
+    
+    def display_name(self) -> str:
+        """Get display name with color variant if present"""
+        if self.color_variant:
+            return f"{self.name} ({self.color_variant})"
+        return self.name
     
     def size_text(self) -> str:
         """Get size as formatted text"""
@@ -253,7 +269,7 @@ class ACNHItem:
     def to_discord_embed(self, color: discord.Color = discord.Color.green()) -> discord.Embed:
         """Convert this item to a Discord embed"""
         embed = discord.Embed(
-            title=self.name,
+            title=self.display_name(),  # Use display name with color variant
             url=self.url if self.url else None,
             description="Animal Crossing: New Horizons Item",
             color=color
@@ -304,6 +320,10 @@ class ACNHItem:
         # HHA info
         if self.hha_base is not None:
             embed.add_field(name="HHA Points", value=f"{self.hha_base:,}", inline=True)
+        
+        # Hex ID (important for your system)
+        if self.hex_id:
+            embed.add_field(name="Hex ID", value=self.hex_id, inline=True)
         
         # Availability
         if self.availability:
