@@ -27,7 +27,7 @@ CREATE TABLE items (
 
     -- Image base
     filename            TEXT,                       -- Base filename from CSV
-    image_url           TEXT,                       -- generic icon for the whole item group, set to default variant if needed
+    image_base          TEXT,                       -- Optional: base URL/prefix if you want to store it
 
     -- Extra JSON for category-specific oddities if needed
     extra_json          TEXT
@@ -78,15 +78,15 @@ CREATE TABLE item_variants (
     -- For 1D:  TI uses   !customize <item_hex> <ti_primary>
     -- For 2D:  TI uses   !customize <item_hex> <ti_primary> <ti_secondary>
     ti_primary              INTEGER,                     -- Mostly same as primary_index
-    ti_secondary            INTEGER,                     -- NULL for 1D items; calculated value for 2D
+    ti_secondary            INTEGER,                     -- NULL for 1D items; e.g. secondary_index * 32 for 2D
     ti_customize_str        TEXT,                        -- E.g. '3' or '0 128'
 
     -- Optional: precomputed 16-char TI drop hex, e.g. '00000003000002E3'
     ti_full_hex             TEXT,
 
     -- Per-variant image handling
-    image_url               TEXT,                        -- Fully resolved URL if you choose to store it
-    image_url_alt           TEXT                         -- Alternate image URL if item has multiple images
+    image_filename          TEXT,                        -- Variant-specific filename if applicable
+    image_url               TEXT                         -- Fully resolved URL if you choose to store it
 );
 
 CREATE INDEX idx_item_variants_item ON item_variants(item_id);
@@ -102,7 +102,7 @@ CREATE TABLE recipes (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
     internal_id         INTEGER,           -- From Recipes CSV, if present
-    product_item_id     INTEGER,           -- FK to items.id for the crafted item (nullable if you can't map it)
+    product_item_id     INTEGER,           -- FK to items.id for the crafted item (nullable if you can’t map it)
     category            TEXT,             -- E.g. 'Furniture', 'Wall-mounted', 'Food', etc.
     source              TEXT,             -- Where you get the recipe
     source_notes        TEXT,             -- Extra notes
@@ -111,8 +111,7 @@ CREATE TABLE recipes (
     sell_price          INTEGER,
     hha_base            INTEGER,
     version_added       TEXT,
-    image_url           TEXT,             -- Recipe card image or icon URL
-    image_url_alt       TEXT,             -- Alternate image URL if applicable
+    filename            TEXT,             -- Recipe card image or icon
     extra_json          TEXT,             -- For future specialty fields
     FOREIGN KEY (product_item_id) REFERENCES items(id) ON DELETE SET NULL
 );
@@ -144,17 +143,24 @@ DROP TABLE IF EXISTS critters;
 CREATE TABLE critters (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
-    kind                    TEXT NOT NULL,
+    kind                    TEXT NOT NULL,    -- 'insect', 'fish', 'sea'
+
+    -- ACNH identity
     internal_id             INTEGER,
     unique_entry_id         TEXT,
+
+    -- Common museum-ish fields
     sell_price              INTEGER,
-    location                TEXT,
-    shadow_size             TEXT,
-    movement_speed          TEXT,
-    catch_difficulty        TEXT,
-    vision                  TEXT,
-    total_catches_to_unlock TEXT,
-    spawn_rates             TEXT,
+    location                TEXT,             -- 'River', 'Sea', 'On trees', etc.
+    shadow_size             TEXT,             -- For fish/sea; NULL for insects
+    movement_speed          TEXT,             -- For sea creatures
+    catch_difficulty        TEXT,             -- For fish; optional for others
+    vision                  TEXT,             -- For fish; optional for others
+
+    total_catches_to_unlock TEXT,             -- from CSV; keep as text for now
+    spawn_rates             TEXT,             -- raw spawn rate string
+
+    -- Availability by hemisphere (you can also normalize later if you want)
     nh_jan                  TEXT,
     nh_feb                  TEXT,
     nh_mar                  TEXT,
@@ -167,6 +173,7 @@ CREATE TABLE critters (
     nh_oct                  TEXT,
     nh_nov                  TEXT,
     nh_dec                  TEXT,
+
     sh_jan                  TEXT,
     sh_feb                  TEXT,
     sh_mar                  TEXT,
@@ -179,20 +186,28 @@ CREATE TABLE critters (
     sh_oct                  TEXT,
     sh_nov                  TEXT,
     sh_dec                  TEXT,
-    time_of_day             TEXT,
-    weather                 TEXT,
+
+    time_of_day             TEXT,             -- e.g. 'All day', '4pm–9am'
+    weather                 TEXT,             -- e.g. 'Rain only'
     rarity                  TEXT,
+
+    -- Description & flavor
     description             TEXT,
     catch_phrase            TEXT,
+
+    -- HHA & appearance
     hha_base_points         INTEGER,
     hha_category            TEXT,
     color1                  TEXT,
     color2                  TEXT,
     size                    TEXT,
     surface                 TEXT,
-    icon_url                TEXT,
-    critterpedia_url        TEXT,
-    furniture_url           TEXT,
+
+    -- Images / filenames
+    icon_filename           TEXT,
+    critterpedia_filename   TEXT,
+    furniture_filename      TEXT,
+
     source                  TEXT,
     version_added           TEXT,
     extra_json              TEXT
@@ -212,23 +227,27 @@ DROP TABLE IF EXISTS fossils;
 CREATE TABLE fossils (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
-    image_url               TEXT,
-    image_url_alt           TEXT,
+
+    image_filename          TEXT,          -- 'Image' / 'Filename' from CSV
+
     buy_price               INTEGER,
     sell_price              INTEGER,
-    fossil_group            TEXT,
+    fossil_group            TEXT,          -- Fossil Group (e.g. 'T-rex', 'Brontosaurus')
     description             TEXT,
+
     hha_base_points         INTEGER,
     color1                  TEXT,
     color2                  TEXT,
     size                    TEXT,
-    source                  TEXT,
-    museum                  TEXT,
+    source                  TEXT,          -- Usually 'Dig Spot' etc.
+    museum                  TEXT,          -- Museum info from CSV
     interact                TEXT,
     catalog                 TEXT,
-    filename                TEXT,
+
+    filename                TEXT,          -- Base filename from CSV
     internal_id             INTEGER,
     unique_entry_id         TEXT,
+
     extra_json              TEXT
 );
 
@@ -244,36 +263,45 @@ DROP TABLE IF EXISTS artwork;
 
 CREATE TABLE artwork (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-    name                    TEXT NOT NULL,
-    image_url               TEXT,
-    image_url_alt           TEXT,
-    genuine                 INTEGER,
-    art_category            TEXT,
+    name                    TEXT NOT NULL,       -- In-game art name
+
+    image_filename          TEXT,               -- 'Image'
+    high_res_texture        TEXT,               -- 'High-Res Texture'
+    genuine                 INTEGER,            -- 1 if genuine, 0 if always fake, etc. (you can decide mapping)
+    art_category            TEXT,               -- 'Painting', 'Statue', etc.
+
     buy_price               INTEGER,
     sell_price              INTEGER,
     color1                  TEXT,
     color2                  TEXT,
     size                    TEXT,
+
     real_artwork_title      TEXT,
     artist                  TEXT,
     description             TEXT,
+
     source                  TEXT,
     source_notes            TEXT,
+
     hha_base_points         INTEGER,
     hha_concept1            TEXT,
     hha_concept2            TEXT,
     hha_series              TEXT,
     hha_set                 TEXT,
+
     interact                TEXT,
     tag                     TEXT,
     speaker_type            TEXT,
     lighting_type           TEXT,
     catalog                 TEXT,
+
     version_added           TEXT,
-    unlocked                TEXT,
-    filename                TEXT,
+    unlocked                TEXT,              -- 'Yes'/'No' or similar
+
+    filename                TEXT,              -- Base filename
     internal_id             INTEGER,
     unique_entry_id         TEXT,
+
     extra_json              TEXT
 );
 
@@ -284,15 +312,22 @@ CREATE INDEX idx_artwork_internal_id ON artwork(internal_id);
 -- =========================================================
 -- MUSEUM_INDEX: unified view of "things you can donate"
 -- =========================================================
+-- This is optional but VERY handy for your bot:
+-- lets you say "this is a museum thing" and then jump to the
+-- appropriate table/record without remembering where it lives.
 
 DROP TABLE IF EXISTS museum_index;
 
 CREATE TABLE museum_index (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    name            TEXT NOT NULL,
-    wing            TEXT NOT NULL,
-    ref_table       TEXT NOT NULL,
-    ref_id          INTEGER NOT NULL
+
+    name            TEXT NOT NULL,      -- Display name
+    wing            TEXT NOT NULL,      -- 'bugs', 'fish', 'sea', 'fossils', 'art'
+    ref_table       TEXT NOT NULL,      -- 'critters', 'fossils', 'artwork'
+    ref_id          INTEGER NOT NULL,   -- PK in that table
+
+    -- Optional: you can also store short description or emoji here
+    blathers_blurb  TEXT
 );
 
 CREATE INDEX idx_museum_index_name ON museum_index(name);
@@ -306,35 +341,25 @@ CREATE INDEX idx_museum_index_wing ON museum_index(wing);
 CREATE TABLE villagers (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
+    internal_id         INTEGER,          -- From Villagers CSV
+
     species             TEXT,
-    gender              TEXT,
     personality         TEXT,
-    subtype             TEXT,
+    gender              TEXT,
+    birthday            TEXT,             -- Could be 'DD-MM' or 'Month Day' as text
     hobby               TEXT,
-    birthday            TEXT,
     catchphrase         TEXT,
     favorite_song       TEXT,
-    favorite_saying     TEXT,
+
     style1              TEXT,
     style2              TEXT,
-    color1              TEXT,
-    color2              TEXT,
-    default_clothing    TEXT,
-    default_umbrella    TEXT,
-    wallpaper           TEXT,
-    flooring            TEXT,
-    furniture_list      TEXT,
-    furniture_name_list TEXT,
-    diy_workbench       TEXT,
-    kitchen_equipment   TEXT,
+    colors              TEXT,             -- e.g. comma-separated or JSON
+    house_exterior      TEXT,
+    house_interior      TEXT,
+
+    filename            TEXT,             -- Portrait image filename
     version_added       TEXT,
-    name_color          TEXT,
-    bubble_color        TEXT,
-    filename            TEXT,
-    unique_entry_id     TEXT,
-    icon_image          TEXT,
-    photo_image         TEXT,
-    house_image         TEXT
+    extra_json          TEXT
 );
 
 CREATE INDEX idx_villagers_name ON villagers(name);
@@ -345,11 +370,29 @@ CREATE INDEX idx_villagers_personality ON villagers(personality);
 -- =========================================================
 -- SEARCH INDEX (FTS5): unified name search
 -- =========================================================
+-- This lets you do a single /search that finds items, recipes,
+-- villagers, critters, etc., then jump to the right table by ref.
+
+-- NOTE: Requires SQLite compiled with FTS5.
+-- If you ever hit issues, you can comment this out.
 
 CREATE VIRTUAL TABLE search_index USING fts5(
     name,               -- Display name as shown in-game
-    category,           -- 'item', 'recipe', 'villager', 'critter', etc.
-    subcategory,        -- More specific type within category
-    ref_table,          -- Which table this refers to
-    ref_id              -- The id in that table
+    category,           -- High-level: 'item', 'recipe', 'villager', 'critter'
+    subcategory,        -- E.g. 'misc', 'tops', 'insect', 'fish', 'sea', 'food', etc.
+    ref_table,          -- 'items', 'recipes', 'villagers', 'critters'
+    ref_id,             -- The primary key of the referenced table (stored as TEXT here)
+    tokenize = "unicode61"
 );
+
+-- Suggested pattern for populating search_index (pseudocode):
+-- INSERT INTO search_index (name, category, subcategory, ref_table, ref_id)
+-- VALUES ('Tea table', 'item', 'misc', 'items', <items.id>);
+--
+-- INSERT INTO search_index (name, category, subcategory, ref_table, ref_id)
+-- VALUES ('Cherry pie', 'recipe', 'food', 'recipes', <recipes.id>);
+--
+-- Then you can query:
+-- SELECT name, category, subcategory, ref_table, ref_id
+-- FROM search_index
+-- WHERE search_index MATCH 'tea';
