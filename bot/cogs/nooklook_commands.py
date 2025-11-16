@@ -53,6 +53,7 @@ class BrowseGroup(app_commands.Group):
         return [app_commands.Choice(name=cat, value=cat) for cat in filtered]
     
     @app_commands.command(name="items", description="Browse furniture and items with filters")
+    @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
     @app_commands.describe(
         category="Filter by item category (e.g., Housewares, Miscellaneous)",
         color="Filter by primary color",
@@ -141,6 +142,7 @@ class ACNHCommands(commands.Cog):
             logger.error(f"Failed to initialize ACNH database: {e}")
     
     @app_commands.command(name="search", description="Search across all ACNH content")
+    @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
     @app_commands.describe(
         query="What to search for (exact phrase matching)",
         category="Limit search to specific content type"
@@ -296,6 +298,7 @@ class ACNHCommands(commands.Cog):
             return []
 
     @app_commands.command(name="lookup", description="Look up a specific ACNH item")
+    @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
     @app_commands.describe(item="Item name to look up")
     @app_commands.autocomplete(item=item_name_autocomplete)
     async def lookup(self, interaction: discord.Interaction, item: str):

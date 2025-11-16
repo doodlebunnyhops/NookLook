@@ -42,26 +42,78 @@ class NooklookRepository:
         
         return await self.db.execute_query(sql, params)
     
+    def _escape_fts_query(self, query: str) -> str:
+        """Escape FTS5 special characters"""
+        # FTS5 special characters that need escaping: " ' - ( ) * 
+        special_chars = ['"', "'", "-", "(", ")", "*"]
+        escaped = query
+        for char in special_chars:
+            escaped = escaped.replace(char, f'"{char}"')
+        return escaped
+
     async def search_fts_autocomplete(self, query: str, category_filter: str = None, limit: int = 25) -> List[Dict[str, Any]]:
         """Search using FTS5 for autocomplete with prefix matching"""
-        # Use prefix matching for autocomplete - more flexible than exact phrases
-        fts_query = f'{query.strip()}*'
+        query = query.strip()
         
-        sql = """
-            SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
-            FROM search_index s
-            WHERE s.name MATCH ?
-        """
-        params = [fts_query]
+        # Try multiple search strategies for better results with special characters
+        results = []
         
-        if category_filter:
-            sql += " AND s.category = ?"
-            params.append(category_filter)
+        # Strategy 1: Try prefix matching (works for most cases)
+        try:
+            # Escape FTS5 special characters
+            escaped_query = self._escape_fts_query(query)
+            fts_query = f'{escaped_query}*'
+            sql = """
+                SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
+                FROM search_index s
+                WHERE s.name MATCH ?
+            """
+            params = [fts_query]
+            
+            if category_filter:
+                sql += " AND s.category = ?"
+                params.append(category_filter)
+            
+            sql += " ORDER BY bm25(search_index) LIMIT ?"
+            params.append(limit)
+            
+            results = await self.db.execute_query(sql, params)
+        except:
+            # If FTS5 prefix matching fails, results will remain empty
+            pass
         
-        sql += " ORDER by bm25(search_index) LIMIT ?"
-        params.append(limit)
+        # Strategy 2: If prefix matching failed or returned few results, try LIKE matching
+        if len(results) < 5:
+            try:
+                # Use LIKE for partial matching when FTS5 fails with special characters
+                like_query = f'%{query}%'
+                sql = """
+                    SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
+                    FROM search_index s
+                    WHERE s.name LIKE ?
+                """
+                params = [like_query]
+                
+                if category_filter:
+                    sql += " AND s.category = ?"
+                    params.append(category_filter)
+                
+                sql += " ORDER BY CASE WHEN s.name LIKE ? THEN 0 ELSE 1 END, s.name LIMIT ?"
+                params.extend([f'{query}%', limit])  # Prioritize items that start with the query
+                
+                like_results = await self.db.execute_query(sql, params)
+                
+                # Combine results, avoiding duplicates
+                existing_ids = {r['ref_id'] for r in results}
+                for result in like_results:
+                    if result['ref_id'] not in existing_ids:
+                        results.append(result)
+                        if len(results) >= limit:
+                            break
+            except:
+                pass
         
-        return await self.db.execute_query(sql, params)
+        return results[:limit]
     
     async def get_random_items(self, limit: int = 25) -> List[Item]:
         """Get random items from the database"""

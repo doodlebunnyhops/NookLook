@@ -249,6 +249,8 @@ class VariantSelectView(discord.ui.View):
         self.item = item
         self.interaction_user = interaction_user
         self.selected_variant = item.variants[0] if item.variants else None
+        self.initial_variant = self.selected_variant  # Track the initial/default variant
+        self.user_selected_different_variant = False  # Track if user selected a DIFFERENT variant
         
         # Add variant selector if item has multiple variants
         if len(item.variants) > 1:
@@ -274,6 +276,10 @@ class VariantSelectView(discord.ui.View):
                         label = variant.color1
                     # else:
                     #     label += f" - {variant.color1}"
+                
+                # Mark the default/initial variant
+                if variant == self.initial_variant:
+                    label += " (Default)"
                 
                 # Ensure we don't exceed Discord's character limit
                 label = label[:100]
@@ -320,6 +326,10 @@ class VariantSelectView(discord.ui.View):
                     else:
                         label = f"{variant_num}. {label}"
                     
+                    # Mark the default/initial variant
+                    if variant == self.initial_variant:
+                        label += " (Default)"
+                    
                     # Ensure we don't exceed Discord's character limit
                     label = label[:100]
                     
@@ -351,50 +361,9 @@ class VariantSelectView(discord.ui.View):
         if not variant:
             return discord.Embed(title="❌ No variant selected", color=0xe74c3c)
         
-        embed = discord.Embed(
-            title=f"🏠 {self.item.name}",
-            color=0x3498db
-        )
-        
-        # Add item details - keep category, sell price, buy price, source
-        details = []
-        if self.item.category:
-            details.append(f"**Category:** {self.item.category}")
-        if self.item.sell_price:
-            details.append(f"**Sell Price:** {self.item.sell_price:,} Bells")
-        if self.item.buy_price:
-            details.append(f"**Buy Price:** {self.item.buy_price:,} Bells")
-        if self.item.source:
-            details.append(f"**Source:** {self.item.source}")
-        
-        if details:
-            embed.add_field(name="💰 Item Details", value="\n".join(details), inline=False)
-        
-        # Add variant details - show selected variant info with full TI codes
-        variant_info = []
-        
-        # Show selected variant details
-        variant_parts = []
-        if variant.variation_label:
-            variant_parts.append(variant.variation_label)
-        if variant.pattern_label:
-            variant_parts.append(variant.pattern_label)
-        
-        if variant_parts:
-            variant_info.append(f"**Variant:** {', '.join(variant_parts)}")
-        
-        # Show full TI information for specific result
-        if variant.item_hex:
-            variant_info.append(f"**Hex:** {variant.item_hex}")
-        
-        if variant.ti_customize_str:
-            variant_info.append(f"**TI Customize:** `!customize {variant.item_hex or 'XXXX'} {variant.ti_customize_str}`")
-        
-        if variant.ti_full_hex:
-            variant_info.append(f"**TI Drop Hex:** {variant.ti_full_hex}")
-        
-        if variant_info:
-            embed.add_field(name="🎨 Variant Details", value="\n".join(variant_info), inline=False)
+        # Only show variant view if user selected a DIFFERENT variant than the initial one
+        is_variant_view = self.user_selected_different_variant
+        return self.item.to_discord_embed(variant, is_variant_view=is_variant_view)
         
         # Add image if available
         if variant.image_url:
@@ -461,6 +430,12 @@ class VariantSelect(discord.ui.Select):
             
             # Update the view's selected variant
             self.view.selected_variant = selected_variant
+            
+            # Only mark as different variant if it's actually different from the initial one
+            if selected_variant != self.view.initial_variant:
+                self.view.user_selected_different_variant = True
+            else:
+                self.view.user_selected_different_variant = False
             
             # Create new embed and update message
             embed = self.view.create_embed()

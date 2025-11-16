@@ -15,6 +15,7 @@ class Help(commands.Cog):
         print("Help cog ready")
 
     @app_commands.command(name="help", description="Show information about available commands")
+    @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
     async def help(self, interaction: discord.Interaction):
         """Display help information about all available commands"""
         ephemeral = not is_dm(interaction)
@@ -56,6 +57,7 @@ class Help(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @app_commands.command(name="info", description="Show bot information and statistics")
+    @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
     async def info(self, interaction: discord.Interaction):
         """Display bot information and database statistics"""
         ephemeral = not is_dm(interaction)

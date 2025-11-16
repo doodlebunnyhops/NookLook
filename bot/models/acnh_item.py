@@ -191,14 +191,17 @@ class Item:
             return primary.image_url
         return self.image_url
     
-    def to_discord_embed(self, variant: Optional[ItemVariant] = None) -> discord.Embed:
+    def to_discord_embed(self, variant: Optional[ItemVariant] = None, is_variant_view: bool = False) -> discord.Embed:
         """Create Discord embed for this item"""
         selected_variant = variant or self.primary_variant
         
         # Build title
-        title = self.name
-        # if selected_variant and selected_variant.display_name != "Default":
-        #     title += f" ({selected_variant.display_name})"
+        if is_variant_view and variant:
+            # Use emoji prefix for variant view
+            title = f"🏠 {self.name}"
+        else:
+            # Clean title for base item view
+            title = self.name
         
         embed = discord.Embed(
             title=title,
@@ -207,66 +210,99 @@ class Item:
         
         # Add basic info
         info_lines = []
-        info_lines.append(f"**Category:** {self.category}")
+        
+        if is_variant_view and variant:
+            # Variant view format with emoji sections
+            info_lines.append("💰 Item Details")
+            info_lines.append(f"Category: {self.category}")
+        else:
+            # Base item view format - simple
+            info_lines.append(f"Category: {self.category}")
         
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"Sell Price: {self.sell_price:,} Bells")
         
         if self.buy_price:
-            info_lines.append(f"**Buy Price:** {self.buy_price:,} Bells")
+            info_lines.append(f"Buy Price: {self.buy_price:,} Bells")
             
         if self.source:
-            info_lines.append(f"**Source:** {self.source}")
+            info_lines.append(f"Source: {self.source}")
         
         embed.description = "\n".join(info_lines)
         
-        # Add variant info for default variant only
-        if selected_variant:
+        if is_variant_view and variant:
+            # Variant view format - cleaner with emoji sections
             variant_info = []
+            variant_info.append("🎨 Variant Details")
             
-            # Show default variant details in clean format
+            # Show variant name
             default_parts = []
-            if selected_variant.variation_label:
-                default_parts.append(selected_variant.variation_label)
-            if selected_variant.pattern_label:
-                default_parts.append(selected_variant.pattern_label)
+            if variant.variation_label:
+                default_parts.append(variant.variation_label)
+            if variant.pattern_label:
+                default_parts.append(variant.pattern_label)
             
             if default_parts:
-                variant_info.append(f"**Default:** {', '.join(default_parts)}")
+                variant_info.append(f"Variant: {', '.join(default_parts)}")
             
-            # Show only item hex (not all TI codes)
-            if selected_variant.item_hex:
-                variant_info.append(f"**Item Hex:** {selected_variant.item_hex}")
+            # Show hex code
+            if variant.item_hex:
+                variant_info.append(f"Hex: {variant.item_hex}")
             
-            if variant_info:
-                embed.add_field(name="Variant Details", value="\n".join(variant_info), inline=False)
-        
-        # Add variant count if multiple
-        if self.has_variants:
-            # Remove parentheses and format nicely
-            variant_summary = self.variation_pattern_summary.strip("()")
-            embed.add_field(name="Variants", value=f"{variant_summary} available", inline=True)
-        
-        # Add HHA info if available
-        if self.hha_base or (selected_variant and (selected_variant.body_customizable or selected_variant.pattern_customizable)):
-            hha_info = []
-            if self.hha_base:
-                hha_info.append(f"**HHA Points:** {self.hha_base:,}")
+            # Show customize command with $ prefix
+            if variant.item_hex and variant.ti_customize_str:
+                variant_info.append(f"TI Customize: $customize {variant.item_hex} {variant.ti_customize_str}")
             
+            if len(variant_info) > 1:  # More than just the title
+                embed.add_field(name="", value="\n".join(variant_info), inline=False)
+        else:
+            # Base item view format - more detailed
             if selected_variant:
-                customization = []
-                if selected_variant.body_customizable:
-                    customization.append("Body")
-                if selected_variant.pattern_customizable:
-                    customization.append("Pattern")
-                if selected_variant.cyrus_customizable:
-                    customization.append("Cyrus")
+                variant_info = []
                 
-                if customization:
-                    hha_info.append(f"**Customizable:** {', '.join(customization)}")
+                # Show default variant details in clean format
+                default_parts = []
+                if selected_variant.variation_label:
+                    default_parts.append(selected_variant.variation_label)
+                if selected_variant.pattern_label:
+                    default_parts.append(selected_variant.pattern_label)
+                
+                if default_parts:
+                    variant_info.append(f"Default: {', '.join(default_parts)}")
+                
+                # Show only item hex (not all TI codes)
+                if selected_variant.item_hex:
+                    variant_info.append(f"Item Hex: {selected_variant.item_hex}")
+                
+                if variant_info:
+                    embed.add_field(name="Variant Details", value="\n".join(variant_info), inline=False)
             
-            if hha_info:
-                embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
+            # Add variant count if multiple (base view only)
+            if self.has_variants:
+                # Remove parentheses and format nicely
+                variant_summary = self.variation_pattern_summary.strip("()")
+                embed.add_field(name="Variants", value=f"{variant_summary} available", inline=True)
+            
+            # Add HHA info if available (base view only)
+            if self.hha_base or (selected_variant and (selected_variant.body_customizable or selected_variant.pattern_customizable)):
+                hha_info = []
+                if self.hha_base:
+                    hha_info.append(f"HHA Points: {self.hha_base:,}")
+                
+                if selected_variant:
+                    customization = []
+                    if selected_variant.body_customizable:
+                        customization.append("Body")
+                    if selected_variant.pattern_customizable:
+                        customization.append("Pattern")
+                    if selected_variant.cyrus_customizable:
+                        customization.append("Cyrus")
+                    
+                    if customization:
+                        hha_info.append(f"Customizable: {', '.join(customization)}")
+                
+                if hha_info:
+                    embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
         
         # Set image
         image_url = selected_variant.image_url if selected_variant else self.display_image_url

@@ -9,11 +9,10 @@ from .services.acnh_service import NooklookService
 class ACNHBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        # intents.message_content = True  # Enable for group DM functionality
+        intents.message_content = False 
         # intents.dm_messages = True
-        # intents.presences = False
-        # intents.members = False
-        # Message content intent is needed for group DMs and some slash command features
+        intents.presences = False
+        intents.members = False
         
         super().__init__(
             command_prefix='!',
