@@ -2,6 +2,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
+def is_dm(interaction: discord.Interaction) -> bool:
+    """Check if interaction is in a DM or Group DM (both have guild=None)"""
+    return interaction.guild is None
+
 class Help(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -13,7 +17,8 @@ class Help(commands.Cog):
     @app_commands.command(name="help", description="Show information about available commands")
     async def help(self, interaction: discord.Interaction):
         """Display help information about all available commands"""
-        await interaction.response.defer(thinking=True)
+        ephemeral = not is_dm(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         
         embed = discord.Embed(
             title="🏝️ NookLook - Help",
@@ -23,62 +28,56 @@ class Help(commands.Cog):
         
         # Commands
         embed.add_field(
-            name="� Commands",
+            name="📋 Commands",
             value=(
-                "**`/lookup furniture <name>`** - Furniture & housewares\n"
-                "**`/lookup clothing <name>`** - Clothing & accessories\n"  
-                "**`/lookup tools <name>`** - Tools & gadgets\n"
-                "**`/lookup collectables <name>`** - DIY materials & plants\n"
-                "**`/search <name> [category]`** - Search across categories\n"
-                "**`/info`** - Bot statistics"
+                "**`/lookup <item>`** - Look up any ACNH item with autocomplete\n"
+                "**`/search <query> [category]`** - Search across all ACNH content\n"
+                "**`/browse items [filters]`** - Browse items with category/color/price filters\n"
+                "**`/help`** - Show this help message"
             ),
             inline=False
-        )
+        ),
         
         # Quick Tips
         embed.add_field(
             name="💡 Tips",
             value=(
-                "• Use autocomplete for item names\n"
-                "• Some color variants have different hex codes!\n"
-                "• Try `/search` if you can't find an exact match"
+                "• `/lookup` shows random items when you start typing\n"
+                "• Use variant selectors to see different color options\n"
+                "• All responses are private in servers, normal in DMs\n"
+                "• Search supports exact phrase matching for precise results"
             ),
             inline=False
-        )
+        ),
         
-        embed.set_footer(text="Example: /lookup clothing pleather pants")
+        embed.set_footer(text="Example: /lookup apple chair")
         embed.set_thumbnail(url="https://dodo.ac/np/images/thumb/1/13/Maple_Leaf_NH_Inv_Icon.png/60px-Maple_Leaf_NH_Inv_Icon.png")
         
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     @app_commands.command(name="info", description="Show bot information and statistics")
     async def info(self, interaction: discord.Interaction):
         """Display bot information and database statistics"""
-        await interaction.response.defer(thinking=True)
+        ephemeral = not is_dm(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         
-        # Get database statistics
+        # Get database statistics using the service method
         try:
-            total_result = await self.bot.acnh_service.repo.db.execute_query("SELECT COUNT(*) as count FROM acnh_items")
-            total_items = total_result[0]['count']
-            
-            hex_result = await self.bot.acnh_service.repo.db.execute_query("SELECT COUNT(*) as count FROM acnh_items WHERE hex_id IS NOT NULL AND hex_id != ''")
-            hex_items = hex_result[0]['count']
-            
-            image_result = await self.bot.acnh_service.repo.db.execute_query("SELECT COUNT(*) as count FROM acnh_items WHERE image_url IS NOT NULL AND image_url != ''")
-            image_items = image_result[0]['count']
-            
-            # Get category breakdown
-            category_result = await self.bot.acnh_service.repo.db.execute_query("""
-                SELECT category, COUNT(*) as count 
-                FROM acnh_items 
-                GROUP BY category 
-                ORDER BY count DESC
-            """)
+            # Access the service through the nooklook commands cog
+            nooklook_cog = self.bot.get_cog('ACNHCommands')
+            if nooklook_cog:
+                stats = await nooklook_cog.service.get_database_stats()
+                total_items = stats.get('items', 0)
+                total_critters = stats.get('critters', 0)
+                total_recipes = stats.get('recipes', 0)
+                total_villagers = stats.get('villagers', 0)
+                total_content = stats.get('total_content', 0)
+            else:
+                total_items = total_critters = total_recipes = total_villagers = total_content = 0
             
         except Exception as e:
             print(f"Error getting database stats: {e}")
-            total_items = hex_items = image_items = 0
-            category_result = []
+            total_items = total_critters = total_recipes = total_villagers = total_content = 0
         
         embed = discord.Embed(
             title="NookLook - Information",
@@ -88,49 +87,36 @@ class Help(commands.Cog):
         
         # Bot Statistics
         embed.add_field(
-            name="Database Statistics",
+            name="📊 Database Statistics",
             value=(
-                f"**Total Items**: {total_items:,}\n"
-                f"**Items with Hex Codes**: {hex_items:,} ({hex_items/total_items*100:.1f}%)\n"
-                f"**Items with Images**: {image_items:,} ({image_items/total_items*100:.1f}%)\n"
+                f"**🏠 Items**: {total_items:,}\n"
+                f"**🐛 Critters**: {total_critters:,}\n"
+                f"**🛠️ Recipes**: {total_recipes:,}\n"
+                f"**👥 Villagers**: {total_villagers:,}\n"
+                f"**📦 Total Content**: {total_content:,}"
             ),
             inline=True
-        )
-        
-        # Category Breakdown
-        if category_result:
-            category_text = "\n".join([f"**{cat['category']}**: {cat['count']:,}" for cat in category_result[:8]])
-            if len(category_result) > 8:
-                remaining = sum(cat['count'] for cat in category_result[8:])
-                category_text += f"\n**Other**: {remaining:,}"
-        else:
-            category_text = "Unable to load category data"
-            
-        embed.add_field(
-            name="📦 Categories",
-            value=category_text,
-            inline=True
-        )
+        ),
         
         # Features
         embed.add_field(
-            name="Features",
+            name="✨ Features",
             value=(
-                "• Color-specific hex codes\n"
-                "• High-quality item images\n"
-                "• Comprehensive item data\n"
-                "• Smart search & autocomplete\n"
-                "• Variant-aware lookups\n"
-                "• Real ACNH data"
+                "• Smart autocomplete with random suggestions\n"
+                "• Variant selection for color/pattern options\n"
+                "• Full-text search across all content\n"
+                "• Item filtering by category, color, price\n"
+                "• TI customize codes and hex values\n"
+                "• Private responses in servers\n"
+                "• Real ACNH database with 5,850+ items"
             ),
             inline=False
         )
         
-        
-        embed.set_footer(text="Made with 💖 for the ACNH community")
+        embed.set_footer(text="Made with 💖 for the ACNH community | Use /help for command details")
         embed.set_thumbnail(url="https://dodo.ac/np/images/thumb/1/13/Maple_Leaf_NH_Inv_Icon.png/60px-Maple_Leaf_NH_Inv_Icon.png")
         
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Help(bot))

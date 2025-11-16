@@ -1,191 +1,394 @@
 import pathlib
-import aiosqlite
-from typing import Optional, Dict, Any
+import sqlite3
+from typing import Optional, Dict, Any, List, Tuple
 from .database import Database
-from bot.models.acnh_item import ACNHItem
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager
 
-class ACNHItemsRepository:
-    """Repository for ACNH items database operations"""
+class NooklookRepository:
+    """Repository for nooklook database operations"""
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            # Default to data folder
+            # Default to nooklook.db in the root directory
             base_dir = pathlib.Path(__file__).parent.parent.parent
-            db_path = base_dir / "data" / "acnh_cache.db"
+            db_path = base_dir / "nooklook.db"
         
         self.db = Database(str(db_path))
         self.base_dir = pathlib.Path(__file__).parent.parent.parent
-        self.schema_path = self.base_dir / "schemas" / "items.sql"
-        self.queries_dir = self.base_dir / "schemas" / "queries"
     
     async def init_database(self):
-        """Initialize the database with the schema"""
-        await self.db.init_from_schema(str(self.schema_path))
+        """Initialize the database connection"""
+        # Database should already exist from import_all_datasets.py
+        pass
     
-    async def get_item_by_name(self, name: str) -> Optional[ACNHItem]:
-        """Get an item by its normalized name"""
-        normalized_name = name.strip().lower()
+    async def search_fts(self, query: str, category_filter: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """Search using FTS5 search_index for strict matching"""
+        # Use exact phrase matching for strict results
+        fts_query = f'"{query.strip()}"'
         
-        # Get main item data
-        item_query = "SELECT * FROM acnh_items WHERE name_normalized = ?"
-        item_data = await self.db.execute_query_one(item_query, (normalized_name,))
-        
-        if not item_data:
-            return None
-        
-        # Convert to ACNHItem object
-        return ACNHItem.from_dict(item_data)
-    
-    async def save_item(self, item: Dict[str, Any]) -> int:
-        """Save an item to the database with comprehensive structure matching your import system"""
-        command = """
-            INSERT OR REPLACE INTO acnh_items 
-            (name, name_normalized, category, color_variant, hex_id, sell_price, hha_base, hha_category,
-             grid_width, grid_length, item_series, item_set, tag, customizable, custom_kits, custom_kit_type,
-             interact, outdoor, speaker_type, lighting_type, catalog, version_added, unlocked, filename,
-             variant_id, internal_id, unique_entry_id, image_filename, image_url, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sql = """
+            SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
+            FROM search_index s
+            WHERE s.name MATCH ?
         """
+        params = [fts_query]
         
-        params = (
-            item.get("name", ""),
-            item.get("name", "").strip().lower(),
-            item.get("category", ""),
-            item.get("color_variant", ""),
-            item.get("hex_id", ""),
-            item.get("sell_price"),
-            item.get("hha_base"),
-            item.get("hha_category", ""),
-            item.get("grid_width"),
-            item.get("grid_length"),
-            item.get("item_series", ""),
-            item.get("item_set", ""),
-            item.get("tag", ""),
-            item.get("customizable", False),
-            item.get("custom_kits", 0),
-            item.get("custom_kit_type", ""),
-            item.get("interact", ""),
-            item.get("outdoor", ""),
-            item.get("speaker_type", ""),
-            item.get("lighting_type", ""),
-            item.get("catalog", ""),
-            item.get("version_added", ""),
-            item.get("unlocked", ""),
-            item.get("filename", ""),
-            item.get("variant_id", ""),
-            item.get("internal_id", ""),
-            item.get("unique_entry_id", ""),
-            item.get("image_filename", ""),
-            item.get("image_url", ""),
-            item.get("notes", "")
-        )
+        if category_filter:
+            sql += " AND s.category = ?"
+            params.append(category_filter)
         
-        return await self.db.execute_command(command, params)
+        sql += " ORDER by bm25(search_index) LIMIT ?"
+        params.append(limit)
+        
+        return await self.db.execute_query(sql, params)
     
-    async def search_items_by_name_fuzzy(self, name_pattern: str):
-        """Search for items using LIKE pattern matching with smart ordering"""
-        # Prioritize matches: exact -> starts with -> contains
-        query = """
-            SELECT * FROM acnh_items 
-            WHERE name_normalized LIKE ? 
-            ORDER BY 
-                CASE 
-                    WHEN name_normalized = ? THEN 1          -- Exact match
-                    WHEN name_normalized LIKE ? THEN 2       -- Starts with
-                    ELSE 3                                   -- Contains
-                END,
-                name
-            LIMIT 100
+    async def search_fts_autocomplete(self, query: str, category_filter: str = None, limit: int = 25) -> List[Dict[str, Any]]:
+        """Search using FTS5 for autocomplete with prefix matching"""
+        # Use prefix matching for autocomplete - more flexible than exact phrases
+        fts_query = f'{query.strip()}*'
+        
+        sql = """
+            SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
+            FROM search_index s
+            WHERE s.name MATCH ?
         """
-        pattern = name_pattern.strip().lower()
-        contains_pattern = f"%{pattern}%"
-        starts_with_pattern = f"{pattern}%"
+        params = [fts_query]
         
-        results = await self.db.execute_query(query, (contains_pattern, pattern, starts_with_pattern))
+        if category_filter:
+            sql += " AND s.category = ?"
+            params.append(category_filter)
         
-        # Convert each result to ACNHItem (basic data only for search results)
-        items = []
-        for item_data in results:
-            # For search results, we'll create simplified ACNHItem objects
-            # Full data can be loaded later if needed
-            item = ACNHItem.from_dict(item_data)
-            items.append(item)
+        sql += " ORDER by bm25(search_index) LIMIT ?"
+        params.append(limit)
         
-        return items
+        return await self.db.execute_query(sql, params)
     
-    async def search_items_by_base_name_fuzzy(self, name_pattern: str):
-        """Search for items using LIKE pattern matching with smart ordering"""
-        # Prioritize matches: exact -> starts with -> contains
-        query = """
-            SELECT * FROM acnh_items 
-            WHERE name LIKE ? 
-            ORDER BY 
-                CASE 
-                    WHEN name = ? THEN 1          -- Exact match
-                    WHEN name LIKE ? THEN 2       -- Starts with
-                    ELSE 3                                   -- Contains
-                END,
-                name
-            LIMIT 100
-        """
-        pattern = name_pattern.strip().lower()
-        contains_pattern = f"%{pattern}%"
-        starts_with_pattern = f"{pattern}%"
-        
-        results = await self.db.execute_query(query, (contains_pattern, pattern, starts_with_pattern))
-        
-        # Convert each result to ACNHItem (basic data only for search results)
-        items = []
-        for item_data in results:
-            # For search results, we'll create simplified ACNHItem objects
-            # Full data can be loaded later if needed
-            item = ACNHItem.from_dict(item_data)
-            items.append(item)
-        
-        return items
-    
-    async def get_all_item_names(self):
-        """Get all item names for fuzzy matching"""
-        query = "SELECT name FROM acnh_items ORDER BY name"
-        results = await self.db.execute_query(query)
-        return [item["name"] for item in results]
-    
-    async def count_items(self) -> int:
-        """Get the total count of cached items"""
-        query = "SELECT COUNT(*) as count FROM acnh_items"
-        result = await self.db.execute_query_one(query)
-        return result["count"] if result else 0
-    
-    async def clear_cache(self) -> int:
-        """Clear all cached items"""
-        command = "DELETE FROM acnh_items"
-        return await self.db.execute_command(command)
-    
-    async def clear_old_cache(self, days: int = 30) -> int:
-        """Clear cached items older than specified days"""
-        command = "DELETE FROM acnh_items WHERE last_fetched < datetime('now', '-{} days')".format(days)
-        return await self.db.execute_command(command)
-    
-    async def get_random_items_by_category(self, categories: list[str], limit: int = 25) -> list[ACNHItem]:
-        """Get random items from specified categories"""
-        if not categories:
-            return []
-        
-        # Create placeholders for the categories
-        placeholders = ','.join(['?' for _ in categories])
-        query = f"""
-            SELECT * FROM acnh_items 
-            WHERE category IN ({placeholders})
+    async def get_random_items(self, limit: int = 25) -> List[Item]:
+        """Get random items from the database"""
+        sql = """
+            SELECT * FROM items 
             ORDER BY RANDOM() 
             LIMIT ?
         """
         
-        params = tuple(categories) + (limit,)
-        results = await self.db.execute_query(query, params)
+        item_data_list = await self.db.execute_query(sql, (limit,))
         
         items = []
-        for item_data in results:
-            item = ACNHItem.from_dict(item_data)
+        for item_data in item_data_list:
+            item = Item.from_dict(item_data)
             items.append(item)
         
         return items
+    
+    async def get_item_by_id(self, item_id: int, load_variants: bool = True) -> Optional[Item]:
+        """Get an item by its ID with optional variant loading"""
+        item_query = "SELECT * FROM items WHERE id = ?"
+        item_data = await self.db.execute_query_one(item_query, (item_id,))
+        
+        if not item_data:
+            return None
+        
+        item = Item.from_dict(item_data)
+        
+        if load_variants:
+            item.variants = await self.get_item_variants(item_id)
+        
+        return item
+    
+    async def get_item_variants(self, item_id: int) -> List[ItemVariant]:
+        """Get all variants for an item"""
+        query = "SELECT * FROM item_variants WHERE item_id = ? ORDER BY primary_index, secondary_index"
+        results = await self.db.execute_query(query, (item_id,))
+        
+        return [ItemVariant.from_dict(row) for row in results]
+    
+    async def browse_items(self, category: str = None, color: str = None, 
+                          price_range: str = None, offset: int = 0, limit: int = 10) -> Tuple[List[Item], int]:
+        """Browse items with filtering - returns (items, total_count)"""
+        # Build the base query
+        base_query = "SELECT i.* FROM items i"
+        count_query = "SELECT COUNT(*) as total FROM items i"
+        
+        # Build WHERE conditions
+        where_conditions = []
+        params = []
+        
+        if category:
+            where_conditions.append("i.category = ?")
+            params.append(category)
+        
+        # Color filtering through variants
+        if color:
+            base_query += " INNER JOIN item_variants iv ON i.id = iv.item_id"
+            count_query += " INNER JOIN item_variants iv ON i.id = iv.item_id"
+            where_conditions.append("(iv.color1 LIKE ? OR iv.color2 LIKE ?)")
+            color_param = f"%{color}%"
+            params.extend([color_param, color_param])
+        
+        # Price range filtering
+        if price_range:
+            if price_range == "under-1000":
+                where_conditions.append("(i.sell_price < 1000 OR i.buy_price < 1000)")
+            elif price_range == "1000-10000":
+                where_conditions.append("((i.sell_price >= 1000 AND i.sell_price <= 10000) OR (i.buy_price >= 1000 AND i.buy_price <= 10000))")
+            elif price_range == "over-10000":
+                where_conditions.append("(i.sell_price > 10000 OR i.buy_price > 10000)")
+        
+        # Add WHERE clause if we have conditions
+        if where_conditions:
+            where_clause = " WHERE " + " AND ".join(where_conditions)
+            base_query += where_clause
+            count_query += where_clause
+        
+        # Get total count
+        count_result = await self.db.execute_query_one(count_query, params)
+        total_count = count_result['total'] if count_result else 0
+        
+        # Add pagination and ordering
+        base_query += " ORDER BY i.name LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        # Execute query
+        results = await self.db.execute_query(base_query, params)
+        
+        # Convert to Item objects and load variants
+        items = []
+        for row in results:
+            item = Item.from_dict(row)
+            item.variants = await self.get_item_variants(item.id)
+            items.append(item)
+        
+        return items, total_count
+    
+    async def browse_critters(self, kind: str = None, season: str = None, 
+                             offset: int = 0, limit: int = 10) -> Tuple[List[Critter], int]:
+        """Browse critters with filtering - returns (critters, total_count)"""
+        base_query = "SELECT * FROM critters"
+        count_query = "SELECT COUNT(*) as total FROM critters"
+        
+        where_conditions = []
+        params = []
+        
+        if kind:
+            where_conditions.append("kind = ?")
+            params.append(kind)
+        
+        # Season filtering (check if available in current season)
+        if season:
+            month_columns = {
+                'spring': ['nh_mar', 'nh_apr', 'nh_may'],
+                'summer': ['nh_jun', 'nh_jul', 'nh_aug'],
+                'fall': ['nh_sep', 'nh_oct', 'nh_nov'],
+                'winter': ['nh_dec', 'nh_jan', 'nh_feb']
+            }
+            if season in month_columns:
+                season_conditions = []
+                for month_col in month_columns[season]:
+                    season_conditions.append(f"{month_col} IS NOT NULL AND {month_col} != ''")
+                where_conditions.append(f"({' OR '.join(season_conditions)})")
+        
+        if where_conditions:
+            where_clause = " WHERE " + " AND ".join(where_conditions)
+            base_query += where_clause
+            count_query += where_clause
+        
+        # Get total count
+        count_result = await self.db.execute_query_one(count_query, params)
+        total_count = count_result['total'] if count_result else 0
+        
+        # Add pagination and ordering
+        base_query += " ORDER BY name LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        results = await self.db.execute_query(base_query, params)
+        critters = [Critter.from_dict(row) for row in results]
+        
+        return critters, total_count
+    
+    async def browse_recipes(self, category: str = None, offset: int = 0, limit: int = 10) -> Tuple[List[Recipe], int]:
+        """Browse recipes with filtering - returns (recipes, total_count)"""
+        base_query = "SELECT * FROM recipes"
+        count_query = "SELECT COUNT(*) as total FROM recipes"
+        params = []
+        
+        if category:
+            where_clause = " WHERE category = ?"
+            base_query += where_clause
+            count_query += where_clause
+            params.append(category)
+        
+        # Get total count
+        count_result = await self.db.execute_query_one(count_query, params)
+        total_count = count_result['total'] if count_result else 0
+        
+        # Add pagination and ordering
+        base_query += " ORDER BY name LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        results = await self.db.execute_query(base_query, params)
+        
+        # Convert to Recipe objects and load ingredients
+        recipes = []
+        for row in results:
+            recipe = Recipe.from_dict(row)
+            recipe.ingredients = await self.get_recipe_ingredients(recipe.id)
+            recipes.append(recipe)
+        
+        return recipes, total_count
+    
+    async def get_recipe_ingredients(self, recipe_id: int) -> List[Tuple[str, int]]:
+        """Get ingredients for a recipe"""
+        query = "SELECT ingredient_name, quantity FROM recipe_ingredients WHERE recipe_id = ?"
+        results = await self.db.execute_query(query, (recipe_id,))
+        
+        return [(row['ingredient_name'], row['quantity']) for row in results]
+    
+    async def browse_villagers(self, species: str = None, personality: str = None, 
+                              offset: int = 0, limit: int = 10) -> Tuple[List[Villager], int]:
+        """Browse villagers with filtering - returns (villagers, total_count)"""
+        base_query = "SELECT * FROM villagers"
+        count_query = "SELECT COUNT(*) as total FROM villagers"
+        
+        where_conditions = []
+        params = []
+        
+        if species:
+            where_conditions.append("species = ?")
+            params.append(species)
+        
+        if personality:
+            where_conditions.append("personality = ?")
+            params.append(personality)
+        
+        if where_conditions:
+            where_clause = " WHERE " + " AND ".join(where_conditions)
+            base_query += where_clause
+            count_query += where_clause
+        
+        # Get total count
+        count_result = await self.db.execute_query_one(count_query, params)
+        total_count = count_result['total'] if count_result else 0
+        
+        # Add pagination and ordering
+        base_query += " ORDER BY name LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        results = await self.db.execute_query(base_query, params)
+        villagers = [Villager.from_dict(row) for row in results]
+        
+        return villagers, total_count
+    
+    async def resolve_search_result(self, ref_table: str, ref_id: str) -> Optional[Any]:
+        """Resolve a search result to the actual object"""
+        try:
+            obj_id = int(ref_id)
+        except ValueError:
+            return None
+        
+        if ref_table == 'items':
+            return await self.get_item_by_id(obj_id)
+        elif ref_table == 'critters':
+            return await self.get_critter_by_id(obj_id)
+        elif ref_table == 'recipes':
+            return await self.get_recipe_by_id(obj_id)
+        elif ref_table == 'villagers':
+            return await self.get_villager_by_id(obj_id)
+        elif ref_table == 'fossils':
+            return await self.get_fossil_by_id(obj_id)
+        elif ref_table == 'artwork':
+            return await self.get_artwork_by_id(obj_id)
+        
+        return None
+    
+    async def get_critter_by_id(self, critter_id: int) -> Optional[Critter]:
+        """Get a critter by ID"""
+        query = "SELECT * FROM critters WHERE id = ?"
+        result = await self.db.execute_query_one(query, (critter_id,))
+        
+        return Critter.from_dict(result) if result else None
+    
+    async def get_recipe_by_id(self, recipe_id: int) -> Optional[Recipe]:
+        """Get a recipe by ID with ingredients"""
+        query = "SELECT * FROM recipes WHERE id = ?"
+        result = await self.db.execute_query_one(query, (recipe_id,))
+        
+        if not result:
+            return None
+        
+        recipe = Recipe.from_dict(result)
+        recipe.ingredients = await self.get_recipe_ingredients(recipe_id)
+        return recipe
+    
+    async def get_villager_by_id(self, villager_id: int) -> Optional[Villager]:
+        """Get a villager by ID"""
+        query = "SELECT * FROM villagers WHERE id = ?"
+        result = await self.db.execute_query_one(query, (villager_id,))
+        
+        return Villager.from_dict(result) if result else None
+    
+    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Dict[str, Any]]:
+        """Get a fossil by ID (simplified for now)"""
+        query = "SELECT * FROM fossils WHERE id = ?"
+        return await self.db.execute_query_one(query, (fossil_id,))
+    
+    async def get_artwork_by_id(self, artwork_id: int) -> Optional[Dict[str, Any]]:
+        """Get artwork by ID (simplified for now)"""
+        query = "SELECT * FROM artwork WHERE id = ?"
+        return await self.db.execute_query_one(query, (artwork_id,))
+    
+    # Methods to get filter options
+    async def get_item_categories(self) -> List[str]:
+        """Get all available item categories"""
+        query = "SELECT DISTINCT category FROM items ORDER BY category"
+        results = await self.db.execute_query(query)
+        return [row['category'] for row in results]
+    
+    async def get_critter_kinds(self) -> List[str]:
+        """Get all available critter kinds"""
+        query = "SELECT DISTINCT kind FROM critters ORDER BY kind"
+        results = await self.db.execute_query(query)
+        return [row['kind'] for row in results]
+    
+    async def get_villager_species(self) -> List[str]:
+        """Get all available villager species"""
+        query = "SELECT DISTINCT species FROM villagers WHERE species IS NOT NULL ORDER BY species"
+        results = await self.db.execute_query(query)
+        return [row['species'] for row in results]
+    
+    async def get_villager_personalities(self) -> List[str]:
+        """Get all available villager personalities"""
+        query = "SELECT DISTINCT personality FROM villagers WHERE personality IS NOT NULL ORDER BY personality"
+        results = await self.db.execute_query(query)
+        return [row['personality'] for row in results]
+    
+    async def get_recipe_categories(self) -> List[str]:
+        """Get all available recipe categories"""
+        query = "SELECT DISTINCT category FROM recipes WHERE category IS NOT NULL ORDER BY category"
+        results = await self.db.execute_query(query)
+        return [row['category'] for row in results]
+    
+    async def get_database_stats(self) -> Dict[str, int]:
+        """Get database statistics"""
+        stats = {}
+        
+        # Count items
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM items")
+        stats['items'] = result['count'] if result else 0
+        
+        # Count variants
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM item_variants")
+        stats['variants'] = result['count'] if result else 0
+        
+        # Count critters
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM critters")
+        stats['critters'] = result['count'] if result else 0
+        
+        # Count recipes
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM recipes")
+        stats['recipes'] = result['count'] if result else 0
+        
+        # Count villagers
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM villagers")
+        stats['villagers'] = result['count'] if result else 0
+        
+        return stats

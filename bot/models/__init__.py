@@ -1,5 +1,5 @@
 # Models package for data classes
 
-from .acnh_item import ACNHItem, BuyPrice, AvailabilitySource, ItemVariation
+from .acnh_item import Item, ItemVariant, Critter, Recipe, Villager
 
-__all__ = ['ACNHItem', 'BuyPrice', 'AvailabilitySource', 'ItemVariation']
+__all__ = ['Item', 'ItemVariant', 'Critter', 'Recipe', 'Villager']

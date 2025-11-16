@@ -3,17 +3,17 @@ import discord
 from discord.ext import commands
 import logging
 from .settings import DISCORD_API_SECRET, GUILDS_ID
-from .services.acnh_service import ACNHService
+from .services.acnh_service import NooklookService
 
 
 class ACNHBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.message_content = False
-        intents.presences = False
-        intents.members = False
-        # Remove privileged intents for now - they're not needed for slash commands
-        # intents.message_content = True
+        # intents.message_content = True  # Enable for group DM functionality
+        # intents.dm_messages = True
+        # intents.presences = False
+        # intents.members = False
+        # Message content intent is needed for group DMs and some slash command features
         
         super().__init__(
             command_prefix='!',
@@ -22,7 +22,7 @@ class ACNHBot(commands.Bot):
         )
         
         self.logger = logging.getLogger("bot")
-        self.acnh_service = ACNHService()
+        self.acnh_service = NooklookService()
         self._shutdown_gracefully = False
     
     async def setup_hook(self):
@@ -32,13 +32,16 @@ class ACNHBot(commands.Bot):
             await self.acnh_service.init_database()
             self.logger.info("ACNH database initialized")
             
-            # Load the ACNH commands cog
-            await self.load_extension("bot.cogs.commands")
-            self.logger.info("Loaded ACNH commands cog")
+            # Load the new nooklook commands cog
+            await self.load_extension("bot.cogs.nooklook_commands")
+            self.logger.info("Loaded nooklook commands cog")
             
-            # Load the help cog
-            await self.load_extension("bot.cogs.help")
-            self.logger.info("Loaded help cog")
+            # Load the help cog if it exists
+            try:
+                await self.load_extension("bot.cogs.help")
+                self.logger.info("Loaded help cog")
+            except Exception as help_error:
+                self.logger.warning(f"Could not load help cog (optional): {help_error}")
             
             # Note: Command syncing will happen in on_ready() after we know if we're in any guilds
             self.logger.info("Setup complete - commands will sync when bot joins a guild")
