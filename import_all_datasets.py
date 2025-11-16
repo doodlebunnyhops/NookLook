@@ -230,8 +230,9 @@ class ACNHDatasetImporter:
                 
                 critter_data = self._map_critter_data(row, kind)
                 cursor.execute("""
-                    INSERT INTO critters (name, kind, internal_id, unique_entry_id, sell_price, location,
-                                        shadow_size, movement_speed, catch_difficulty, vision, 
+                    INSERT INTO critters (name, kind, internal_id, unique_entry_id, sell_price,
+                                        item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex,
+                                        location, shadow_size, movement_speed, catch_difficulty, vision, 
                                         total_catches_to_unlock, spawn_rates, nh_jan, nh_feb, nh_mar,
                                         nh_apr, nh_may, nh_jun, nh_jul, nh_aug, nh_sep, nh_oct, nh_nov,
                                         nh_dec, sh_jan, sh_feb, sh_mar, sh_apr, sh_may, sh_jun, sh_jul,
@@ -239,7 +240,7 @@ class ACNHDatasetImporter:
                                         rarity, description, catch_phrase, hha_base_points, hha_category,
                                         color1, color2, size, surface, icon_url, critterpedia_url,
                                         furniture_url, source, version_added, extra_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, critter_data)
                 
                 self.import_stats["imported"] += 1
@@ -280,8 +281,9 @@ class ACNHDatasetImporter:
                     INSERT INTO fossils (name, image_url, image_url_alt, buy_price, sell_price, fossil_group,
                                        description, hha_base_points, color1, color2, size, source,
                                        museum, interact, catalog, filename, internal_id, unique_entry_id,
+                                       item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex,
                                        extra_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, fossil_data)
                 
                 self.import_stats["imported"] += 1
@@ -324,8 +326,10 @@ class ACNHDatasetImporter:
                                        artist, description, source, source_notes, hha_base_points,
                                        hha_concept1, hha_concept2, hha_series, hha_set, interact, tag,
                                        speaker_type, lighting_type, catalog, version_added, unlocked,
-                                       filename, internal_id, unique_entry_id, extra_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                       filename, internal_id, unique_entry_id,
+                                       item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex,
+                                       extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, artwork_data)
                 
                 self.import_stats["imported"] += 1
@@ -412,8 +416,9 @@ class ACNHDatasetImporter:
                 cursor.execute("""
                     INSERT INTO recipes (name, internal_id, product_item_id, category, source,
                                        source_notes, is_diy, buy_price, sell_price, hha_base,
-                                       version_added, image_url, image_url_alt, extra_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                       version_added, item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex,
+                                       image_url, image_url_alt, extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, recipe_data)
                 
                 recipe_id = cursor.lastrowid
@@ -690,12 +695,26 @@ class ACNHDatasetImporter:
 
     def _map_critter_data(self, row: Dict[str, str], kind: str) -> Tuple:
         """Map CSV row to critters table data"""
+        # Get internal_id and calculate TI codes
+        internal_id = self._get_int_value(row, ['Internal ID'])
+        if internal_id:
+            item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex = self.build_ti_codes(
+                internal_id, None, None  # Critters are typically 1D with no variant indices
+            )
+        else:
+            item_hex = ti_primary = ti_secondary = ti_customize_str = ti_full_hex = None
+        
         return (
             self._get_value(row, ['Name']),  # name
             kind,  # kind
-            self._get_int_value(row, ['Internal ID']),  # internal_id
+            internal_id,  # internal_id
             self._get_value(row, ['Unique Entry ID']),  # unique_entry_id
             self._get_int_value(row, ['Sell']),  # sell_price
+            item_hex,  # item_hex (calculated)
+            ti_primary,  # ti_primary (calculated)
+            ti_secondary,  # ti_secondary (calculated)
+            ti_customize_str,  # ti_customize_str (calculated)
+            ti_full_hex,  # ti_full_hex (calculated)
             self._get_value(row, ['Where/How', 'Location']),  # location
             self._get_value(row, ['Shadow']),  # shadow_size
             self._get_value(row, ['Movement Speed']),  # movement_speed
@@ -749,6 +768,16 @@ class ACNHDatasetImporter:
     def _map_fossil_data(self, row: Dict[str, str]) -> Tuple:
         """Map CSV row to fossils table data"""
         main_img, alt_img = self._get_image_url_columns(row)
+        
+        # Get internal_id and calculate TI codes
+        internal_id = self._get_int_value(row, ['Internal ID'])
+        if internal_id:
+            item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex = self.build_ti_codes(
+                internal_id, None, None  # Fossils are typically 1D with no variant indices
+            )
+        else:
+            item_hex = ti_primary = ti_secondary = ti_customize_str = ti_full_hex = None
+        
         return (
             self._get_value(row, ['Name']),  # name
             main_img,  # image_url (dynamically detected)
@@ -766,14 +795,29 @@ class ACNHDatasetImporter:
             self._get_value(row, ['Interact']),  # interact
             self._get_value(row, ['Catalog']),  # catalog
             self._get_value(row, ['Filename']),  # filename
-            self._get_int_value(row, ['Internal ID']),  # internal_id
+            internal_id,  # internal_id
             self._get_value(row, ['Unique Entry ID']),  # unique_entry_id
+            item_hex,  # item_hex (calculated)
+            ti_primary,  # ti_primary (calculated)
+            ti_secondary,  # ti_secondary (calculated)
+            ti_customize_str,  # ti_customize_str (calculated)
+            ti_full_hex,  # ti_full_hex (calculated)
             None  # extra_json
         )
 
     def _map_artwork_data(self, row: Dict[str, str]) -> Tuple:
         """Map CSV row to artwork table data"""
         main_img, alt_img = self._get_image_url_columns(row)
+        
+        # Get internal_id and calculate TI codes
+        internal_id = self._get_int_value(row, ['Internal ID'])
+        if internal_id:
+            item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex = self.build_ti_codes(
+                internal_id, None, None  # Artwork is typically 1D with no variant indices
+            )
+        else:
+            item_hex = ti_primary = ti_secondary = ti_customize_str = ti_full_hex = None
+        
         return (
             self._get_value(row, ['Name']),  # name
             main_img,  # image_url (dynamically detected)
@@ -803,8 +847,13 @@ class ACNHDatasetImporter:
             self._get_value(row, ['Version Added']),  # version_added
             self._get_value(row, ['Unlocked?']),  # unlocked
             self._get_value(row, ['Filename']),  # filename
-            self._get_int_value(row, ['Internal ID']),  # internal_id
+            internal_id,  # internal_id
             self._get_value(row, ['Unique Entry ID']),  # unique_entry_id
+            item_hex,  # item_hex (calculated)
+            ti_primary,  # ti_primary (calculated)
+            ti_secondary,  # ti_secondary (calculated)
+            ti_customize_str,  # ti_customize_str (calculated)
+            ti_full_hex,  # ti_full_hex (calculated)
             None  # extra_json
         )
 
@@ -845,9 +894,18 @@ class ACNHDatasetImporter:
 
     def _map_recipe_data(self, row: Dict[str, str]) -> Tuple:
         """Map CSV row to recipes table data"""
+        # Get internal_id and calculate TI codes
+        internal_id = self._get_int_value(row, ['Internal ID'])
+        if internal_id:
+            item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex = self.build_ti_codes(
+                internal_id, None, None  # Recipes are typically 1D with no variant indices
+            )
+        else:
+            item_hex = ti_primary = ti_secondary = ti_customize_str = ti_full_hex = None
+        
         return (
             self._get_value(row, ['Name']),  # name
-            self._get_int_value(row, ['Internal ID']),  # internal_id
+            internal_id,  # internal_id
             None,  # product_item_id (would need to lookup)
             self._get_value(row, ['Category']),  # category
             self._get_value(row, ['Source']),  # source
@@ -857,6 +915,11 @@ class ACNHDatasetImporter:
             self._get_int_value(row, ['Sell']),  # sell_price
             None,  # hha_base
             self._get_value(row, ['Version Added']),  # version_added
+            item_hex,  # item_hex (calculated)
+            ti_primary,  # ti_primary (calculated)
+            ti_secondary,  # ti_secondary (calculated)
+            ti_customize_str,  # ti_customize_str (calculated)
+            ti_full_hex,  # ti_full_hex (calculated)
             self._get_image_url_columns(row)[0],  # image_url (dynamically detected)
             self._get_image_url_columns(row)[1],  # image_url_alt (dynamically detected)
             None  # extra_json

@@ -111,6 +111,14 @@ CREATE TABLE recipes (
     sell_price          INTEGER,
     hha_base            INTEGER,
     version_added       TEXT,
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex            TEXT,             -- 4-char hex (e.g. '0E06')
+    ti_primary          INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary        INTEGER,          -- NULL for 1D items (recipes are typically 1D)
+    ti_customize_str    TEXT,             -- E.g. '0' for most recipes
+    ti_full_hex         TEXT,             -- 16-char TI drop hex
+    
     image_url           TEXT,             -- Recipe card image or icon URL
     image_url_alt       TEXT,             -- Alternate image URL if applicable
     extra_json          TEXT,             -- For future specialty fields
@@ -148,6 +156,14 @@ CREATE TABLE critters (
     internal_id             INTEGER,
     unique_entry_id         TEXT,
     sell_price              INTEGER,
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
+    ti_primary              INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary            INTEGER,          -- NULL for 1D items (critters are typically 1D)
+    ti_customize_str        TEXT,             -- E.g. '0' for most critters
+    ti_full_hex             TEXT,             -- 16-char TI drop hex
+    
     location                TEXT,
     shadow_size             TEXT,
     movement_speed          TEXT,
@@ -229,6 +245,14 @@ CREATE TABLE fossils (
     filename                TEXT,
     internal_id             INTEGER,
     unique_entry_id         TEXT,
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
+    ti_primary              INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary            INTEGER,          -- NULL for 1D items (fossils are typically 1D)
+    ti_customize_str        TEXT,             -- E.g. '0' for most fossils
+    ti_full_hex             TEXT,             -- 16-char TI drop hex
+    
     extra_json              TEXT
 );
 
@@ -274,6 +298,14 @@ CREATE TABLE artwork (
     filename                TEXT,
     internal_id             INTEGER,
     unique_entry_id         TEXT,
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
+    ti_primary              INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary            INTEGER,          -- NULL for 1D items (artwork is typically 1D)
+    ti_customize_str        TEXT,             -- E.g. '0' for most artwork
+    ti_full_hex             TEXT,             -- 16-char TI drop hex
+    
     extra_json              TEXT
 );
 
