@@ -177,18 +177,17 @@ class ACNHDatasetImporter:
                     item_id = cursor.lastrowid
                     self.import_stats["imported"] += 1
                 
-                # Insert variant if applicable
+                # Insert variant record (always created for TI code calculation)
                 variant_data = self._map_variant_data(row, item_id)
-                if variant_data:
-                    cursor.execute("""
-                        INSERT INTO item_variants (item_id, variant_id_raw, primary_index, secondary_index,
-                                                 variation_label, body_title, pattern_label, pattern_title,
-                                                 color1, color2, body_customizable, pattern_customizable,
-                                                 cyrus_customizable, pattern_options, internal_id, item_hex,
-                                                 ti_primary, ti_secondary, ti_customize_str, ti_full_hex,
-                                                 image_url, image_url_alt)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, variant_data)
+                cursor.execute("""
+                    INSERT INTO item_variants (item_id, variant_id_raw, primary_index, secondary_index,
+                                             variation_label, body_title, pattern_label, pattern_title,
+                                             color1, color2, body_customizable, pattern_customizable,
+                                             cyrus_customizable, pattern_options, internal_id, item_hex,
+                                             ti_primary, ti_secondary, ti_customize_str, ti_full_hex,
+                                             image_url, image_url_alt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, variant_data)
                 
             except Exception as e:
                 print(f"Error processing item row: {e}")
@@ -563,6 +562,36 @@ class ACNHDatasetImporter:
         
         conn.close()
 
+    def build_ti_codes(self, internal_id: int, primary_index: Optional[int], secondary_index: Optional[int]) -> Tuple[str, Optional[int], Optional[int], Optional[str], str]:
+        """Build TI codes from internal ID and variant indices"""
+        # 1. Base item hex
+        item_hex = format(internal_id, "04X")
+        
+        # 2. TI primary (use 0 if None)
+        ti_primary = primary_index if primary_index is not None else 0
+        
+        # 3. TI secondary (only for 2D items)
+        if secondary_index is None:
+            ti_secondary = None
+        else:
+            ti_secondary = secondary_index * 32
+        
+        # 4. ti_customize_str
+        if ti_secondary is None:
+            ti_customize_str = f"{ti_primary}"
+        else:
+            ti_customize_str = f"{ti_primary} {ti_secondary}"
+        
+        # 5. Full TI drop hex
+        if ti_secondary is None:
+            # 1D: 000000 + primary(2) + 0000 + item_hex(4) = 16 chars
+            ti_full_hex = f"000000{ti_primary:02X}0000{item_hex}"
+        else:
+            # 2D: 000000 + secondary(2) + 0000 + item_hex(4) = 16 chars
+            ti_full_hex = f"000000{ti_secondary:02X}0000{item_hex}"
+        
+        return item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex
+
     # Data mapping helper methods
     
     def _map_item_data(self, row: Dict[str, str], category: str) -> Tuple:
@@ -587,35 +616,14 @@ class ACNHDatasetImporter:
             None  # extra_json
         )
 
-    def _map_variant_data(self, row: Dict[str, str], item_id: int) -> Optional[Tuple]:
-        """Map CSV row to item_variants table data"""
-        # Check if we have any variant-specific data
+    def _map_variant_data(self, row: Dict[str, str], item_id: int) -> Tuple:
+        """Map CSV row to item_variants table data - always creates a variant record"""
+        # Get variant-specific data
         variation = self._get_value(row, ['Variation'])
         body_title = self._get_value(row, ['Body Title'])
         pattern = self._get_value(row, ['Pattern'])
         variant_id_raw = self._get_value(row, ['Variant ID'])
         
-        # Check raw variation value to detect "NA" before _get_value filters it out
-        raw_variation = None
-        for key in ['Variation']:
-            if key in row and row[key] and row[key].strip():
-                raw_variation = row[key].strip()
-                break
-        
-        # Create variant record for all items to maintain consistency
-        # This includes items with "NA" variations and items with actual variant data
-        has_any_variant_info = any([
-            variation,  # Meaningful variation label (after NA filtering)
-            body_title,  # Body customization data
-            pattern,  # Pattern data
-            variant_id_raw,  # Explicit variant ID
-            raw_variation  # Raw variation value including "NA"
-        ])
-        
-        # Only skip variant creation if there's absolutely no variant-related data
-        if not has_any_variant_info:
-            return None
-            
         # Parse variant ID for primary/secondary indices if available
         primary_index = None
         secondary_index = None
@@ -627,6 +635,22 @@ class ACNHDatasetImporter:
                     secondary_index = int(parts[1])
             except (ValueError, IndexError):
                 pass  # Keep as None if parsing fails
+        
+        # Get internal_id - try variant-specific first, then fall back to item internal_id
+        internal_id = self._get_int_value(row, ['Internal ID'])
+        if not internal_id:
+            # If no internal_id available, we can't calculate TI codes
+            # This should be rare, but we'll handle it gracefully
+            item_hex = None
+            ti_primary = primary_index
+            ti_secondary = secondary_index * 32 if secondary_index is not None else None
+            ti_customize_str = None
+            ti_full_hex = None
+        else:
+            # Calculate TI codes
+            item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex = self.build_ti_codes(
+                internal_id, primary_index, secondary_index
+            )
         
         # Parse customization flags
         body_customizable = 1 if self._get_value(row, ['Body Customize']) == 'Yes' else 0
@@ -654,12 +678,12 @@ class ACNHDatasetImporter:
             pattern_customizable,  # pattern_customizable
             cyrus_customizable,  # cyrus_customizable
             self._get_value(row, ['Pattern Customize Options']),  # pattern_options
-            self._get_int_value(row, ['Internal ID']),  # internal_id
-            None,  # item_hex (skipping for now as requested)
-            None,  # ti_primary (skipping for now as requested)
-            None,  # ti_secondary (skipping for now as requested)
-            None,  # ti_customize_str (skipping for now as requested)
-            None,  # ti_full_hex (skipping for now as requested)
+            internal_id,  # internal_id
+            item_hex,  # item_hex (calculated)
+            ti_primary,  # ti_primary (calculated)
+            ti_secondary,  # ti_secondary (calculated)
+            ti_customize_str,  # ti_customize_str (calculated)
+            ti_full_hex,  # ti_full_hex (calculated)
             self._get_image_url_columns(row)[0],  # image_url (dynamically detected)
             self._get_image_url_columns(row)[1]   # image_url_alt (dynamically detected)
         )
