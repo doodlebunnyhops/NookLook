@@ -604,7 +604,7 @@ class ACNHDatasetImporter:
         return (
             self._get_value(row, ['Name']),  # name
             category,  # category
-            self._get_int_value(row, ['Internal ID']),  # internal_group_id - Use Internal ID for villager clothing references
+            self._get_int_value(row, ['ClothGroup ID', 'Internal ID']),  # internal_group_id - Use ClothGroup ID for clothing to group variants, Internal ID for others
             1 if self._get_value(row, ['DIY']) == 'Yes' else 0,  # is_diy
             self._get_int_value(row, ['Buy']),  # buy_price
             self._get_int_value(row, ['Sell']),  # sell_price
