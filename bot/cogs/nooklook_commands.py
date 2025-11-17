@@ -413,107 +413,6 @@ async def critter_name_autocomplete(interaction: discord.Interaction, current: s
         logger.error(f"Error in critter autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
-# class BrowseGroup(app_commands.Group):
-    """Command group for browsing different types of ACNH content"""
-    
-    def __init__(self, service: NooklookService):
-        super().__init__(name="browse", description="Browse ACNH content with filters")
-        self.service = service
-        
-        # Cache filter options for autocomplete
-        self.filter_options = {}
-        self._filters_loaded = False
-    
-    async def _ensure_filters_loaded(self):
-        """Ensure filter options are loaded for autocomplete"""
-        if not self._filters_loaded:
-            try:
-                self.filter_options = await self.service.get_filter_options()
-                self._filters_loaded = True
-            except Exception as e:
-                logger.error(f"Failed to load filter options: {e}")
-                self.filter_options = {}
-    
-    # Autocomplete functions for filters
-    async def category_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
-        """Autocomplete for item categories"""
-        await self._ensure_filters_loaded()
-        categories = self.filter_options.get('item_categories', [])
-        
-        # Filter based on current input
-        filtered = [cat for cat in categories if current.lower() in cat.lower()][:25]
-        return [app_commands.Choice(name=cat, value=cat) for cat in filtered]
-    
-    @app_commands.command(name="items", description="Browse furniture and items with filters")
-    @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
-    @app_commands.describe(
-        category="Filter by item category (e.g., Housewares, Miscellaneous)",
-        color="Filter by primary color",
-        price_range="Filter by price range"
-    )
-    @app_commands.autocomplete(category=category_autocomplete)
-    @app_commands.choices(color=[
-        app_commands.Choice(name="Red", value="red"),
-        app_commands.Choice(name="Orange", value="orange"),
-        app_commands.Choice(name="Yellow", value="yellow"),
-        app_commands.Choice(name="Green", value="green"),
-        app_commands.Choice(name="Blue", value="blue"),
-        app_commands.Choice(name="Purple", value="purple"),
-        app_commands.Choice(name="Pink", value="pink"),
-        app_commands.Choice(name="Brown", value="brown"),
-        app_commands.Choice(name="Black", value="black"),
-        app_commands.Choice(name="White", value="white"),
-        app_commands.Choice(name="Gray", value="gray")
-    ])
-    @app_commands.choices(price_range=[
-        app_commands.Choice(name="Free (0 bells)", value="free"),
-        app_commands.Choice(name="Cheap (1-1000 bells)", value="cheap"),
-        app_commands.Choice(name="Moderate (1001-5000 bells)", value="moderate"),
-        app_commands.Choice(name="Expensive (5001-20000 bells)", value="expensive"),
-        app_commands.Choice(name="Very Expensive (20000+ bells)", value="very_expensive")
-    ])
-    async def browse_items(self, interaction: discord.Interaction, 
-                          category: Optional[str] = None,
-                          color: Optional[str] = None,
-                          price_range: Optional[str] = None):
-        """Browse items with optional filters"""
-        ephemeral = not is_dm(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
-        
-        try:
-            data = await self.service.browse_items(category, color, price_range)
-            
-            if not data['items']:
-                embed = discord.Embed(
-                    title="🔍 No Items Found",
-                    description="No items match your filter criteria.",
-                    color=0xe74c3c
-                )
-                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-                return
-            
-            view = ItemsPaginationView(
-                bot=interaction.client,
-                interaction_user=interaction.user,
-                data=data,
-                service=self.service,
-                category=category,
-                color=color,
-                price_range=price_range
-            )
-            
-            embed = view.create_embed()
-            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
-            
-        except Exception as e:
-            logger.error(f"Error in browse_items: {e}")
-            embed = discord.Embed(
-                title="❌ Error",
-                description="An error occurred while browsing items.",
-                color=0xe74c3c
-            )
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-
 class ACNHCommands(commands.Cog):
     """ACNH lookup commands using nooklook database"""
     
@@ -524,10 +423,6 @@ class ACNHCommands(commands.Cog):
         # Store service in bot for easy access from autocomplete functions
         bot.nooklook_service = self.service
         
-        # Add the browse command group
-        # self.browse = BrowseGroup(self.service)
-        # self.bot.tree.add_command(self.browse)
-    
     async def cog_load(self):
         """Initialize the database when cog loads"""
         try:

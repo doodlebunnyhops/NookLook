@@ -2,9 +2,10 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
-@dataclass
+@dataclass(slots=True)
 class ItemVariant:
     """Represents a color/pattern variant of an item"""
+    
     id: int
     item_id: int
     variant_id_raw: Optional[str]
@@ -77,9 +78,10 @@ class ItemVariant:
             colors.append(self.color2)
         return colors
 
-@dataclass
+@dataclass(slots=True)
 class Item:
     """Represents a base item from the items table"""
+    
     id: int
     name: str
     category: str
@@ -315,9 +317,10 @@ class Item:
         """Convert this item to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
-@dataclass
+@dataclass(slots=True)
 class Critter:
     """Represents a critter (fish, insect, sea creature)"""
+    
     id: int
     name: str
     kind: str  # 'fish', 'insect', 'sea'
@@ -503,9 +506,10 @@ class Critter:
         """Convert this critter to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
-@dataclass
+@dataclass(slots=True)
 class Recipe:
     """Represents a DIY recipe"""
+    
     id: int
     name: str
     internal_id: Optional[int]
@@ -619,7 +623,7 @@ class Recipe:
         """Convert this recipe to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
-@dataclass  
+@dataclass(slots=True)
 class Villager:
     """Represents a villager"""
     id: int
@@ -759,7 +763,7 @@ class Villager:
         """Convert this villager to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
-@dataclass
+@dataclass(slots=True)
 class Artwork:
     """Represents a piece of artwork"""
     id: int
