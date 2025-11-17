@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, List
 from bot.repos.acnh_items_repo import NooklookRepository
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork
 import logging
 
 logger = logging.getLogger("bot.acnh_service")
@@ -68,6 +68,26 @@ class NooklookService:
             return [(recipe.name, recipe.id) for recipe in random_recipes if recipe.name]
         except Exception as e:
             logger.error(f"Error getting random recipe suggestions: {e}")
+            return []
+    
+    async def get_artwork_by_id(self, artwork_id: int) -> Optional[Artwork]:
+        """Get a specific artwork by ID"""
+        return await self.repo.get_artwork_by_id(artwork_id)
+    
+    async def get_artwork_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get artwork name suggestions for autocomplete"""
+        try:
+            return await self.repo.get_artwork_suggestions(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting artwork suggestions: {e}")
+            return []
+    
+    async def get_random_artwork_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random artwork suggestions for autocomplete when query is too short"""
+        try:
+            return await self.repo.get_random_artwork(limit)
+        except Exception as e:
+            logger.error(f"Error getting random artwork suggestions: {e}")
             return []
     
     async def browse_items(self, category: str = None, color: str = None, 

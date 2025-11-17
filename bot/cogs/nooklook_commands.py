@@ -68,6 +68,31 @@ async def recipe_name_autocomplete(interaction: discord.Interaction, current: st
         logger.error(f"Error in recipe autocomplete: {e}")
         return []
 
+async def artwork_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """Autocomplete for artwork names"""
+    try:
+        # Get the cog to access the service
+        cog = interaction.client.get_cog('ACNHCommands')
+        if not cog or not hasattr(cog, 'service'):
+            return []
+        
+        # Get artwork suggestions
+        if not current or len(current) <= 2:
+            # Show random artwork when query is too short
+            suggestions = await cog.service.get_random_artwork_suggestions(25)
+        else:
+            suggestions = await cog.service.get_artwork_suggestions(current)
+        
+        # Convert to choices
+        choices = []
+        for name, artwork_id in suggestions:
+            choices.append(app_commands.Choice(name=name, value=str(artwork_id)))
+        
+        return choices[:25]  # Discord limit
+    except Exception as e:
+        logger.error(f"Error in artwork autocomplete: {e}")
+        return []
+
 class BrowseGroup(app_commands.Group):
     """Command group for browsing different types of ACNH content"""
     
@@ -511,6 +536,65 @@ class ACNHCommands(commands.Cog):
             embed = discord.Embed(
                 title="❌ Error",
                 description="An error occurred while looking up the recipe.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @app_commands.command(name="artwork", description="Look up a specific ACNH artwork")
+    @app_commands.describe(name="The artwork name to look up")
+    @app_commands.autocomplete(name=artwork_name_autocomplete)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def artwork(self, interaction: discord.Interaction, name: str):
+        """Look up artwork details"""
+        ephemeral = not is_dm(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        try:
+            # Convert name to artwork ID if it's numeric (from autocomplete)
+            if name.isdigit():
+                artwork_id = int(name)
+                artwork = await self.service.get_artwork_by_id(artwork_id)
+            else:
+                # Search for artwork by name
+                search_results = await self.service.search_all(name, category_filter="artwork")
+                artwork = search_results[0] if search_results else None
+            
+            if not artwork:
+                embed = discord.Embed(
+                    title="❌ Artwork Not Found",
+                    description=f"Sorry, I couldn't find artwork named **{name}** 😿\n"
+                               f"Try using `/search {name}` to see if there are similar names.",
+                    color=0xe74c3c
+                )
+                
+                # Add suggestion for genuine vs fake
+                embed.add_field(
+                    name="💡 Search Tips",
+                    value="• Artwork comes in genuine and fake versions\n"
+                          "• Use the artwork name without 'genuine' or 'fake'\n"
+                          "• Try `/search` with partial names or artist names",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                return
+            
+            # Create the artwork embed
+            embed = artwork.to_discord_embed()
+            
+            # Add artwork category info in footer
+            authenticity = "Genuine" if artwork.genuine else "Fake"
+            category_text = f"🎨 {authenticity} Artwork"
+            if artwork.art_category:
+                category_text += f" • {artwork.art_category}"
+            embed.set_footer(text=category_text)
+            
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+        except Exception as e:
+            logger.error(f"Error in artwork command: {e}")
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while looking up the artwork.",
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)

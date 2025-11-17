@@ -2,7 +2,7 @@ import pathlib
 import sqlite3
 from typing import Optional, Dict, Any, List, Tuple
 from .database import Database
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork
 
 class NooklookRepository:
     """Repository for nooklook database operations"""
@@ -395,10 +395,11 @@ class NooklookRepository:
         query = "SELECT * FROM fossils WHERE id = ?"
         return await self.db.execute_query_one(query, (fossil_id,))
     
-    async def get_artwork_by_id(self, artwork_id: int) -> Optional[Dict[str, Any]]:
-        """Get artwork by ID (simplified for now)"""
+    async def get_artwork_by_id(self, artwork_id: int) -> Optional[Artwork]:
+        """Get artwork by ID"""
         query = "SELECT * FROM artwork WHERE id = ?"
-        return await self.db.execute_query_one(query, (artwork_id,))
+        result = await self.db.execute_query_one(query, (artwork_id,))
+        return Artwork.from_dict(result) if result else None
     
     # Methods to get filter options
     async def get_item_categories(self) -> List[str]:
@@ -474,6 +475,60 @@ class NooklookRepository:
             recipes.append(recipe)
         
         return recipes
+    
+    async def get_artwork_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get artwork name suggestions for autocomplete"""
+        # Use FTS5 search with fallback to LIKE search
+        try:
+            # First try FTS5 search on artwork
+            fts_query = """
+                SELECT a.name, a.id, a.genuine, rank
+                FROM search_index si
+                JOIN artwork a ON si.ref_table = 'artwork' AND si.ref_id = a.id
+                WHERE search_index MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """
+            results = await self.db.execute_query(fts_query, (search_term, limit))
+            
+            if results:
+                suggestions = []
+                for row in results:
+                    authenticity = " (Genuine)" if row['genuine'] else " (Fake)"
+                    display_name = f"{row['name']}{authenticity}"
+                    suggestions.append((display_name, row['id']))
+                return suggestions
+            
+        except Exception:
+            pass  # Fall back to LIKE search
+        
+        # Fallback LIKE search for artwork
+        like_query = """
+            SELECT name, id, genuine FROM artwork 
+            WHERE name LIKE ? 
+            ORDER BY name 
+            LIMIT ?
+        """
+        results = await self.db.execute_query(like_query, (f"%{search_term}%", limit))
+        suggestions = []
+        for row in results:
+            authenticity = " (Genuine)" if row['genuine'] else " (Fake)"
+            display_name = f"{row['name']}{authenticity}"
+            suggestions.append((display_name, row['id']))
+        return suggestions
+    
+    async def get_random_artwork(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random artwork for autocomplete when query is too short"""
+        query = "SELECT name, id, genuine FROM artwork ORDER BY RANDOM() LIMIT ?"
+        results = await self.db.execute_query(query, (limit,))
+        
+        suggestions = []
+        for row in results:
+            authenticity = " (Genuine)" if row['genuine'] else " (Fake)"
+            display_name = f"{row['name']}{authenticity}"
+            suggestions.append((display_name, row['id']))
+        
+        return suggestions
     
     async def get_database_stats(self) -> Dict[str, int]:
         """Get database statistics"""

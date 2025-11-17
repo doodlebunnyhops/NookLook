@@ -769,4 +769,159 @@ class Villager:
         """Convert this villager to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
+@dataclass
+class Artwork:
+    """Represents a piece of artwork"""
+    id: int
+    name: str
+    image_url: Optional[str]
+    image_url_alt: Optional[str]
+    genuine: bool
+    art_category: Optional[str]
+    buy_price: Optional[int]
+    sell_price: Optional[int]
+    color1: Optional[str]
+    color2: Optional[str]
+    size: Optional[str]
+    real_artwork_title: Optional[str]
+    artist: Optional[str]
+    description: Optional[str]
+    source: Optional[str]
+    source_notes: Optional[str]
+    hha_base_points: Optional[int]
+    hha_concept1: Optional[str]
+    hha_concept2: Optional[str]
+    hha_series: Optional[str]
+    hha_set: Optional[str]
+    interact: Optional[str]
+    tag: Optional[str]
+    speaker_type: Optional[str]
+    lighting_type: Optional[str]
+    catalog: Optional[str]
+    version_added: Optional[str]
+    unlocked: Optional[str]
+    filename: Optional[str]
+    internal_id: Optional[int]
+    unique_entry_id: Optional[str]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    extra_json: Optional[str]
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Artwork':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            image_url=data.get('image_url'),
+            image_url_alt=data.get('image_url_alt'),
+            genuine=bool(data.get('genuine', 0)),
+            art_category=data.get('art_category'),
+            buy_price=data.get('buy_price'),
+            sell_price=data.get('sell_price'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            size=data.get('size'),
+            real_artwork_title=data.get('real_artwork_title'),
+            artist=data.get('artist'),
+            description=data.get('description'),
+            source=data.get('source'),
+            source_notes=data.get('source_notes'),
+            hha_base_points=data.get('hha_base_points'),
+            hha_concept1=data.get('hha_concept1'),
+            hha_concept2=data.get('hha_concept2'),
+            hha_series=data.get('hha_series'),
+            hha_set=data.get('hha_set'),
+            interact=data.get('interact'),
+            tag=data.get('tag'),
+            speaker_type=data.get('speaker_type'),
+            lighting_type=data.get('lighting_type'),
+            catalog=data.get('catalog'),
+            version_added=data.get('version_added'),
+            unlocked=data.get('unlocked'),
+            filename=data.get('filename'),
+            internal_id=data.get('internal_id'),
+            unique_entry_id=data.get('unique_entry_id'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            extra_json=data.get('extra_json')
+        )
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this artwork"""
+        # Choose color and emoji based on authenticity
+        if self.genuine:
+            color = discord.Color.from_rgb(52, 152, 219)  # Blue for genuine
+            emoji = "🎨"
+            authenticity = "Genuine"
+        else:
+            color = discord.Color.from_rgb(231, 76, 60)  # Red for fake
+            emoji = "🎭"
+            authenticity = "Fake"
+        
+        embed = discord.Embed(
+            title=f"{emoji} {self.name} ({authenticity})",
+            color=color
+        )
+        
+        # Basic info
+        info_lines = []
+        if self.art_category:
+            info_lines.append(f"**Category:** {self.art_category}")
+        
+        if self.buy_price:
+            info_lines.append(f"**Buy Price:** {self.buy_price:,} Bells")
+        
+        if self.sell_price:
+            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+        
+        if self.source:
+            source_text = self.source
+            if self.source_notes:
+                source_text += f" ({self.source_notes})"
+            info_lines.append(f"**Source:** {source_text}")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add real artwork info if available
+        if self.real_artwork_title or self.artist:
+            real_info = []
+            if self.real_artwork_title:
+                real_info.append(f"**Title:** {self.real_artwork_title}")
+            if self.artist:
+                real_info.append(f"**Artist:** {self.artist}")
+            
+            embed.add_field(
+                name="📚 Real Artwork Info",
+                value="\n".join(real_info),
+                inline=False
+            )
+        
+        # Add description if available
+        if self.description:
+            embed.add_field(
+                name="📖 Description",
+                value=self.description,
+                inline=False
+            )
+        
+        # Add item hex if available (no TI codes as requested)
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+        
+        # Set image
+        if self.image_url:
+            embed.set_thumbnail(url=self.image_url)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this artwork to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
 # ACNHItem class removed - using new nooklook schema classes instead
