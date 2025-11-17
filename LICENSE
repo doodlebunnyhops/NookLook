@@ -26,9 +26,10 @@ SOFTWARE.
 
 ## Third-Party Data Attribution
 
-This project uses data from:
+This project uses data and assets from:
 - **Animal Crossing: New Horizons** (©Nintendo Co., Ltd.)
-- **ACNH Spreadsheet Community** (community-maintained data)
+- **ACNH Community Discord** (https://discord.gg/kWMMYrN) - Community-maintained spreadsheet data
+- **ACNH Community CDN** (https://acnhcdn.com/) - Image assets and content delivery
 
 ### Nintendo Content Usage
 Game data is used for informational purposes under fair use. This project is
@@ -36,10 +37,12 @@ not affiliated with, endorsed by, or sponsored by Nintendo Co., Ltd. Animal
 Crossing: New Horizons is a trademark of Nintendo Co., Ltd.
 
 ### Community Data
-Data sourced from the ACNH Spreadsheet community is used with attribution.
-This project maintains proper credit to community contributors and data 
-sources as specified in the documentation.
+Data sourced from the ACNH Community Discord (https://discord.gg/kWMMYrN) 
+spreadsheet is used with attribution. Images are served from the ACNH 
+Community CDN (https://acnhcdn.com/). This project maintains proper credit 
+to community contributors and data sources as specified in the documentation.
 
 ### Image Assets
-The Bot links to Nintendo's official CDN for images and does not redistribute
-copyrighted image assets. All image content remains the property of Nintendo.
+The Bot links to the ACNH Community CDN (https://acnhcdn.com/) for images 
+and does not redistribute copyrighted image assets. All image content remains 
+the property of Nintendo Co., Ltd. and is used under fair use provisions.

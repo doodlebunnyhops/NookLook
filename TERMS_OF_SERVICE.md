@@ -78,18 +78,21 @@ NookLook is a Discord bot that provides information about Animal Crossing: New H
 - The Bot software is open source under the MIT License
 - Source code is available at https://github.com/doodlebunnyhops/nooklook
 - Game data is sourced from Animal Crossing: New Horizons (Nintendo property)
-- Community data is attributed to the ACNH Spreadsheet community
+- Community data is sourced from [ACNH Community Discord](https://discord.gg/kWMMYrN) spreadsheet
+- Images are served from [ACNH Community CDN](https://acnhcdn.com/)
 - Contributors retain rights to their contributions under the project license
 
 ### Third-Party Content
 - Nintendo retains all rights to Animal Crossing intellectual property
 - Bot usage does not imply Nintendo endorsement or affiliation
 - Game data used under fair use for informational purposes only
-- Image assets link to Nintendo's CDN and are not redistributed
+- Image assets are served from [ACNH Community CDN](https://acnhcdn.com/) and are not redistributed
+- Community data sourced from [ACNH Community Discord](https://discord.gg/kWMMYrN)
 
 ### Attribution Requirements
 - Original creator (doodlebunnyhops) must be credited in all derivative works
-- ACNH Spreadsheet community must be attributed for data contributions
+- [ACNH Community Discord](https://discord.gg/kWMMYrN) must be attributed for data contributions
+- [ACNH Community CDN](https://acnhcdn.com/) must be credited for image assets
 - License terms must be included in all distributions
 - Commercial use requires compliance with MIT License attribution clauses
 
@@ -154,7 +157,7 @@ These terms are governed by the laws of [Your Jurisdiction]. Any disputes will b
 ## 12. Contact Information
 
 For questions about these Terms of Service:
-- **Support Server**: BloominWatch Discord
+- **Support Server**: [BloominWatch Discord](https://discord.gg/bloominwatch)
 - **Issues**: GitHub repository issues
 - **Documentation**: Use `/help` command in Discord
 

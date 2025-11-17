@@ -2,33 +2,33 @@
 
 This guide provides instructions for hosting your own instance of NookLook, including legal requirements and technical setup.
 
-## ⚖️ Legal Requirements
+## Legal Requirements
 
 ### Before You Host
 **YOU MUST:**
-- ✅ Comply with Discord's Terms of Service and Community Guidelines
-- ✅ Provide your own Terms of Service and Privacy Policy for your instance
-- ✅ Respect Nintendo's intellectual property rights
-- ✅ Maintain attribution to original creators (doodlebunnyhops)
-- ✅ Credit the ACNH Spreadsheet community for data
-- ✅ Comply with local data protection laws (GDPR, CCPA, etc.)
+- Comply with Discord's Terms of Service and Community Guidelines
+- Provide your own Terms of Service and Privacy Policy for your instance
+- Respect Nintendo's intellectual property rights
+- Maintain attribution to original creators (doodlebunnyhops)
+- Credit the ACNH Spreadsheet community for data
+- Comply with local data protection laws (GDPR, CCPA, etc.)
 
 **YOU CANNOT:**
-- ❌ Remove attribution requirements from the bot or documentation
-- ❌ Claim ownership of Nintendo's Animal Crossing content
-- ❌ Use the bot for commercial purposes without proper licensing
-- ❌ Redistribute Nintendo's copyrighted assets beyond fair use
+- Remove attribution requirements from the bot or documentation
+- Claim ownership of Nintendo's Animal Crossing content
+- Use the bot for commercial purposes without proper licensing
+- Redistribute Nintendo's copyrighted assets beyond fair use
 
 ### Required Disclaimers
 Your bot instance **MUST** include these disclaimers:
 ```
 - This bot is not affiliated with or endorsed by Nintendo
 - Animal Crossing: New Horizons is a trademark of Nintendo Co., Ltd.
-- Original bot created by doodlebunnyhops (https://github.com/doodlebunnyhops)
+- Original bot created by doodlebunnyhops (https://github.com/doodlebunnyhops) aka bloomindaisy on discord
 - Data sourced from the ACNH Spreadsheet community
 ```
 
-## 🛠️ Technical Setup
+## Technical Setup
 
 ### Prerequisites
 - **Python 3.11+** (required for modern async features)
@@ -112,7 +112,7 @@ python start_bot.py
 # Test basic commands like /info and /lookup
 ```
 
-## 🚀 Deployment Options
+## Deployment Options
 
 ### Option 1: VPS/Cloud Server
 **Recommended for:** Persistent uptime, community use
@@ -175,7 +175,7 @@ git push heroku main
 heroku ps:scale worker=1
 ```
 
-## 🔒 Security Best Practices
+## Security Best Practices
 
 ### Environment Security
 - **Never commit `.env` files** to version control
@@ -199,7 +199,7 @@ sudo ufw allow outgoing
 sudo ufw enable
 ```
 
-## 📊 Monitoring and Maintenance
+## Monitoring and Maintenance
 
 ### Essential Monitoring
 ```python
@@ -228,7 +228,7 @@ pip install -r requirements.txt --upgrade
 systemctl restart nooklook  # or your deployment method
 ```
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -270,11 +270,11 @@ PRAGMA temp_store = memory;
 
 ### Getting Help
 - **GitHub Issues** - For bugs and technical problems
-- **Discord Community** - BloominWatch server for community support
+- **Discord Community** - [BloominWatch server](https://discord.gg/bloominwatch) for community support
 - **Documentation** - Check README and other docs first
 - **Logs** - Always include relevant log output when asking for help
 
-## 📋 Compliance Checklist
+## Compliance Checklist
 
 Before deploying your instance:
 
@@ -299,7 +299,7 @@ Before deploying your instance:
 - [ ] Network security configured
 - [ ] Regular maintenance plan created
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [Discord.py Documentation](https://discordpy.readthedocs.io/)
 - [Discord Developer Portal](https://discord.com/developers/docs/)
@@ -311,4 +311,4 @@ Before deploying your instance:
 
 **Important:** Running your own bot instance makes you responsible for compliance with all applicable laws and Discord's Terms of Service. This guide provides general guidance but you should consult legal professionals for specific compliance questions.
 
-*Thank you for supporting the NookLook project by hosting your own instance! 🦝*
+*Thank you for supporting the NookLook project by hosting your own instance!*
