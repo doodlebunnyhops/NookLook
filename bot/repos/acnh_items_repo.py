@@ -169,6 +169,33 @@ class NooklookRepository:
         query = "SELECT name FROM items WHERE internal_group_id = ?"
         result = await self.db.execute_query_one(query, (internal_id,))
         return result['name'] if result else None
+
+    async def get_item_variant_by_internal_group_and_indices(self, internal_group_id: int, primary_index: int, secondary_index: Optional[int] = None) -> Optional[tuple[str, str]]:
+        """Get item name and variant display name by internal_group_id and variant indices"""
+        query = """
+        SELECT i.name, v.variation_label, v.pattern_label 
+        FROM items i 
+        JOIN item_variants v ON i.id = v.item_id 
+        WHERE i.internal_group_id = ? 
+        AND v.primary_index = ? 
+        AND (v.secondary_index = ? OR (v.secondary_index IS NULL AND ? IS NULL))
+        """
+        result = await self.db.execute_query_one(query, (internal_group_id, primary_index, secondary_index, secondary_index))
+        
+        if result:
+            item_name = result['name']
+            
+            # Build display name from variant labels
+            variant_parts = []
+            if result['variation_label']:
+                variant_parts.append(result['variation_label'])
+            if result['pattern_label']:
+                variant_parts.append(result['pattern_label'])
+            
+            variant_display = " / ".join(variant_parts) if variant_parts else "Default"
+            return item_name, variant_display
+        
+        return None
     
     async def get_item_variants(self, item_id: int) -> List[ItemVariant]:
         """Get all variants for an item"""

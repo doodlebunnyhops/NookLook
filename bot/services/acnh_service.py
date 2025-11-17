@@ -55,6 +55,10 @@ class NooklookService:
     async def get_item_name_by_internal_id(self, internal_id: int) -> Optional[str]:
         """Get item name by internal_id or internal_group_id"""
         return await self.repo.get_item_name_by_internal_id(internal_id)
+
+    async def get_item_variant_by_internal_group_and_indices(self, internal_group_id: int, primary_index: int, secondary_index: Optional[int] = None) -> Optional[tuple[str, str]]:
+        """Get item name and variant display name by internal_group_id and variant indices"""
+        return await self.repo.get_item_variant_by_internal_group_and_indices(internal_group_id, primary_index, secondary_index)
     
     async def get_recipe_by_id(self, recipe_id: int) -> Optional[Recipe]:
         """Get a specific recipe by ID with ingredients"""

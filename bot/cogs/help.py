@@ -96,7 +96,7 @@ class HelpDropdown(discord.ui.Select):
             embed.description = "**Usage:** `/villager <name>`\n\nFind detailed information about any ACNH villager including personality, preferences, and house details."
             embed.add_field(
                 name="What You'll See",
-                value="• Basic info (species, personality, birthday)\n• Style and color preferences\n• House interior (wallpaper, flooring, furniture)\n• Clothing preferences\n• Favorite song and sayings",
+                value="• Basic info (species, personality, birthday)\n• Style and color preferences\n• House interior (wallpaper, flooring, furniture)\n• Clothing preferences and default items\n• DIY Workbench and Kitchen Equipment with variants\n• Favorite song and sayings",
                 inline=False
             )
             embed.add_field(

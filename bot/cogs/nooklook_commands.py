@@ -1053,8 +1053,50 @@ class VillagerDetailsView(discord.ui.View):
         except (ValueError, TypeError) as e:
             logger.error(f"Error resolving clothing ID {clothing_id_str}: {e}")
             return clothing_id_str
+
+    async def resolve_equipment_name(self, equipment_str: str) -> str:
+        """Resolve equipment ID,variant to item name with variant (e.g., '3943,2_0' -> 'ironwood DIY workbench, Walnut')"""
+        try:
+            if not equipment_str:
+                return "None"
+                
+            # Parse internal_group_id,variant format
+            if ',' in equipment_str:
+                internal_id_str, variant_str = equipment_str.split(',', 1)
+                internal_id = int(internal_id_str)
+                
+                # Parse variant indices (e.g., "2_0" -> primary=2, secondary=0)
+                if '_' in variant_str:
+                    primary_str, secondary_str = variant_str.split('_', 1)
+                    primary_index = int(primary_str)
+                    secondary_index = int(secondary_str) if secondary_str else None
+                else:
+                    primary_index = int(variant_str)
+                    secondary_index = None
+            else:
+                internal_id = int(equipment_str)
+                primary_index = 0
+                secondary_index = None
+            
+            # Get item name and variant display name
+            result = await self.service.get_item_variant_by_internal_group_and_indices(
+                internal_id, primary_index, secondary_index
+            )
+            
+            if result:
+                item_name, variant_display = result
+                if variant_display and variant_display != "Default":
+                    return f"{item_name}, {variant_display}"
+                else:
+                    return item_name
+            else:
+                return f"Unknown Item ({equipment_str})"
+                
+        except (ValueError, Exception) as e:
+            logger.error(f"Error resolving equipment name for '{equipment_str}': {e}")
+            return f"Error ({equipment_str})"
     
-    def get_embed_for_view(self, view_type: str) -> discord.Embed:
+    async def get_embed_for_view(self, view_type: str) -> discord.Embed:
         """Get the appropriate embed based on view type"""
         if view_type == "house":
             embed = discord.Embed(
@@ -1087,9 +1129,11 @@ class VillagerDetailsView(discord.ui.View):
             
             clothing_info = []
             if self.villager.default_clothing:
-                clothing_info.append(f"**Default Clothing:** {self.villager.default_clothing}")
+                clothing_name = await self.resolve_clothing_name(self.villager.default_clothing)
+                clothing_info.append(f"**Default Clothing:** {clothing_name}")
             if self.villager.default_umbrella:
-                clothing_info.append(f"**Default Umbrella:** {self.villager.default_umbrella}")
+                umbrella_name = await self.resolve_clothing_name(self.villager.default_umbrella)
+                clothing_info.append(f"**Default Umbrella:** {umbrella_name}")
             
             if clothing_info:
                 embed.description = "\n".join(clothing_info)
@@ -1104,9 +1148,11 @@ class VillagerDetailsView(discord.ui.View):
             
             other_info = []
             if self.villager.diy_workbench:
-                other_info.append(f"**DIY Workbench:** {self.villager.diy_workbench}")
+                workbench_name = await self.resolve_equipment_name(self.villager.diy_workbench)
+                other_info.append(f"**DIY Workbench:** {workbench_name}")
             if self.villager.kitchen_equipment:
-                other_info.append(f"**Kitchen Equipment:** {self.villager.kitchen_equipment}")
+                kitchen_name = await self.resolve_equipment_name(self.villager.kitchen_equipment)
+                other_info.append(f"**Kitchen Equipment:** {kitchen_name}")
             if self.villager.version_added:
                 other_info.append(f"**Version Added:** {self.villager.version_added}")
             if self.villager.subtype:
@@ -1126,47 +1172,28 @@ class VillagerDetailsView(discord.ui.View):
     async def about_villager(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show main villager info"""
         self.current_view = "main"
-        embed = self.get_embed_for_view("main")
+        embed = await self.get_embed_for_view("main")
         await interaction.response.edit_message(embed=embed, view=self)
     
     @discord.ui.button(label="🏠 House", style=discord.ButtonStyle.secondary)
     async def house_details(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show house details"""
         self.current_view = "house"
-        embed = self.get_embed_for_view("house")
+        embed = await self.get_embed_for_view("house")
         await interaction.response.edit_message(embed=embed, view=self)
     
     @discord.ui.button(label="👕 Clothing", style=discord.ButtonStyle.secondary)
     async def clothing_details(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show clothing details"""
         self.current_view = "clothing"
-        
-        # Create clothing embed with resolved names
-        embed = discord.Embed(
-            title=f"👕 {self.villager.name}'s Style",
-            color=discord.Color.green()
-        )
-        
-        clothing_info = []
-        if self.villager.default_clothing:
-            clothing_name = await self.resolve_clothing_name(self.villager.default_clothing)
-            clothing_info.append(f"**Default Clothing:** {clothing_name}")
-        if self.villager.default_umbrella:
-            umbrella_name = await self.resolve_clothing_name(self.villager.default_umbrella)
-            clothing_info.append(f"**Default Umbrella:** {umbrella_name}")
-        
-        if clothing_info:
-            embed.description = "\n".join(clothing_info)
-        else:
-            embed.description = "No clothing details available."
-        
+        embed = await self.get_embed_for_view("clothing")
         await interaction.response.edit_message(embed=embed, view=self)
     
     @discord.ui.button(label="🔧 Other", style=discord.ButtonStyle.secondary)
     async def other_details(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show other details"""
         self.current_view = "other"
-        embed = self.get_embed_for_view("other")
+        embed = await self.get_embed_for_view("other")
         await interaction.response.edit_message(embed=embed, view=self)
 
 class CritterAvailabilityView(discord.ui.View):
