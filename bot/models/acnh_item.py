@@ -475,19 +475,9 @@ class Critter:
         
         embed.description = "\n".join(info_lines)
         
-        # Add TI info if available
-        if self.item_hex or self.ti_full_hex:
-            ti_info = []
-            if self.item_hex:
-                ti_info.append(f"**Item Hex:** `{self.item_hex}`")
-            
-            if self.ti_customize_str:
-                ti_info.append(f"**TI Customize:** `!customize {self.item_hex or 'XXXX'} {self.ti_customize_str}`")
-            
-            if self.ti_full_hex:
-                ti_info.append(f"**TI Drop Hex:** `{self.ti_full_hex}`")
-            
-            embed.add_field(name="TI Codes", value="\n".join(ti_info), inline=False)
+        # Add item hex if available
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
         
         # Add catch info if available  
         if self.catch_difficulty or self.vision or self.movement_speed:

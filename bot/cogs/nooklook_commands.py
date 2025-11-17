@@ -93,6 +93,31 @@ async def artwork_name_autocomplete(interaction: discord.Interaction, current: s
         logger.error(f"Error in artwork autocomplete: {e}")
         return []
 
+async def critter_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """Autocomplete for critter names"""
+    try:
+        # Get the cog to access the service
+        cog = interaction.client.get_cog('ACNHCommands')
+        if not cog or not hasattr(cog, 'service'):
+            return []
+        
+        # Get critter suggestions
+        if not current or len(current) <= 2:
+            # Show random critters when query is too short
+            suggestions = await cog.service.get_random_critter_suggestions(25)
+        else:
+            suggestions = await cog.service.get_critter_suggestions(current)
+        
+        # Convert to choices
+        choices = []
+        for name, critter_id in suggestions:
+            choices.append(app_commands.Choice(name=name, value=str(critter_id)))
+        
+        return choices[:25]  # Discord limit
+    except Exception as e:
+        logger.error(f"Error in critter autocomplete: {e}")
+        return []
+
 class BrowseGroup(app_commands.Group):
     """Command group for browsing different types of ACNH content"""
     
@@ -599,6 +624,74 @@ class ACNHCommands(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
+    @app_commands.command(name="critter", description="Look up a specific ACNH critter (fish, bug, or sea creature)")
+    @app_commands.describe(name="The critter name to look up")
+    @app_commands.autocomplete(name=critter_name_autocomplete)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def critter(self, interaction: discord.Interaction, name: str):
+        """Look up critter details"""
+        ephemeral = not is_dm(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        try:
+            # Convert name to critter ID if it's numeric (from autocomplete)
+            if name.isdigit():
+                critter_id = int(name)
+                critter = await self.service.get_critter_by_id(critter_id)
+            else:
+                # Search for critter by name
+                search_results = await self.service.search_all(name, category_filter="critters")
+                critter = search_results[0] if search_results else None
+            
+            if not critter:
+                embed = discord.Embed(
+                    title="❌ Critter Not Found",
+                    description=f"Sorry, I couldn't find a critter named **{name}** 😿\n"
+                               f"Try using `/search {name}` to see if there are similar names.",
+                    color=0xe74c3c
+                )
+                
+                # Add suggestion for different critter types
+                embed.add_field(
+                    name="💡 Search Tips",
+                    value="• 🐟 Fish: Found in rivers, ponds, and the sea\n"
+                          "• 🦋 Bugs: Found around flowers, trees, and rocks\n"
+                          "• 🌊 Sea Creatures: Found while diving in the ocean\n"
+                          "• Try `/search` with partial names or locations",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                return
+            
+            # Create the critter embed
+            embed = critter.to_discord_embed()
+            
+            # Add critter type info in footer
+            critter_type = {
+                'fish': '🐟 Fish',
+                'insect': '🦋 Bug', 
+                'sea': '🌊 Sea Creature'
+            }.get(critter.kind, critter.kind.title())
+            
+            footer_text = f"{critter_type}"
+            if critter.location:
+                footer_text += f" • {critter.location}"
+            embed.set_footer(text=footer_text)
+            
+            # Create a view with availability button
+            view = CritterAvailabilityView(critter, interaction.user)
+            
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            
+        except Exception as e:
+            logger.error(f"Error in critter command: {e}")
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while looking up the critter.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
 class VillagerDetailsView(discord.ui.View):
     """View for showing additional villager details with navigation"""
     
@@ -752,6 +845,212 @@ class VillagerDetailsView(discord.ui.View):
         self.current_view = "other"
         embed = self.get_embed_for_view("other")
         await interaction.response.edit_message(embed=embed, view=self)
+
+class CritterAvailabilityView(discord.ui.View):
+    """View for showing critter availability with hemisphere and month selection"""
+    
+    def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False):
+        super().__init__(timeout=300)
+        self.critter = critter
+        self.interaction_user = interaction_user
+        self.current_hemisphere = "NH"  # Default to Northern Hemisphere
+        self.current_month = "jan"  # Default to January
+        self.show_availability = show_availability
+        
+        # Add appropriate buttons based on mode
+        if show_availability:
+            self.add_availability_controls()
+            self.add_back_button()
+        else:
+            self.add_view_availability_button()
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Only allow the original user to interact"""
+        return interaction.user == self.interaction_user
+    
+    def get_availability_embed(self) -> discord.Embed:
+        """Create embed showing availability for selected hemisphere and month"""
+        embed = discord.Embed(
+            title=f"🗓️ {self.critter.name} Availability",
+            color=discord.Color.green()
+        )
+        
+        # Get hemisphere display name
+        hemisphere_name = "Northern Hemisphere" if self.current_hemisphere == "NH" else "Southern Hemisphere"
+        
+        # Get month display name
+        month_names = {
+            "jan": "January", "feb": "February", "mar": "March", "apr": "April",
+            "may": "May", "jun": "June", "jul": "July", "aug": "August",
+            "sep": "September", "oct": "October", "nov": "November", "dec": "December"
+        }
+        month_name = month_names.get(self.current_month, self.current_month.title())
+        
+        embed.description = f"**Hemisphere:** {hemisphere_name}\n**Month:** {month_name}"
+        
+        # Get availability for current selection
+        field_name = f"{self.current_hemisphere.lower()}_{self.current_month}"
+        availability = getattr(self.critter, field_name, None)
+        
+        if availability and availability.lower() not in ['none', 'null', '']:
+            # Available - show the time information
+            embed.add_field(
+                name="✅ Available", 
+                value=f"{self.critter.name} is available in {month_name}!\n**Time:** {availability}", 
+                inline=False
+            )
+            embed.color = discord.Color.green()
+        elif availability and availability.lower() in ['none', 'null']:
+            # Not available
+            embed.add_field(
+                name="❌ Not Available", 
+                value=f"{self.critter.name} is not available in {month_name}.", 
+                inline=False
+            )
+            embed.color = discord.Color.red()
+        else:
+            embed.add_field(name="❓ Unknown", value="Availability data not found.", inline=False)
+            embed.color = discord.Color.orange()
+        
+        # Add full year overview
+        year_data = []
+        for month in ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]:
+            field = f"{self.current_hemisphere.lower()}_{month}"
+            month_avail = getattr(self.critter, field, None)
+            if month_avail and month_avail.lower() not in ['none', 'null', '']:
+                year_data.append(f"✅ {month_names[month][:3]}")
+            else:
+                year_data.append(f"❌ {month_names[month][:3]}")
+        
+        # Split into quarters for better formatting
+        quarters = [year_data[i:i+3] for i in range(0, 12, 3)]
+        year_overview = "\n".join([" ".join(quarter) for quarter in quarters])
+        
+        embed.add_field(
+            name=f"📅 Full Year Overview ({hemisphere_name})",
+            value=f"```\n{year_overview}\n```",
+            inline=False
+        )
+        
+        # Add additional info if available
+        info_lines = []
+        if self.critter.time_of_day:
+            info_lines.append(f"**Time:** {self.critter.time_of_day}")
+        if self.critter.location:
+            info_lines.append(f"**Location:** {self.critter.location}")
+        if self.critter.weather:
+            info_lines.append(f"**Weather:** {self.critter.weather}")
+        
+        if info_lines:
+            embed.add_field(name="ℹ️ Additional Info", value="\n".join(info_lines), inline=False)
+        
+        return embed
+    
+    def add_availability_controls(self):
+        """Add hemisphere and month selects for availability view"""
+        hemisphere_select = discord.ui.Select(
+            placeholder="Choose hemisphere...",
+            options=[
+                discord.SelectOption(label="Northern Hemisphere", value="NH", emoji="🌎"),
+                discord.SelectOption(label="Southern Hemisphere", value="SH", emoji="🌏")
+            ],
+            row=0
+        )
+        hemisphere_select.callback = self.hemisphere_callback
+        
+        month_select = discord.ui.Select(
+            placeholder="Choose month...",
+            options=[
+                discord.SelectOption(label="January", value="jan"),
+                discord.SelectOption(label="February", value="feb"),
+                discord.SelectOption(label="March", value="mar"),
+                discord.SelectOption(label="April", value="apr"),
+                discord.SelectOption(label="May", value="may"),
+                discord.SelectOption(label="June", value="jun"),
+                discord.SelectOption(label="July", value="jul"),
+                discord.SelectOption(label="August", value="aug"),
+                discord.SelectOption(label="September", value="sep"),
+                discord.SelectOption(label="October", value="oct"),
+                discord.SelectOption(label="November", value="nov"),
+                discord.SelectOption(label="December", value="dec")
+            ],
+            row=1
+        )
+        month_select.callback = self.month_callback
+        
+        self.add_item(hemisphere_select)
+        self.add_item(month_select)
+    
+    async def hemisphere_callback(self, interaction: discord.Interaction):
+        """Handle hemisphere selection"""
+        if interaction.user.id != self.interaction_user.id:
+            await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
+            return
+            
+        self.current_hemisphere = interaction.data['values'][0]
+        embed = self.get_availability_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def month_callback(self, interaction: discord.Interaction):
+        """Handle month selection"""
+        if interaction.user.id != self.interaction_user.id:
+            await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
+            return
+            
+        self.current_month = interaction.data['values'][0]
+        embed = self.get_availability_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    def add_back_button(self):
+        """Add only the back to details button"""
+        back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
+        back_button.callback = self.back_callback
+        self.add_item(back_button)
+    
+    def add_view_availability_button(self):
+        """Add only the view availability button"""
+        availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
+        availability_button.callback = self.availability_callback
+        self.add_item(availability_button)
+    
+    async def back_callback(self, interaction: discord.Interaction):
+        """Go back to the main critter details"""
+        if interaction.user.id != self.interaction_user.id:
+            await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
+            return
+            
+        embed = self.critter.to_discord_embed()
+        
+        # Add critter type info in footer
+        critter_type = {
+            'fish': '🐟 Fish',
+            'insect': '🦋 Bug', 
+            'sea': '🌊 Sea Creature'
+        }.get(self.critter.kind, self.critter.kind.title())
+        
+        footer_text = f"{critter_type}"
+        if self.critter.location:
+            footer_text += f" • {self.critter.location}"
+        embed.set_footer(text=footer_text)
+        
+        # Create a new view with only the availability button (no selects)
+        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=False)
+        view.clear_items()
+        view.add_view_availability_button()
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
+    async def availability_callback(self, interaction: discord.Interaction):
+        """Show availability interface"""
+        if interaction.user.id != self.interaction_user.id:
+            await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
+            return
+            
+        # Create new view with availability controls
+        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True)
+        
+        embed = view.get_availability_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 async def setup(bot: commands.Bot):
     """Setup function for the cog"""

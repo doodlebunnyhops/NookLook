@@ -530,6 +530,54 @@ class NooklookRepository:
         
         return suggestions
     
+    async def get_critter_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get critter name suggestions for autocomplete"""
+        # Use FTS5 search with fallback to LIKE search
+        try:
+            # First try FTS5 search on critters
+            fts_query = """
+                SELECT c.name, c.id, c.kind, rank
+                FROM search_index si
+                JOIN critters c ON si.ref_table = 'critters' AND si.ref_id = c.id
+                WHERE search_index MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """
+            results = await self.db.execute_query(fts_query, (search_term, limit))
+            
+            if results:
+                suggestions = []
+                for row in results:
+                    suggestions.append((row['name'], row['id']))
+                return suggestions
+            
+        except Exception:
+            pass  # Fall back to LIKE search
+        
+        # Fallback LIKE search for critters
+        like_query = """
+            SELECT name, id, kind FROM critters 
+            WHERE name LIKE ? 
+            ORDER BY name 
+            LIMIT ?
+        """
+        results = await self.db.execute_query(like_query, (f"%{search_term}%", limit))
+        suggestions = []
+        for row in results:
+            suggestions.append((row['name'], row['id']))
+        return suggestions
+    
+    async def get_random_critters(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random critters for autocomplete when query is too short"""
+        query = "SELECT name, id, kind FROM critters ORDER BY RANDOM() LIMIT ?"
+        results = await self.db.execute_query(query, (limit,))
+        
+        suggestions = []
+        for row in results:
+            suggestions.append((row['name'], row['id']))
+        
+        return suggestions
+    
     async def get_database_stats(self) -> Dict[str, int]:
         """Get database statistics"""
         stats = {}

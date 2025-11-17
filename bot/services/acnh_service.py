@@ -90,6 +90,26 @@ class NooklookService:
             logger.error(f"Error getting random artwork suggestions: {e}")
             return []
     
+    async def get_critter_by_id(self, critter_id: int) -> Optional[Critter]:
+        """Get a specific critter by ID"""
+        return await self.repo.get_critter_by_id(critter_id)
+    
+    async def get_critter_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get critter name suggestions for autocomplete"""
+        try:
+            return await self.repo.get_critter_suggestions(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting critter suggestions: {e}")
+            return []
+    
+    async def get_random_critter_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random critter suggestions for autocomplete when query is too short"""
+        try:
+            return await self.repo.get_random_critters(limit)
+        except Exception as e:
+            logger.error(f"Error getting random critter suggestions: {e}")
+            return []
+    
     async def browse_items(self, category: str = None, color: str = None, 
                           price_range: str = None, page: int = 0, per_page: int = 10) -> Dict[str, Any]:
         """Browse items with filtering and pagination"""
