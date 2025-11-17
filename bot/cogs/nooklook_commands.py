@@ -21,6 +21,28 @@ def is_dm(interaction: discord.Interaction) -> bool:
     """Check if interaction is in a DM or Group DM (both have guild=None)"""
     return interaction.guild is None
 
+async def villager_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """Autocomplete for villager names"""
+    try:
+        # Get the cog to access the service
+        cog = interaction.client.get_cog('ACNHCommands')
+        if not cog or not hasattr(cog, 'service'):
+            return []
+        
+        # Get villager suggestions
+        suggestions = await cog.service.get_villager_suggestions(current)
+        
+        # Convert to choices
+        choices = []
+        for name, villager_id in suggestions:
+            # Use villager ID as the value for lookup
+            choices.append(app_commands.Choice(name=name, value=str(villager_id)))
+        
+        return choices[:25]  # Discord limit
+    except Exception as e:
+        logger.error(f"Error in villager autocomplete: {e}")
+        return []
+
 class BrowseGroup(app_commands.Group):
     """Command group for browsing different types of ACNH content"""
     
@@ -362,6 +384,209 @@ class ACNHCommands(commands.Cog):
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @app_commands.command(name="villager", description="Look up a specific ACNH villager")
+    @app_commands.describe(name="The villager name to look up")
+    @app_commands.autocomplete(name=villager_name_autocomplete)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def villager(self, interaction: discord.Interaction, name: str):
+        """Look up villager details"""
+        await interaction.response.defer(thinking=True)
+        
+        # Check if this is a DM for ephemeral logic
+        ephemeral = not is_dm(interaction)
+        
+        try:
+            # Convert name to villager ID if it's numeric (from autocomplete)
+            if name.isdigit():
+                villager_id = int(name)
+                villager = await self.service.get_villager_by_id(villager_id)
+            else:
+                # Search for villager by name
+                search_results = await self.service.search(name, limit=50)
+                villagers = [r for r in search_results if hasattr(r, 'species')]  # Filter for villagers
+                villager = villagers[0] if villagers else None
+            
+            if not villager:
+                embed = discord.Embed(
+                    title="❌ Villager Not Found",
+                    description=f"Sorry, I couldn't find a villager named **{name}** 😿\n"
+                               f"Try using `/search {name}` to see if there are similar names.",
+                    color=0xe74c3c
+                )
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                return
+            
+            # Create the main villager embed with extra details button
+            embed = villager.to_discord_embed()
+            
+            # Create a view with buttons for additional details
+            view = VillagerDetailsView(villager, interaction.user, self.service)
+            
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            
+        except Exception as e:
+            logger.error(f"Error in villager command: {e}")
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while looking up the villager.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+class VillagerDetailsView(discord.ui.View):
+    """View for showing additional villager details with navigation"""
+    
+    def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main"):
+        super().__init__(timeout=300)
+        self.villager = villager
+        self.interaction_user = interaction_user
+        self.service = service
+        self.current_view = current_view
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Only allow the original user to interact"""
+        return interaction.user == self.interaction_user
+    
+    async def resolve_clothing_name(self, clothing_id_str: str) -> str:
+        """Resolve clothing ID to name"""
+        try:
+            # If it's already a name (contains spaces or letters), return as-is
+            if not clothing_id_str.isdigit():
+                return clothing_id_str
+            
+            # Try to convert to int and resolve name by internal IDs
+            clothing_id = int(clothing_id_str)
+            
+            # Try internal_id/internal_group_id first (more likely for villager references)
+            clothing_name = await self.service.get_item_name_by_internal_id(clothing_id)
+            
+            # If that didn't work, try regular table ID as fallback
+            if not clothing_name:
+                clothing_name = await self.service.get_item_name_by_id(clothing_id)
+            
+            # Debug log to see what's happening
+            logger.debug(f"Resolving ID {clothing_id}: found name '{clothing_name}'")
+            
+            return clothing_name if clothing_name else f"Unknown Item ({clothing_id})"
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error resolving clothing ID {clothing_id_str}: {e}")
+            return clothing_id_str
+    
+    def get_embed_for_view(self, view_type: str) -> discord.Embed:
+        """Get the appropriate embed based on view type"""
+        if view_type == "house":
+            embed = discord.Embed(
+                title=f"🏠 {self.villager.name}'s House",
+                color=discord.Color.blue()
+            )
+            
+            house_info = []
+            if self.villager.wallpaper:
+                house_info.append(f"**Wallpaper:** {self.villager.wallpaper}")
+            if self.villager.flooring:
+                house_info.append(f"**Flooring:** {self.villager.flooring}")
+            if self.villager.furniture_name_list:
+                house_info.append(f"**Furniture:** {self.villager.furniture_name_list}")
+            
+            if house_info:
+                embed.description = "\n".join(house_info)
+            else:
+                embed.description = "No house details available."
+            
+            # Set house image if available
+            if self.villager.house_image:
+                embed.set_image(url=self.villager.house_image)
+                
+        elif view_type == "clothing":
+            embed = discord.Embed(
+                title=f"👕 {self.villager.name}'s Style",
+                color=discord.Color.green()
+            )
+            
+            clothing_info = []
+            if self.villager.default_clothing:
+                clothing_info.append(f"**Default Clothing:** {self.villager.default_clothing}")
+            if self.villager.default_umbrella:
+                clothing_info.append(f"**Default Umbrella:** {self.villager.default_umbrella}")
+            
+            if clothing_info:
+                embed.description = "\n".join(clothing_info)
+            else:
+                embed.description = "No clothing details available."
+                
+        elif view_type == "other":
+            embed = discord.Embed(
+                title=f"🔧 {self.villager.name}'s Other Details",
+                color=discord.Color.orange()
+            )
+            
+            other_info = []
+            if self.villager.diy_workbench:
+                other_info.append(f"**DIY Workbench:** {self.villager.diy_workbench}")
+            if self.villager.kitchen_equipment:
+                other_info.append(f"**Kitchen Equipment:** {self.villager.kitchen_equipment}")
+            if self.villager.version_added:
+                other_info.append(f"**Version Added:** {self.villager.version_added}")
+            if self.villager.subtype:
+                other_info.append(f"**Subtype:** {self.villager.subtype}")
+            
+            if other_info:
+                embed.description = "\n".join(other_info)
+            else:
+                embed.description = "No additional details available."
+                
+        else:  # main view
+            embed = self.villager.to_discord_embed()
+        
+        return embed
+    
+    @discord.ui.button(label="🏘️ About", style=discord.ButtonStyle.primary)
+    async def about_villager(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show main villager info"""
+        self.current_view = "main"
+        embed = self.get_embed_for_view("main")
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="🏠 House", style=discord.ButtonStyle.secondary)
+    async def house_details(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show house details"""
+        self.current_view = "house"
+        embed = self.get_embed_for_view("house")
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="👕 Clothing", style=discord.ButtonStyle.secondary)
+    async def clothing_details(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show clothing details"""
+        self.current_view = "clothing"
+        
+        # Create clothing embed with resolved names
+        embed = discord.Embed(
+            title=f"👕 {self.villager.name}'s Style",
+            color=discord.Color.green()
+        )
+        
+        clothing_info = []
+        if self.villager.default_clothing:
+            clothing_name = await self.resolve_clothing_name(self.villager.default_clothing)
+            clothing_info.append(f"**Default Clothing:** {clothing_name}")
+        if self.villager.default_umbrella:
+            umbrella_name = await self.resolve_clothing_name(self.villager.default_umbrella)
+            clothing_info.append(f"**Default Umbrella:** {umbrella_name}")
+        
+        if clothing_info:
+            embed.description = "\n".join(clothing_info)
+        else:
+            embed.description = "No clothing details available."
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="🔧 Other", style=discord.ButtonStyle.secondary)
+    async def other_details(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show other details"""
+        self.current_view = "other"
+        embed = self.get_embed_for_view("other")
+        await interaction.response.edit_message(embed=embed, view=self)
 
 async def setup(bot: commands.Bot):
     """Setup function for the cog"""

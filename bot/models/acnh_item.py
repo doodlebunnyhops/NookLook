@@ -703,26 +703,26 @@ class Villager:
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this villager"""
         embed = discord.Embed(
-            title=f"🏘️ {self.display_name}",
+            title=f"🔍 🏘️ {self.display_name}",
             color=discord.Color.purple()
         )
         
-        # Basic info
+        # Basic info in simple format (no bold)
         info_lines = []
         if self.species:
-            info_lines.append(f"**Species:** {self.species}")
+            info_lines.append(f"Species: {self.species}")
         
         if self.personality:
-            info_lines.append(f"**Personality:** {self.personality}")
+            info_lines.append(f"Personality: {self.personality}")
         
         if self.hobby:
-            info_lines.append(f"**Hobby:** {self.hobby}")
+            info_lines.append(f"Hobby: {self.hobby}")
         
         if self.birthday:
-            info_lines.append(f"**Birthday:** {self.birthday}")
+            info_lines.append(f"Birthday: {self.birthday}")
         
         if self.catchphrase:
-            info_lines.append(f"**Catchphrase:** \"{self.catchphrase}\"")
+            info_lines.append(f"Catchphrase: \"{self.catchphrase}\"")
         
         embed.description = "\n".join(info_lines)
         
@@ -733,13 +733,13 @@ class Villager:
                 style_text = self.style1
                 if self.style2:
                     style_text += f", {self.style2}"
-                prefs.append(f"**Style:** {style_text}")
+                prefs.append(f"Style: {style_text}")
             
             if self.color1:
                 color_text = self.color1
                 if self.color2:
                     color_text += f", {self.color2}"
-                prefs.append(f"**Colors:** {color_text}")
+                prefs.append(f"Colors: {color_text}")
             
             embed.add_field(name="Preferences", value="\n".join(prefs), inline=True)
         
@@ -747,9 +747,9 @@ class Villager:
         if self.favorite_song or self.favorite_saying:
             favorites = []
             if self.favorite_song:
-                favorites.append(f"**Song:** {self.favorite_song}")
+                favorites.append(f"Song: {self.favorite_song}")
             if self.favorite_saying:
-                favorites.append(f"**Saying:** \"{self.favorite_saying}\"")
+                favorites.append(f"Saying: \"{self.favorite_saying}\"")
             
             embed.add_field(name="Favorites", value="\n".join(favorites), inline=True)
         

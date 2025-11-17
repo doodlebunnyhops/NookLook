@@ -147,6 +147,18 @@ class NooklookRepository:
         
         return item
     
+    async def get_item_name_by_id(self, item_id: int) -> Optional[str]:
+        """Get just the item name by ID (lightweight)"""
+        query = "SELECT name FROM items WHERE id = ?"
+        result = await self.db.execute_query_one(query, (item_id,))
+        return result['name'] if result else None
+    
+    async def get_item_name_by_internal_id(self, internal_id: int) -> Optional[str]:
+        """Get item name by internal_group_id"""
+        query = "SELECT name FROM items WHERE internal_group_id = ?"
+        result = await self.db.execute_query_one(query, (internal_id,))
+        return result['name'] if result else None
+    
     async def get_item_variants(self, item_id: int) -> List[ItemVariant]:
         """Get all variants for an item"""
         query = "SELECT * FROM item_variants WHERE item_id = ? ORDER BY primary_index, secondary_index"

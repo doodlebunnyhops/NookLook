@@ -37,6 +37,18 @@ class NooklookService:
         """Get a specific item by ID with variants"""
         return await self.repo.get_item_by_id(item_id, load_variants=True)
     
+    async def get_villager_by_id(self, villager_id: int) -> Optional[Villager]:
+        """Get a specific villager by ID"""
+        return await self.repo.get_villager_by_id(villager_id)
+    
+    async def get_item_name_by_id(self, item_id: int) -> Optional[str]:
+        """Get item name by ID"""
+        return await self.repo.get_item_name_by_id(item_id)
+    
+    async def get_item_name_by_internal_id(self, internal_id: int) -> Optional[str]:
+        """Get item name by internal_id or internal_group_id"""
+        return await self.repo.get_item_name_by_internal_id(internal_id)
+    
     async def browse_items(self, category: str = None, color: str = None, 
                           price_range: str = None, page: int = 0, per_page: int = 10) -> Dict[str, Any]:
         """Browse items with filtering and pagination"""
@@ -127,6 +139,35 @@ class NooklookService:
             'recipe_categories': await self.repo.get_recipe_categories()
         }
     
+    async def get_villager_suggestions(self, query: str) -> List[tuple[str, int]]:
+        """Get villager name and ID suggestions for autocomplete"""
+        try:
+            logger.debug(f"Getting villager suggestions for query: '{query}'")
+            # Use FTS5 autocomplete search for villagers
+            search_results = await self.repo.search_fts_autocomplete(query, category_filter="villager", limit=25)
+            logger.debug(f"FTS autocomplete search returned {len(search_results)} villager results")
+            
+            suggestions = []
+            for result in search_results:
+                if result['ref_table'] == 'villagers':
+                    suggestions.append((result['name'], result['ref_id']))
+            
+            # If no FTS results, get random villagers
+            if not suggestions:
+                logger.debug("No FTS results, getting random villagers")
+                villagers_data = await self.browse_villagers(page=0, per_page=25)
+                random_villagers = villagers_data['villagers']
+                for villager in random_villagers:
+                    suggestions.append((villager.name, villager.id))
+            
+            logger.debug(f"Returning {len(suggestions)} villager suggestions")
+            return suggestions[:25]
+        
+        except Exception as e:
+            logger.error(f"Error getting villager suggestions: {e}")
+            # Fallback to empty list
+            return []
+
     async def get_base_item_suggestions(self, query: str) -> List[tuple[str, int]]:
         """Get base item name and ID suggestions for autocomplete (no variants)"""
         try:
