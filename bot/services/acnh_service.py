@@ -15,16 +15,23 @@ class NooklookService:
         """Initialize the database"""
         await self.repo.init_database()
     
-    async def search_all(self, query: str, category_filter: str = None) -> List[Any]:
-        """Search across all content types using FTS5"""
+    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None) -> List[Any]:
+        """Search across all content types using FTS5 with prefix matching"""
         try:
-            search_results = await self.repo.search_fts(query, category_filter, limit=50)
+            search_results = await self.repo.search_fts_autocomplete(query, category_filter, limit=50)
             
             # Resolve search results to actual objects
             resolved_items = []
             for result in search_results:
                 obj = await self.repo.resolve_search_result(result['ref_table'], result['ref_id'])
                 if obj:
+                    # Filter recipes by subtype if specified
+                    if recipe_subtype and hasattr(obj, 'is_food'):
+                        if recipe_subtype == "food" and not obj.is_food():
+                            continue  # Skip non-food recipes when looking for food
+                        elif recipe_subtype == "diy" and obj.is_food():
+                            continue  # Skip food recipes when looking for DIY
+                    
                     resolved_items.append(obj)
             
             return resolved_items

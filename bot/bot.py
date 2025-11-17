@@ -9,8 +9,7 @@ from .services.acnh_service import NooklookService
 class ACNHBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.message_content = False 
-        # intents.dm_messages = True
+        intents.message_content = False
         intents.presences = False
         intents.members = False
         
@@ -64,7 +63,7 @@ class ACNHBot(commands.Bot):
                 await self.tree.sync()
                 self.logger.info(f"✅ Synced commands globally to all {len(self.guilds)} guilds")
                     
-                self.logger.info("🚀 Bot is ready! Use /lookup, /search, /detail, or /info commands")
+                self.logger.info("🚀 Bot is ready!")
         except Exception as e:
             self.logger.error(f"Error syncing commands: {e}")
 

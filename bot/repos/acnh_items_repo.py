@@ -53,6 +53,9 @@ class NooklookRepository:
 
     async def search_fts_autocomplete(self, query: str, category_filter: str = None, limit: int = 25) -> List[Dict[str, Any]]:
         """Search using FTS5 for autocomplete with prefix matching"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         query = query.strip()
         
         # Try multiple search strategies for better results with special characters
@@ -63,6 +66,8 @@ class NooklookRepository:
             # Escape FTS5 special characters
             escaped_query = self._escape_fts_query(query)
             fts_query = f'{escaped_query}*'
+            logger.debug(f"FTS5 search: original='{query}' -> escaped='{escaped_query}' -> fts_query='{fts_query}' category='{category_filter}'")
+            
             sql = """
                 SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
                 FROM search_index s
@@ -78,8 +83,10 @@ class NooklookRepository:
             params.append(limit)
             
             results = await self.db.execute_query(sql, params)
-        except:
+            logger.debug(f"FTS5 search results: {len(results)} items found")
+        except Exception as e:
             # If FTS5 prefix matching fails, results will remain empty
+            logger.debug(f"FTS5 search failed: {e}")
             pass
         
         # Strategy 2: If prefix matching failed or returned few results, try LIKE matching
@@ -87,6 +94,8 @@ class NooklookRepository:
             try:
                 # Use LIKE for partial matching when FTS5 fails with special characters
                 like_query = f'%{query}%'
+                logger.debug(f"LIKE search: query='{like_query}' category='{category_filter}'")
+                
                 sql = """
                     SELECT s.name, s.category, s.subcategory, s.ref_table, s.ref_id
                     FROM search_index s
@@ -102,6 +111,7 @@ class NooklookRepository:
                 params.extend([f'{query}%', limit])  # Prioritize items that start with the query
                 
                 like_results = await self.db.execute_query(sql, params)
+                logger.debug(f"LIKE search results: {len(like_results)} items found")
                 
                 # Combine results, avoiding duplicates
                 existing_ids = {r['ref_id'] for r in results}
@@ -110,7 +120,8 @@ class NooklookRepository:
                         results.append(result)
                         if len(results) >= limit:
                             break
-            except:
+            except Exception as e:
+                logger.debug(f"LIKE search failed: {e}")
                 pass
         
         return results[:limit]

@@ -14,111 +14,406 @@ from bot.ui.pagination import (
     SearchResultsView,
     PaginatedResultView
 )
+import asyncio
+from functools import lru_cache
+import time
 
 logger = logging.getLogger(__name__)
+
+class AutocompleteCache:
+    """Efficient cache for autocomplete results with smart optimizations"""
+    
+    def __init__(self, max_size: int = 1000, ttl: int = 300, random_ttl: int = 60):  # 1 minute random TTL
+        self.cache = {}
+        self.max_size = max_size
+        self.ttl = ttl
+        self.random_ttl = random_ttl  # Shorter TTL for random results
+        self.access_times = {}
+        self.random_pools = {}  # Store multiple random result sets
+        self.random_rotation_times = {}  # Track when to rotate random sets
+        
+        # Enhanced caching features
+        self.prefix_cache = {}  # Cache for prefix-based lookups
+        self.hit_counts = {}    # Track cache hit frequency
+        self.query_patterns = {}  # Track common query patterns
+    
+    def _cleanup_expired(self):
+        """Remove expired entries"""
+        current_time = time.time()
+        expired_keys = [
+            key for key, timestamp in self.access_times.items()
+            if current_time - timestamp > self._get_ttl_for_key(key)
+        ]
+        if expired_keys:
+            logger.debug(f"Cache cleanup: removing {len(expired_keys)} expired entries")
+        for key in expired_keys:
+            self.cache.pop(key, None)
+            self.access_times.pop(key, None)
+            # Clean up random pool tracking
+            if key in self.random_rotation_times:
+                self.random_rotation_times.pop(key, None)
+    
+    def _get_ttl_for_key(self, key: str) -> int:
+        """Get TTL based on key type"""
+        return self.random_ttl if ':random' in key else self.ttl
+    
+    def _make_room(self):
+        """Remove oldest entries if cache is full"""
+        if len(self.cache) >= self.max_size:
+            # Remove 20% of oldest entries
+            to_remove = max(1, len(self.cache) // 5)
+            oldest_keys = sorted(self.access_times.items(), key=lambda x: x[1])[:to_remove]
+            logger.info(f"Cache full ({len(self.cache)} entries), evicting {to_remove} oldest entries")
+            for key, _ in oldest_keys:
+                self.cache.pop(key, None)
+                self.access_times.pop(key, None)
+    
+    def get(self, key: str):
+        """Get cached value if not expired with smart optimizations"""
+        self._cleanup_expired()
+        
+        # Normalize key for consistent caching
+        normalized_key = self._normalize_key(key)
+        
+        # Special handling for random keys
+        if ':random' in normalized_key:
+            return self._get_random_result(normalized_key)
+        
+        # Try exact match first
+        if normalized_key in self.cache:
+            self.access_times[normalized_key] = time.time()
+            self.hit_counts[normalized_key] = self.hit_counts.get(normalized_key, 0) + 1
+            logger.info(f"Cache HIT for key: {normalized_key} (hits: {self.hit_counts[normalized_key]})")
+            return self.cache[normalized_key]
+        
+        # Try prefix matching for progressive typing
+        prefix_result = self._try_prefix_match(normalized_key)
+        if prefix_result:
+            return prefix_result
+            
+        logger.debug(f"Cache MISS for key: {normalized_key}")
+        return None
+    
+    def _normalize_key(self, key: str) -> str:
+        """Normalize cache keys for consistency"""
+        if ':' in key:
+            prefix, query = key.split(':', 1)
+            # Normalize the query part - trim whitespace, lowercase
+            normalized_query = query.strip().lower()
+            return f"{prefix}:{normalized_query}"
+        return key.strip().lower()
+    
+    def _try_prefix_match(self, key: str) -> any:
+        """Try to find results from cached longer queries"""
+        if ':' not in key:
+            return None
+            
+        prefix, query = key.split(':', 1)
+        
+        # Look for cached results from longer queries that start with this query
+        for cached_key, cached_result in self.cache.items():
+            if not cached_key.startswith(f"{prefix}:"):
+                continue
+                
+            _, cached_query = cached_key.split(':', 1)
+            
+            # If cached query starts with our query and is longer
+            if cached_query.startswith(query) and len(cached_query) > len(query):
+                # Filter the cached results to match our shorter query
+                filtered_results = self._filter_results_for_query(cached_result, query)
+                if filtered_results:
+                    logger.info(f"Cache PREFIX HIT: '{key}' found via '{cached_key}' ({len(filtered_results)} results)")
+                    # Cache this result for future use
+                    self.cache[key] = filtered_results
+                    self.access_times[key] = time.time()
+                    return filtered_results
+        
+        return None
+    
+    def _filter_results_for_query(self, results, query: str):
+        """Filter autocomplete results to match a shorter query"""
+        if not results or not query:
+            return results
+            
+        # Filter choices that contain the query
+        filtered = []
+        for choice in results:
+            if hasattr(choice, 'name') and query.lower() in choice.name.lower():
+                filtered.append(choice)
+            elif isinstance(choice, dict) and 'name' in choice and query.lower() in choice['name'].lower():
+                filtered.append(choice)
+                
+        return filtered[:25]  # Maintain Discord's 25-item limit
+    
+    def _get_random_result(self, key: str):
+        """Handle random result caching with rotation"""
+        current_time = time.time()
+        
+        # Check if we have a fresh random result
+        if key in self.cache and key in self.access_times:
+            age = current_time - self.access_times[key]
+            if age < self.random_ttl:
+                logger.info(f"Cache HIT for random key: {key} (age: {age:.1f}s)")
+                return self.cache[key]
+            else:
+                logger.debug(f"Random cache EXPIRED for key: {key} (age: {age:.1f}s)")
+        
+        logger.debug(f"Random cache MISS for key: {key}")
+        return None
+    
+    def set(self, key: str, value):
+        """Cache a value with normalization"""
+        self._cleanup_expired()
+        self._make_room()
+        
+        # Normalize the key
+        normalized_key = self._normalize_key(key)
+        
+        self.cache[normalized_key] = value
+        self.access_times[normalized_key] = time.time()
+        self.hit_counts[normalized_key] = 0  # Initialize hit counter
+        
+        # Track query patterns for analytics
+        if ':' in normalized_key:
+            prefix, query = normalized_key.split(':', 1)
+            if len(query) >= 2:  # Only track meaningful queries
+                self.query_patterns[prefix] = self.query_patterns.get(prefix, 0) + 1
+        
+        ttl_type = "random" if ':random' in normalized_key else "regular"
+        ttl_value = self._get_ttl_for_key(normalized_key)
+        logger.debug(f"Cache SET for key: {normalized_key} ({ttl_type} TTL: {ttl_value}s, cache size: {len(self.cache)})")
+    
+    def clear(self):
+        """Clear all cache"""
+        self.cache.clear()
+        self.access_times.clear()
+        self.random_pools.clear()
+        self.random_rotation_times.clear()
+        self.prefix_cache.clear()
+        self.hit_counts.clear()
+        self.query_patterns.clear()
+    
+    def get_cache_stats(self) -> dict:
+        """Get comprehensive cache statistics"""
+        total_hits = sum(self.hit_counts.values())
+        cache_size = len(self.cache)
+        
+        # Find most popular queries
+        popular_queries = sorted(self.hit_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        # Query pattern stats
+        pattern_stats = dict(sorted(self.query_patterns.items(), key=lambda x: x[1], reverse=True))
+        
+        return {
+            'cache_size': cache_size,
+            'total_hits': total_hits,
+            'hit_rate': f"{(total_hits / max(cache_size, 1)) * 100:.1f}%",
+            'popular_queries': popular_queries,
+            'query_patterns': pattern_stats,
+            'max_size': self.max_size,
+            'utilization': f"{(cache_size / self.max_size) * 100:.1f}%"
+        }
+
+# Global cache instance with 1-minute random TTL for freshness
+_autocomplete_cache = AutocompleteCache(max_size=1000, ttl=300, random_ttl=60)
 
 def is_dm(interaction: discord.Interaction) -> bool:
     """Check if interaction is in a DM or Group DM (both have guild=None)"""
     return interaction.guild is None
 
 async def villager_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
-    """Autocomplete for villager names"""
+    """Autocomplete for villager names with caching"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Villager autocomplete called by user {user_id} with query: '{current}'")
+    
     try:
-        # Get the cog to access the service
-        cog = interaction.client.get_cog('ACNHCommands')
-        if not cog or not hasattr(cog, 'service'):
+        # Normalize query for consistent caching
+        query = current.lower().strip()
+        cache_key = f"villager:{query}"
+        
+        # Check cache first
+        cached_result = _autocomplete_cache.get(cache_key)
+        if cached_result:
+            logger.debug(f"Villager autocomplete: returning {len(cached_result)} cached results for '{query}'")
+            return cached_result
+            
+        # Get service from bot instance
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Villager autocomplete: NooklookService not found on bot instance")
             return []
         
         # Get villager suggestions
-        suggestions = await cog.service.get_villager_suggestions(current)
+        logger.debug(f"Villager autocomplete: searching database for '{current}'")
+        suggestions = await service.get_villager_suggestions(current)
         
         # Convert to choices
-        choices = []
-        for name, villager_id in suggestions:
-            # Use villager ID as the value for lookup
-            choices.append(app_commands.Choice(name=name, value=str(villager_id)))
+        choices = [
+            app_commands.Choice(name=name, value=str(villager_id))
+            for name, villager_id in suggestions[:25]
+        ]
         
-        return choices[:25]  # Discord limit
+        logger.info(f"Villager autocomplete: found {len(choices)} results for '{current}', caching...")
+        # Cache the result
+        _autocomplete_cache.set(cache_key, choices)
+        return choices
+        
     except Exception as e:
-        logger.error(f"Error in villager autocomplete: {e}")
+        logger.error(f"Error in villager autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
 async def recipe_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
-    """Autocomplete for recipe names"""
+    """Autocomplete for recipe names with caching"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Recipe autocomplete called by user {user_id} with query: '{current}'")
+    
     try:
-        # Get the cog to access the service
-        cog = interaction.client.get_cog('ACNHCommands')
-        if not cog or not hasattr(cog, 'service'):
+        # Normalize query for consistent caching
+        query = current.lower().strip()
+        cache_key = f"recipe:{query}"
+        
+        # Check cache first
+        cached_result = _autocomplete_cache.get(cache_key)
+        if cached_result:
+            logger.debug(f"Recipe autocomplete: returning {len(cached_result)} cached results for '{query}'")
+            return cached_result
+            
+        # Get service from bot instance
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Recipe autocomplete: NooklookService not found on bot instance")
             return []
         
         # Get recipe suggestions
-        if not current or len(current) <= 2:
-            # Show random recipes when query is too short
-            suggestions = await cog.service.get_random_recipe_suggestions(25)
+        if not query or len(query) <= 2:
+            cache_key = "recipe:random"
+            cached_result = _autocomplete_cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Recipe autocomplete: returning {len(cached_result)} cached random results")
+                return cached_result
+            logger.info("Recipe autocomplete: generating fresh random suggestions (1min cache)")
+            suggestions = await service.get_random_recipe_suggestions(25)
         else:
-            suggestions = await cog.service.get_recipe_suggestions(current)
+            logger.debug(f"Recipe autocomplete: searching database for '{current}'")
+            suggestions = await service.get_recipe_suggestions(current)
         
         # Convert to choices
-        choices = []
-        for name, recipe_id in suggestions:
-            choices.append(app_commands.Choice(name=name, value=str(recipe_id)))
+        choices = [
+            app_commands.Choice(name=name, value=str(recipe_id))
+            for name, recipe_id in suggestions[:25]
+        ]
         
-        return choices[:25]  # Discord limit
+        logger.info(f"Recipe autocomplete: found {len(choices)} results for '{current}', caching...")
+        # Cache the result
+        _autocomplete_cache.set(cache_key, choices)
+        return choices
+        
     except Exception as e:
-        logger.error(f"Error in recipe autocomplete: {e}")
+        logger.error(f"Error in recipe autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
 async def artwork_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
-    """Autocomplete for artwork names"""
+    """Autocomplete for artwork names with caching"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Artwork autocomplete called by user {user_id} with query: '{current}'")
+    
     try:
-        # Get the cog to access the service
-        cog = interaction.client.get_cog('ACNHCommands')
-        if not cog or not hasattr(cog, 'service'):
+        # Normalize query for consistent caching
+        query = current.lower().strip()
+        cache_key = f"artwork:{query}"
+        
+        # Check cache first
+        cached_result = _autocomplete_cache.get(cache_key)
+        if cached_result:
+            logger.debug(f"Artwork autocomplete: returning {len(cached_result)} cached results for '{query}'")
+            return cached_result
+            
+        # Get service from bot instance
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Artwork autocomplete: NooklookService not found on bot instance")
             return []
         
         # Get artwork suggestions
-        if not current or len(current) <= 2:
-            # Show random artwork when query is too short
-            suggestions = await cog.service.get_random_artwork_suggestions(25)
+        if not query or len(query) <= 2:
+            cache_key = "artwork:random"
+            cached_result = _autocomplete_cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Artwork autocomplete: returning {len(cached_result)} cached random results")
+                return cached_result
+            logger.info("Artwork autocomplete: generating fresh random suggestions (1min cache)")
+            suggestions = await service.get_random_artwork_suggestions(25)
         else:
-            suggestions = await cog.service.get_artwork_suggestions(current)
+            logger.debug(f"Artwork autocomplete: searching database for '{current}'")
+            suggestions = await service.get_artwork_suggestions(current)
         
         # Convert to choices
-        choices = []
-        for name, artwork_id in suggestions:
-            choices.append(app_commands.Choice(name=name, value=str(artwork_id)))
+        choices = [
+            app_commands.Choice(name=name, value=str(artwork_id))
+            for name, artwork_id in suggestions[:25]
+        ]
         
-        return choices[:25]  # Discord limit
+        logger.info(f"Artwork autocomplete: found {len(choices)} results for '{current}', caching...")
+        # Cache the result
+        _autocomplete_cache.set(cache_key, choices)
+        return choices
+        
     except Exception as e:
-        logger.error(f"Error in artwork autocomplete: {e}")
+        logger.error(f"Error in artwork autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
 async def critter_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
-    """Autocomplete for critter names"""
+    """Autocomplete for critter names with caching"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Critter autocomplete called by user {user_id} with query: '{current}'")
+    
     try:
-        # Get the cog to access the service
-        cog = interaction.client.get_cog('ACNHCommands')
-        if not cog or not hasattr(cog, 'service'):
+        # Normalize query for consistent caching
+        query = current.lower().strip()
+        cache_key = f"critter:{query}"
+        
+        # Check cache first
+        cached_result = _autocomplete_cache.get(cache_key)
+        if cached_result:
+            logger.debug(f"Critter autocomplete: returning {len(cached_result)} cached results for '{query}'")
+            return cached_result
+        
+        # Get service from bot instance
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Critter autocomplete: NooklookService not found on bot instance")
             return []
         
         # Get critter suggestions
-        if not current or len(current) <= 2:
-            # Show random critters when query is too short
-            suggestions = await cog.service.get_random_critter_suggestions(25)
+        if not query or len(query) <= 2:
+            # Use a consistent cache key for random suggestions
+            cache_key = "critter:random"
+            cached_result = _autocomplete_cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Critter autocomplete: returning {len(cached_result)} cached random results")
+                return cached_result
+            logger.info("Critter autocomplete: generating fresh random suggestions (1min cache)")
+            suggestions = await service.get_random_critter_suggestions(25)
         else:
-            suggestions = await cog.service.get_critter_suggestions(current)
+            logger.debug(f"Critter autocomplete: searching database for '{current}'")
+            suggestions = await service.get_critter_suggestions(current)
         
         # Convert to choices
-        choices = []
-        for name, critter_id in suggestions:
-            choices.append(app_commands.Choice(name=name, value=str(critter_id)))
+        choices = [
+            app_commands.Choice(name=name, value=str(critter_id))
+            for name, critter_id in suggestions[:25]
+        ]
         
-        return choices[:25]  # Discord limit
+        logger.info(f"Critter autocomplete: found {len(choices)} results for '{current}', caching...")
+        # Cache the result
+        _autocomplete_cache.set(cache_key, choices)
+        return choices
+        
     except Exception as e:
-        logger.error(f"Error in critter autocomplete: {e}")
+        logger.error(f"Error in critter autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
-class BrowseGroup(app_commands.Group):
+# class BrowseGroup(app_commands.Group):
     """Command group for browsing different types of ACNH content"""
     
     def __init__(self, service: NooklookService):
@@ -226,17 +521,37 @@ class ACNHCommands(commands.Cog):
         self.bot = bot
         self.service = NooklookService()
         
+        # Store service in bot for easy access from autocomplete functions
+        bot.nooklook_service = self.service
+        
         # Add the browse command group
-        self.browse = BrowseGroup(self.service)
-        self.bot.tree.add_command(self.browse)
+        # self.browse = BrowseGroup(self.service)
+        # self.bot.tree.add_command(self.browse)
     
     async def cog_load(self):
         """Initialize the database when cog loads"""
         try:
             await self.service.init_database()
-            logger.info("ACNH database initialized successfully")
+            logger.info("✅ ACNH database initialized successfully")
+            logger.info(f"📊 Autocomplete cache initialized (max_size: {_autocomplete_cache.max_size}, regular_ttl: {_autocomplete_cache.ttl}s, random_ttl: {_autocomplete_cache.random_ttl}s)")
         except Exception as e:
-            logger.error(f"Failed to initialize ACNH database: {e}")
+            logger.error(f"❌ Failed to initialize ACNH database: {e}", exc_info=True)
+    
+    async def cog_unload(self):
+        """Cleanup when cog unloads"""
+        # Log detailed cache statistics before clearing
+        stats = _autocomplete_cache.get_cache_stats()
+        logger.info(f"📊 Final Cache Stats - Size: {stats['cache_size']}, Hits: {stats['total_hits']}, Rate: {stats['hit_rate']}")
+        if stats['popular_queries']:
+            top_query = stats['popular_queries'][0]
+            logger.info(f"🔥 Most popular query: '{top_query[0]}' ({top_query[1]} hits)")
+        
+        _autocomplete_cache.clear()
+        
+        # Remove service reference from bot
+        if hasattr(self.bot, 'nooklook_service'):
+            delattr(self.bot, 'nooklook_service')
+            logger.info("🗑️ NooklookService reference removed from bot")
     
     @app_commands.command(name="search", description="Search across all ACNH content")
     @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
@@ -247,17 +562,45 @@ class ACNHCommands(commands.Cog):
     @app_commands.choices(category=[
         app_commands.Choice(name="Items", value="items"),
         app_commands.Choice(name="Critters", value="critters"),
-        app_commands.Choice(name="Recipes", value="recipes"),
+        app_commands.Choice(name="Food Recipes", value="food_recipes"),
+        app_commands.Choice(name="DIY Recipes", value="diy_recipes"),
         app_commands.Choice(name="Villagers", value="villagers")
     ])
     async def search(self, interaction: discord.Interaction, 
                     query: str, category: Optional[str] = None):
         """Search across all ACNH content using FTS5"""
+        user_id = interaction.user.id
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        category_str = f" in {category}" if category else ""
+        logger.info(f"🔍 /search command used by {interaction.user.display_name} ({user_id}) in {guild_name} - query: '{query}'{category_str}")
+        
         ephemeral = not is_dm(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         
         try:
-            results = await self.service.search_all(query, category)
+            # Map Discord choice values to database category values
+            category_mapping = {
+                "items": "item",           # Discord "items" -> DB "item"
+                "critters": "critter",     # Discord "critters" -> DB "critter"  
+                "food_recipes": "recipe",  # Discord "food_recipes" -> DB "recipe"
+                "diy_recipes": "recipe",   # Discord "diy_recipes" -> DB "recipe"
+                "villagers": "villager"    # Discord "villagers" -> DB "villager"
+            }
+            
+            # Convert category to database format
+            db_category = category_mapping.get(category) if category else None
+            
+            # For recipe subcategories, we need special handling
+            recipe_subtype = None
+            if category == "food_recipes":
+                recipe_subtype = "food"
+            elif category == "diy_recipes":
+                recipe_subtype = "diy"
+            
+            logger.debug(f"Search: executing search_all with query='{query}', category_filter='{db_category}', recipe_subtype='{recipe_subtype}' (Discord: '{category}')")
+            
+            results = await self.service.search_all(query, category_filter=db_category, recipe_subtype=recipe_subtype)
+            logger.debug(f"Search: found {len(results) if results else 0} results with category filter")
             
             if not results:
                 embed = discord.Embed(
@@ -267,6 +610,7 @@ class ACNHCommands(commands.Cog):
                 )
                 if category:
                     embed.description += f" in {category}"
+                    logger.info(f"Search: no results for '{query}' in category '{category}'")
                 
                 embed.add_field(
                     name="💡 Search Tips",
@@ -295,12 +639,16 @@ class ACNHCommands(commands.Cog):
                     )
                     embed.title = f"🔍 {embed.title}"
                     embed.set_footer(text=f"Search result for '{query}'")
+                    category_info = f" in {category}" if category else ""
+                    logger.info(f"✅ /search command completed for user {user_id} - found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
                     await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             
             # Multiple results - show navigation view
             else:
                 view = SearchResultsView(results, query, interaction.user)
                 embed = view.create_embed()
+                category_info = f" in {category}" if category else ""
+                logger.info(f"✅ /search command completed for user {user_id} - found {len(results)} results for '{query}'{category_info}")
                 await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
         except Exception as e:
@@ -372,26 +720,28 @@ class ACNHCommands(commands.Cog):
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
         """Autocomplete for item names (base items only, no variants)"""
+        user_id = getattr(interaction.user, 'id', 'unknown')
+        logger.debug(f"Item autocomplete called by user {user_id} with query: '{current}'")
+        
         try:
-            logger.debug(f"Autocomplete called with: '{current}'")
             if not current or len(current) <= 2:
-                logger.debug("Query too short, returning random items")
-                # Show 25 random items when query is too short
+                logger.debug(f"Item autocomplete: generating random items for user {user_id} (no cache for items)")
+                # Show 25 random items when query is too short - no caching for true randomness
                 base_items = await self.service.get_random_item_suggestions(25)
             else:
+                logger.debug(f"Item autocomplete: searching database for '{current}' (user {user_id})")
                 # Get base item names and IDs using the service
                 base_items = await self.service.get_base_item_suggestions(current)
-            logger.debug(f"Found {len(base_items)} suggestions: {[name for name, _ in base_items[:5]]}")  # Show first 5
             
             # Return up to 25 choices for autocomplete using item IDs as values
             choices = [
                 app_commands.Choice(name=item_name, value=str(item_id))
                 for item_name, item_id in base_items[:25]
             ]
-            logger.debug(f"Returning {len(choices)} choices")
+            logger.debug(f"Item autocomplete: found {len(choices)} results for '{current}' (user {user_id})")
             return choices
         except Exception as e:
-            logger.error(f"Error in item_name_autocomplete: {e}")
+            logger.error(f"Error in item_name_autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
             return []
 
     @app_commands.command(name="lookup", description="Look up a specific ACNH item")
@@ -400,6 +750,10 @@ class ACNHCommands(commands.Cog):
     @app_commands.autocomplete(item=item_name_autocomplete)
     async def lookup(self, interaction: discord.Interaction, item: str):
         """Look up a specific item with autocomplete"""
+        user_id = interaction.user.id
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"🔍 /lookup command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{item}'")
+        
         ephemeral = not is_dm(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         
@@ -466,6 +820,10 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def villager(self, interaction: discord.Interaction, name: str):
         """Look up villager details"""
+        user_id = interaction.user.id
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"👥 /villager command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
+        
         await interaction.response.defer(thinking=True)
         
         # Check if this is a DM for ephemeral logic
@@ -515,6 +873,10 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def recipe(self, interaction: discord.Interaction, name: str):
         """Look up recipe details"""
+        user_id = interaction.user.id
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"🍳 /recipe command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
+        
         ephemeral = not is_dm(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         
@@ -554,10 +916,11 @@ class ACNHCommands(commands.Cog):
             recipe_type = "🍳 Food Recipe" if recipe.is_food() else "🛠️ DIY Recipe"
             embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
             
+            logger.info(f"✅ /recipe command completed successfully for user {user_id} - found: {recipe.name} ({recipe_type})")
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             
         except Exception as e:
-            logger.error(f"Error in recipe command: {e}")
+            logger.error(f"❌ Error in /recipe command for user {user_id}, query '{name}': {e}", exc_info=True)
             embed = discord.Embed(
                 title="❌ Error",
                 description="An error occurred while looking up the recipe.",
@@ -630,6 +993,10 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def critter(self, interaction: discord.Interaction, name: str):
         """Look up critter details"""
+        user_id = interaction.user.id
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"🔍 /critter command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
+        
         ephemeral = not is_dm(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         
@@ -681,13 +1048,74 @@ class ACNHCommands(commands.Cog):
             # Create a view with availability button
             view = CritterAvailabilityView(critter, interaction.user)
             
+            logger.info(f"✅ /critter command completed successfully for user {user_id} - found: {critter.name}")
             await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
         except Exception as e:
-            logger.error(f"Error in critter command: {e}")
+            logger.error(f"❌ Error in /critter command for user {user_id}, query '{name}': {e}", exc_info=True)
             embed = discord.Embed(
                 title="❌ Error",
                 description="An error occurred while looking up the critter.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @app_commands.command(name="cache-stats", description="Show autocomplete cache statistics (debug)")
+    @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
+    async def cache_stats(self, interaction: discord.Interaction):
+        """Show cache performance statistics"""
+        ephemeral = True  # Always ephemeral for debug info
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        try:
+            stats = _autocomplete_cache.get_cache_stats()
+            
+            embed = discord.Embed(
+                title="📊 Autocomplete Cache Statistics",
+                color=0x3498db
+            )
+            
+            # Basic stats
+            embed.add_field(
+                name="📈 Performance",
+                value=f"**Size:** {stats['cache_size']}/{stats['max_size']} ({stats['utilization']})\n"
+                      f"**Total Hits:** {stats['total_hits']:,}\n"
+                      f"**Hit Rate:** {stats['hit_rate']}",
+                inline=True
+            )
+            
+            # Popular queries
+            if stats['popular_queries']:
+                popular = "\n".join([
+                    f"• `{key}`: {hits} hits" 
+                    for key, hits in stats['popular_queries'][:5]
+                ])
+                embed.add_field(
+                    name="🔥 Popular Queries",
+                    value=popular,
+                    inline=True
+                )
+            
+            # Query patterns
+            if stats['query_patterns']:
+                patterns = "\n".join([
+                    f"• **{pattern}**: {count:,} queries"
+                    for pattern, count in list(stats['query_patterns'].items())[:5]
+                ])
+                embed.add_field(
+                    name="📋 Query Patterns",
+                    value=patterns,
+                    inline=False
+                )
+            
+            embed.set_footer(text="Cache helps reduce database load and improve response times")
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+        except Exception as e:
+            logger.error(f"Error in cache_stats command: {e}", exc_info=True)
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while fetching cache statistics.",
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
