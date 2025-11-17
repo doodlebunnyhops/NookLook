@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to NookLook! This document provides guidelines for contributing to this open source Animal Crossing: New Horizons Discord bot.
 
-## 🎯 Ways to Contribute
+## Ways to Contribute
 
 - **Code Contributions** - Bug fixes, new features, performance improvements
 - **Data Contributions** - Verify and improve game data accuracy
@@ -10,7 +10,7 @@ Thank you for your interest in contributing to NookLook! This document provides 
 - **Bug Reports** - Report issues with detailed reproduction steps
 - **Feature Requests** - Suggest new functionality with clear use cases
 
-## 📋 Before Contributing
+## Before Contributing
 
 ### Required Reading
 - [Code of Conduct](CODE_OF_CONDUCT.md) (if applicable)
@@ -24,7 +24,7 @@ Thank you for your interest in contributing to NookLook! This document provides 
 - Original creator attribution (doodlebunnyhops) must be maintained
 - Nintendo's intellectual property must be respected
 
-## 🔧 Code Contributions
+## Code Contributions
 
 ### Getting Started
 1. **Fork the repository** and create a feature branch
@@ -46,7 +46,7 @@ Thank you for your interest in contributing to NookLook! This document provides 
 - Address reviewer feedback promptly
 - Ensure CI/CD checks pass
 
-## 📊 Data Contributions
+## Data Contributions
 
 ### Data Sources
 **Acceptable Sources:**
@@ -68,7 +68,7 @@ Thank you for your interest in contributing to NookLook! This document provides 
 3. **Attribution** - Properly credit data sources in documentation
 4. **Testing** - Verify data imports work correctly
 
-## 📝 Documentation Contributions
+## Documentation Contributions
 
 ### Documentation Standards
 - **Clear and Concise** - Use simple language and clear explanations
@@ -82,7 +82,7 @@ Thank you for your interest in contributing to NookLook! This document provides 
 - Troubleshooting guides
 - Development workflow documentation
 
-## 🐛 Bug Reports
+## Bug Reports
 
 ### Bug Report Template
 When reporting bugs, please include:
@@ -118,7 +118,7 @@ Screenshots, logs, or other relevant information
 - **Include Logs** - Share relevant error logs (remove sensitive data)
 - **One Issue Per Report** - Don't combine multiple issues
 
-## 💡 Feature Requests
+## Feature Requests
 
 ### Feature Request Template
 ```markdown
@@ -141,7 +141,7 @@ Screenshots, mockups, or examples from other bots
 - **Consider Scope** - Ensure the feature fits the project's goals
 - **Nintendo Compliance** - Ensure compliance with Nintendo's policies
 
-## 🛡️ Attribution Requirements
+## Attribution Requirements
 
 ### Code Attribution
 - **Original Creator**: Always maintain doodlebunnyhops attribution
@@ -155,7 +155,7 @@ Screenshots, mockups, or examples from other bots
 - **Nintendo**: Include Nintendo copyright notice and fair use disclaimer
 - **Community Sources**: Attribute specific contributors where known
 
-## 🚀 Development Workflow
+## Development Workflow
 
 ### Branch Naming
 - `feature/description` - New features
@@ -174,7 +174,7 @@ Screenshots, mockups, or examples from other bots
 - **Testing Notes** - How to test the changes
 - **Screenshots** - For UI changes, include before/after images
 
-## 🔒 Security Considerations
+## Security Considerations
 
 ### Security Guidelines
 - **No Hardcoded Secrets** - Use environment variables
@@ -187,7 +187,7 @@ Screenshots, mockups, or examples from other bots
 - **Responsible Disclosure** - Allow time for fixes before public disclosure
 - **Documentation** - Help improve security documentation
 
-## 📞 Community and Support
+## Community and Support
 
 ### Getting Help
 - **GitHub Issues** - For bug reports and feature requests
@@ -200,14 +200,14 @@ Screenshots, mockups, or examples from other bots
 - **Help Others** - Share knowledge and assist other contributors
 - **Follow Discord ToS** - Comply with Discord's terms when using the bot
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [Discord.py Documentation](https://discordpy.readthedocs.io/)
 - [Animal Crossing: New Horizons Official Site](https://www.animal-crossing.com/)
 - [ACNH Spreadsheet Community](https://tinyurl.com/acnhspreadsheet)
 - [Python Coding Standards](https://pep8.org/)
 
-## 🙏 Recognition
+## Recognition
 
 Contributors will be recognized in:
 - CONTRIBUTORS.md file
@@ -217,4 +217,4 @@ Contributors will be recognized in:
 
 ---
 
-Thank you for helping make NookLook better! Your contributions help the entire Animal Crossing: New Horizons community. 🦝✨
+Thank you for helping make NookLook better! Your contributions help the entire Animal Crossing: New Horizons community.
