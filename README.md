@@ -95,7 +95,7 @@ cp .env.example .env
 # Edit .env with your API key (see .env.example for all options)
 
 # Create database from Google Sheets (recommended)
-python run_full_import.py
+python db_tools/run_full_import.py
 
 # Start the bot
 python start_bot.py

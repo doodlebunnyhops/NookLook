@@ -12,6 +12,11 @@ class Database:
         self.db_path = db_path
         self.db_dir = pathlib.Path(db_path).parent
         
+        # Debug logging for database initialization
+        logger.info(f" Database __init__: db_path = {db_path}")
+        logger.info(f" Database __init__: absolute path = {pathlib.Path(db_path).resolve()}")
+        logger.info(f" Database __init__: db_path exists = {pathlib.Path(db_path).exists()}")
+        
     async def ensure_db_directory(self):
         """Ensure the database directory exists"""
         self.db_dir.mkdir(parents=True, exist_ok=True)
@@ -47,6 +52,10 @@ class Database:
     
     async def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
         """Execute a SELECT query and return results as list of dictionaries"""
+        # Debug: Log the absolute path being used
+        abs_path = pathlib.Path(self.db_path).resolve()
+        logger.debug(f"Database connection attempt - Relative path: {self.db_path}, Absolute path: {abs_path}, Exists: {abs_path.exists()}")
+        
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(query, params)

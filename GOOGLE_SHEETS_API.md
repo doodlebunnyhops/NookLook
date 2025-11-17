@@ -78,7 +78,7 @@ This will:
 - Download all dataset categories (items, critters, villagers, etc.)
 - Extract image URLs from Google Sheets IMAGE formulas
 - Build TI (Treasure Island) codes for all items
-- Create a complete `nooklook.db` SQLite database
+- Create a complete `data/nooklook.db` SQLite database
 - Populate search and museum indexes
 
 **That's it!** You now have a complete ACNH database ready to use.
@@ -178,7 +178,7 @@ Running `python run_full_import.py` creates a complete database with:
 ### Initial Database Setup
 ```bash
 # One-time setup: Create initial database
-python run_full_import.py
+python db_tools/run_full_import.py
 ```
 
 ### Start the Bot (with Auto-Updates)
@@ -190,7 +190,7 @@ python start_bot.py
 ### Manual Force Update
 ```bash
 # Force immediate update (bypass 6-hour timer)
-python force_import.py
+python db_tools/force_import.py
 ```
 
 ## Expected Output
@@ -222,7 +222,7 @@ Total Errors:     0
 
 Import completed successfully with no errors!
 
-Database created: nooklook.db
+Database created: data/nooklook.db
 ```
 
 ## Troubleshooting
@@ -249,7 +249,7 @@ Database created: nooklook.db
 **Problem**: `SQLite error` or `no such column`
 
 **Solutions**:
-- Delete existing `nooklook.db` file and re-run import
+- Delete existing `data/nooklook.db` file and re-run import
 - Check that you're using the latest version of the schema files
 
 ### ❌ Missing Dependencies

@@ -4,11 +4,11 @@ from discord.ext import commands, tasks
 import logging
 import shutil
 import os
+import pathlib
 from datetime import datetime, timedelta
 from .settings import DISCORD_API_SECRET, GUILDS_ID
 from .services.acnh_service import NooklookService
-from import_all_datasets import ACNHDatasetImporter
-
+from db_tools.import_all_datasets import ACNHDatasetImporter
 
 class ACNHBot(commands.Bot):
     def __init__(self):
@@ -181,13 +181,17 @@ class ACNHBot(commands.Bot):
     async def _create_database_backup(self):
         """Create a timestamped backup of the current database before updating"""
         try:
-            db_path = "nooklook.db"
+            # Use absolute path based on this file's location
+            bot_file = pathlib.Path(__file__)  # This file is bot/bot.py
+            project_root = bot_file.parent.parent  # Go up to project root 
+            db_path = str(project_root / "data" / "nooklook.db")
+            
             if not os.path.exists(db_path):
                 self.logger.warning("Database file not found, skipping backup")
                 return
                 
             # Create backups directory if it doesn't exist
-            backup_dir = "backups"
+            backup_dir = str(project_root / "backups")
             os.makedirs(backup_dir, exist_ok=True)
             
             # Create timestamped backup filename

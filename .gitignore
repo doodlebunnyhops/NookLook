@@ -210,4 +210,7 @@ __marimo__/
 data/
 logs/
 
-nooklook.db
+# Database files
+data/nooklook.db
+data/*.db
+data/*.db-*
