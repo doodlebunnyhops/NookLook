@@ -1,5 +1,6 @@
 """Modern ACNH Discord commands using the new nooklook database"""
 
+import asyncio
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -246,8 +247,6 @@ async def villager_name_autocomplete(interaction: discord.Interaction, current: 
         # Get villager suggestions
         logger.debug(f"Villager autocomplete: searching database for '{current}'")
         suggestions = await service.get_villager_suggestions(current)
-        
-        # Convert to choices
         choices = [
             app_commands.Choice(name=name, value=str(villager_id))
             for name, villager_id in suggestions[:25]
@@ -307,7 +306,7 @@ async def recipe_name_autocomplete(interaction: discord.Interaction, current: st
         # Cache the result
         _autocomplete_cache.set(cache_key, choices)
         return choices
-        
+
     except Exception as e:
         logger.error(f"Error in recipe autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
@@ -357,7 +356,7 @@ async def artwork_name_autocomplete(interaction: discord.Interaction, current: s
         # Cache the result
         _autocomplete_cache.set(cache_key, choices)
         return choices
-        
+
     except Exception as e:
         logger.error(f"Error in artwork autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
@@ -427,26 +426,26 @@ class ACNHCommands(commands.Cog):
         """Initialize the database when cog loads"""
         try:
             await self.service.init_database()
-            logger.info("✅ ACNH database initialized successfully")
-            logger.info(f"📊 Autocomplete cache initialized (max_size: {_autocomplete_cache.max_size}, regular_ttl: {_autocomplete_cache.ttl}s, random_ttl: {_autocomplete_cache.random_ttl}s)")
+            logger.info("ACNH database initialized successfully")
+            logger.info(f"Autocomplete cache initialized (max_size: {_autocomplete_cache.max_size}, regular_ttl: {_autocomplete_cache.ttl}s, random_ttl: {_autocomplete_cache.random_ttl}s)")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize ACNH database: {e}", exc_info=True)
+            logger.error(f"Failed to initialize ACNH database: {e}", exc_info=True)
     
     async def cog_unload(self):
         """Cleanup when cog unloads"""
         # Log detailed cache statistics before clearing
         stats = _autocomplete_cache.get_cache_stats()
-        logger.info(f"📊 Final Cache Stats - Size: {stats['cache_size']}, Hits: {stats['total_hits']}, Rate: {stats['hit_rate']}")
+        logger.info(f"Final Cache Stats - Size: {stats['cache_size']}, Hits: {stats['total_hits']}, Rate: {stats['hit_rate']}")
         if stats['popular_queries']:
             top_query = stats['popular_queries'][0]
-            logger.info(f"🔥 Most popular query: '{top_query[0]}' ({top_query[1]} hits)")
+            logger.info(f"Most popular query: '{top_query[0]}' ({top_query[1]} hits)")
         
         _autocomplete_cache.clear()
         
         # Remove service reference from bot
         if hasattr(self.bot, 'nooklook_service'):
             delattr(self.bot, 'nooklook_service')
-            logger.info("🗑️ NooklookService reference removed from bot")
+            logger.info("NooklookService reference removed from bot")
     
     @app_commands.command(name="search", description="Search across all ACNH content")
     @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
@@ -464,13 +463,13 @@ class ACNHCommands(commands.Cog):
     async def search(self, interaction: discord.Interaction, 
                     query: str, category: Optional[str] = None):
         """Search across all ACNH content using FTS5"""
+        ephemeral = interaction.guild is not None
+        await interaction.response.defer(ephemeral=ephemeral)
+
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         category_str = f" in {category}" if category else ""
         logger.info(f"🔍 /search command used by {interaction.user.display_name} ({user_id}) in {guild_name} - query: '{query}'{category_str}")
-        
-        ephemeral = not is_dm(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
         
         try:
             # Map Discord choice values to database category values
@@ -479,7 +478,9 @@ class ACNHCommands(commands.Cog):
                 "critters": "critter",     # Discord "critters" -> DB "critter"  
                 "food_recipes": "recipe",  # Discord "food_recipes" -> DB "recipe"
                 "diy_recipes": "recipe",   # Discord "diy_recipes" -> DB "recipe"
-                "villagers": "villager"    # Discord "villagers" -> DB "villager"
+                "villagers": "villager",    # Discord "villagers" -> DB "villager"
+                "artwork": "artwork",      # Discord "artwork" -> DB "artwork"
+                "fossils": "fossils"      # Discord "fossils" -> DB "fossil"
             }
             
             # Convert category to database format
@@ -617,7 +618,7 @@ class ACNHCommands(commands.Cog):
         """Autocomplete for item names (base items only, no variants)"""
         user_id = getattr(interaction.user, 'id', 'unknown')
         logger.debug(f"Item autocomplete called by user {user_id} with query: '{current}'")
-        
+
         try:
             if not current or len(current) <= 2:
                 logger.debug(f"Item autocomplete: generating random items for user {user_id} (no cache for items)")
@@ -635,6 +636,7 @@ class ACNHCommands(commands.Cog):
             ]
             logger.debug(f"Item autocomplete: found {len(choices)} results for '{current}' (user {user_id})")
             return choices
+
         except Exception as e:
             logger.error(f"Error in item_name_autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
             return []
@@ -645,12 +647,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.autocomplete(item=item_name_autocomplete)
     async def lookup(self, interaction: discord.Interaction, item: str):
         """Look up a specific item with autocomplete"""
+        ephemeral = interaction.guild is not None
+        await interaction.response.defer(ephemeral=ephemeral)
+
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         logger.info(f"🔍 /lookup command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{item}'")
-        
-        ephemeral = not is_dm(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
         
         try:
             # Check if item is an ID (from autocomplete) or name (typed manually)
@@ -715,11 +717,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def villager(self, interaction: discord.Interaction, name: str):
         """Look up villager details"""
+        ephemeral = interaction.guild is not None
+        await interaction.response.defer(ephemeral=ephemeral)
+
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         logger.info(f"👥 /villager command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
-        
-        await interaction.response.defer(thinking=True)
         
         # Check if this is a DM for ephemeral logic
         ephemeral = not is_dm(interaction)
@@ -768,12 +771,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def recipe(self, interaction: discord.Interaction, name: str):
         """Look up recipe details"""
+        ephemeral = interaction.guild is not None
+        await interaction.response.defer(ephemeral=ephemeral)
+
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         logger.info(f"🍳 /recipe command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
-        
-        ephemeral = not is_dm(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
         
         try:
             # Convert name to recipe ID if it's numeric (from autocomplete)
@@ -829,7 +832,7 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def artwork(self, interaction: discord.Interaction, name: str):
         """Look up artwork details"""
-        ephemeral = not is_dm(interaction)
+        ephemeral = interaction.guild is not None
         await interaction.response.defer(ephemeral=ephemeral)
         
         try:
@@ -888,12 +891,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def critter(self, interaction: discord.Interaction, name: str):
         """Look up critter details"""
+        ephemeral = interaction.guild is not None
+        await interaction.response.defer(ephemeral=ephemeral)
+
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         logger.info(f"🔍 /critter command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
-        
-        ephemeral = not is_dm(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
         
         try:
             # Convert name to critter ID if it's numeric (from autocomplete)

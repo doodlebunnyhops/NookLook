@@ -9,6 +9,9 @@ CREATE TABLE items (
     name                TEXT NOT NULL,              -- In-game name
     category            TEXT NOT NULL,              -- 'misc', 'tools', 'tops', 'bottoms', 'dress-up', etc.
 
+    -- Unique identifier from source Google Sheets
+    source_unique_id    TEXT UNIQUE,                -- "Unique Entry ID" from sheets - true unique identifier
+    
     -- Group identity across variants (Internal ID for misc/tools, ClothGroup ID for clothing, etc.)
     internal_group_id   INTEGER,                    -- Same for all variants of an item group
 
@@ -36,6 +39,7 @@ CREATE TABLE items (
 CREATE INDEX idx_items_name ON items(name);
 CREATE INDEX idx_items_category ON items(category);
 CREATE INDEX idx_items_internal_group ON items(internal_group_id);
+CREATE INDEX idx_items_source_unique_id ON items(source_unique_id);
 
 
 -- =========================================================
@@ -46,6 +50,9 @@ CREATE TABLE item_variants (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id                 INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
 
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets for variants
+    
     -- From "Variant ID" column (# or #_#) when present
     variant_id_raw          TEXT,          -- e.g. '3', '0_4', or NULL
 
@@ -92,6 +99,7 @@ CREATE TABLE item_variants (
 CREATE INDEX idx_item_variants_item ON item_variants(item_id);
 CREATE INDEX idx_item_variants_internal_id ON item_variants(internal_id);
 CREATE INDEX idx_item_variants_variant_raw ON item_variants(variant_id_raw);
+CREATE INDEX idx_item_variants_source_unique_id ON item_variants(source_unique_id);
 
 
 -- =========================================================
@@ -101,6 +109,10 @@ CREATE INDEX idx_item_variants_variant_raw ON item_variants(variant_id_raw);
 CREATE TABLE recipes (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id    TEXT UNIQUE,       -- "Unique Entry ID" from sheets
+    
     internal_id         INTEGER,           -- From Recipes CSV, if present
     product_item_id     INTEGER,           -- FK to items.id for the crafted item (nullable if you can't map it)
     category            TEXT,             -- E.g. 'Furniture', 'Wall-mounted', 'Food', etc.
@@ -127,6 +139,7 @@ CREATE TABLE recipes (
 
 CREATE INDEX idx_recipes_name ON recipes(name);
 CREATE INDEX idx_recipes_category ON recipes(category);
+CREATE INDEX idx_recipes_source_unique_id ON recipes(source_unique_id);
 
 
 -- Ingredients for recipes
@@ -153,8 +166,11 @@ CREATE TABLE critters (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
     kind                    TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
     internal_id             INTEGER,
-    unique_entry_id         TEXT,
     sell_price              INTEGER,
     
     -- TI-related fields (calculated from internal_id)
@@ -217,6 +233,7 @@ CREATE TABLE critters (
 CREATE INDEX idx_critters_name ON critters(name);
 CREATE INDEX idx_critters_kind ON critters(kind);
 CREATE INDEX idx_critters_internal_id ON critters(internal_id);
+CREATE INDEX idx_critters_source_unique_id ON critters(source_unique_id);
 
 
 -- =========================================================
@@ -228,6 +245,10 @@ DROP TABLE IF EXISTS fossils;
 CREATE TABLE fossils (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
     image_url               TEXT,
     image_url_alt           TEXT,
     buy_price               INTEGER,
@@ -244,7 +265,6 @@ CREATE TABLE fossils (
     catalog                 TEXT,
     filename                TEXT,
     internal_id             INTEGER,
-    unique_entry_id         TEXT,
     
     -- TI-related fields (calculated from internal_id)
     item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
@@ -258,6 +278,7 @@ CREATE TABLE fossils (
 
 CREATE INDEX idx_fossils_name ON fossils(name);
 CREATE INDEX idx_fossils_internal_id ON fossils(internal_id);
+CREATE INDEX idx_fossils_source_unique_id ON fossils(source_unique_id);
 
 
 -- =========================================================
@@ -269,6 +290,10 @@ DROP TABLE IF EXISTS artwork;
 CREATE TABLE artwork (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
     image_url               TEXT,
     image_url_alt           TEXT,
     genuine                 INTEGER,
@@ -297,7 +322,6 @@ CREATE TABLE artwork (
     unlocked                TEXT,
     filename                TEXT,
     internal_id             INTEGER,
-    unique_entry_id         TEXT,
     
     -- TI-related fields (calculated from internal_id)
     item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
@@ -311,6 +335,7 @@ CREATE TABLE artwork (
 
 CREATE INDEX idx_artwork_name ON artwork(name);
 CREATE INDEX idx_artwork_internal_id ON artwork(internal_id);
+CREATE INDEX idx_artwork_source_unique_id ON artwork(source_unique_id);
 
 
 -- =========================================================
@@ -363,7 +388,10 @@ CREATE TABLE villagers (
     name_color          TEXT,
     bubble_color        TEXT,
     filename            TEXT,
-    unique_entry_id     TEXT,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id    TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
     icon_image          TEXT,
     photo_image         TEXT,
     house_image         TEXT
@@ -372,6 +400,7 @@ CREATE TABLE villagers (
 CREATE INDEX idx_villagers_name ON villagers(name);
 CREATE INDEX idx_villagers_species ON villagers(species);
 CREATE INDEX idx_villagers_personality ON villagers(personality);
+CREATE INDEX idx_villagers_source_unique_id ON villagers(source_unique_id);
 
 
 -- =========================================================

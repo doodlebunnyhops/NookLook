@@ -8,6 +8,7 @@ class ItemVariant:
     
     id: int
     item_id: int
+    source_unique_id: Optional[str]
     variant_id_raw: Optional[str]
     primary_index: Optional[int]
     secondary_index: Optional[int]
@@ -35,6 +36,7 @@ class ItemVariant:
         return cls(
             id=data['id'],
             item_id=data['item_id'],
+            source_unique_id=data.get('source_unique_id'),
             variant_id_raw=data.get('variant_id_raw'),
             primary_index=data.get('primary_index'),
             secondary_index=data.get('secondary_index'),
@@ -85,6 +87,7 @@ class Item:
     id: int
     name: str
     category: str
+    source_unique_id: Optional[str]
     internal_group_id: Optional[int]
     is_diy: bool
     buy_price: Optional[int]
@@ -108,6 +111,7 @@ class Item:
             id=data['id'],
             name=data['name'],
             category=data['category'],
+            source_unique_id=data.get('source_unique_id'),
             internal_group_id=data.get('internal_group_id'),
             is_diy=bool(data.get('is_diy', 0)),
             buy_price=data.get('buy_price'),
@@ -325,7 +329,7 @@ class Critter:
     name: str
     kind: str  # 'fish', 'insect', 'sea'
     internal_id: Optional[int]
-    unique_entry_id: Optional[str]
+    source_unique_id: Optional[str]
     sell_price: Optional[int]
     item_hex: Optional[str]
     ti_primary: Optional[int]
@@ -389,7 +393,7 @@ class Critter:
             name=data['name'],
             kind=data['kind'],
             internal_id=data.get('internal_id'),
-            unique_entry_id=data.get('unique_entry_id'),
+            source_unique_id=data.get('source_unique_id'),
             sell_price=data.get('sell_price'),
             item_hex=data.get('item_hex'),
             ti_primary=data.get('ti_primary'),
@@ -512,6 +516,7 @@ class Recipe:
     
     id: int
     name: str
+    source_unique_id: Optional[str]
     internal_id: Optional[int]
     product_item_id: Optional[int]
     category: Optional[str]
@@ -537,6 +542,7 @@ class Recipe:
         return cls(
             id=data['id'],
             name=data['name'],
+            source_unique_id=data.get('source_unique_id'),
             internal_id=data.get('internal_id'),
             product_item_id=data.get('product_item_id'),
             category=data.get('category'),
@@ -653,7 +659,7 @@ class Villager:
     name_color: Optional[str]
     bubble_color: Optional[str]
     filename: Optional[str]
-    unique_entry_id: Optional[str]
+    source_unique_id: Optional[str]
     icon_image: Optional[str]
     photo_image: Optional[str]
     house_image: Optional[str]
@@ -688,7 +694,7 @@ class Villager:
             name_color=data.get('name_color'),
             bubble_color=data.get('bubble_color'),
             filename=data.get('filename'),
-            unique_entry_id=data.get('unique_entry_id'),
+            source_unique_id=data.get('source_unique_id'),
             icon_image=data.get('icon_image'),
             photo_image=data.get('photo_image'),
             house_image=data.get('house_image')
@@ -796,7 +802,7 @@ class Artwork:
     unlocked: Optional[str]
     filename: Optional[str]
     internal_id: Optional[int]
-    unique_entry_id: Optional[str]
+    source_unique_id: Optional[str]
     item_hex: Optional[str]
     ti_primary: Optional[int]
     ti_secondary: Optional[int]
@@ -837,7 +843,7 @@ class Artwork:
             unlocked=data.get('unlocked'),
             filename=data.get('filename'),
             internal_id=data.get('internal_id'),
-            unique_entry_id=data.get('unique_entry_id'),
+            source_unique_id=data.get('source_unique_id'),
             item_hex=data.get('item_hex'),
             ti_primary=data.get('ti_primary'),
             ti_secondary=data.get('ti_secondary'),

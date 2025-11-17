@@ -43,30 +43,42 @@ LOGGING_CONFIG = {
     },
     "handlers": {
         "console": {
-            "level": "DEBUG",
+            "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "standard",
+            "formatter": "verbose",  # Use verbose format for better info
+            "stream": "ext://sys.stdout",  # Explicitly use stdout with proper encoding
         },
         "console2": {
             "level": "WARNING",
             "class": "logging.StreamHandler",
             "formatter": "standard",
+            "stream": "ext://sys.stdout",  # Explicitly use stdout with proper encoding
         },
         "file": {
-            "level": "INFO",
+            "level": "INFO",  # Changed from INFO to INFO
             "class": "logging.FileHandler",
             "filename": "logs/infos.log",
-            "mode": "w",
+            "mode": "a",  # Changed from "w" to "a" (append mode)
             "formatter": "verbose",
+            "encoding": "utf-8",  # Add UTF-8 encoding to handle emoji characters
         },
     },
     "loggers": {
-        "bot": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "bot": {
+            "handlers": ["console", "file"],  # Added file handler
+            "level": "INFO",  # Changed from INFO to INFO
+            "propagate": False
+        },
         "discord": {
             "handlers": ["console2", "file"],
             "level": "INFO",
             "propagate": False,
         },
+        # Add root logger to catch any other logs
+        "": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        }
     },
 }
 

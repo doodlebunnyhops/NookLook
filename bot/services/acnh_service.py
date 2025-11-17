@@ -15,6 +15,12 @@ class NooklookService:
         """Initialize the database"""
         await self.repo.init_database()
     
+    async def close_connections(self):
+        """Close any existing database connections for maintenance"""
+        # Since we use aiosqlite with context managers, connections auto-close
+        # But we can add any cleanup logic here if needed in the future
+        logger.info("Database connections use auto-closing context managers - no manual cleanup needed")
+    
     async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None) -> List[Any]:
         """Search across all content types using FTS5 with prefix matching"""
         try:

@@ -9,12 +9,20 @@ class NooklookRepository:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            # Default to nooklook.db in the root directory
-            base_dir = pathlib.Path(__file__).parent.parent.parent
-            db_path = base_dir / "nooklook.db"
+            # Use absolute path based on this file's location
+            repo_file = pathlib.Path(__file__)  # This file is bot/repos/acnh_items_repo.py
+            project_root = repo_file.parent.parent.parent  # Go up to project root
+            db_path = str(project_root / "data" / "nooklook.db")
+            
+            # Debug logging to track the path calculation
+            import logging
+            logger = logging.getLogger("bot.repos.acnh_items_repo")
+            logger.debug(f" Repository __init__: __file__ = {repo_file}")
+            logger.debug(f" Repository __init__: project_root = {project_root}")
+            logger.debug(f" Repository __init__: calculated db_path = {db_path}")
+            logger.debug(f" Repository __init__: db_path exists = {pathlib.Path(db_path).exists()}")
         
         self.db = Database(str(db_path))
-        self.base_dir = pathlib.Path(__file__).parent.parent.parent
     
     async def init_database(self):
         """Initialize the database connection"""

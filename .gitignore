@@ -209,3 +209,9 @@ __marimo__/
 
 data/
 logs/
+
+# Database files
+data/nooklook.db
+data/*.db
+data/*.db-*
+backups/*.db
