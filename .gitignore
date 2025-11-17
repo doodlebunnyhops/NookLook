@@ -209,3 +209,7 @@ __marimo__/
 
 data/
 logs/
+
+# NookLook specific
+nooklook.db
+test_*.py
