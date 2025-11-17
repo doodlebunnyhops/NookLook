@@ -70,4 +70,8 @@ LOGGING_CONFIG = {
     },
 }
 
+# Ensure logs directory exists before configuring logging
+logs_dir = pathlib.Path("logs")
+logs_dir.mkdir(exist_ok=True)
+
 dictConfig(LOGGING_CONFIG)

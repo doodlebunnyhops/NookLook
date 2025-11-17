@@ -2,382 +2,920 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
-@dataclass
-class BuyPrice:
-    """Represents a buy price for an item"""
-    price: int
-    currency: str
+@dataclass(slots=True)
+class ItemVariant:
+    """Represents a color/pattern variant of an item"""
+    
+    id: int
+    item_id: int
+    variant_id_raw: Optional[str]
+    primary_index: Optional[int]
+    secondary_index: Optional[int]
+    variation_label: Optional[str]
+    body_title: Optional[str]
+    pattern_label: Optional[str]
+    pattern_title: Optional[str]
+    color1: Optional[str]
+    color2: Optional[str]
+    body_customizable: bool
+    pattern_customizable: bool
+    cyrus_customizable: bool
+    pattern_options: Optional[str]
+    internal_id: Optional[int]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    image_url: Optional[str]
+    image_url_alt: Optional[str]
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'BuyPrice':
+    def from_dict(cls, data: Dict[str, Any]) -> 'ItemVariant':
         return cls(
-            price=data.get('price', 0),
-            currency=data.get('currency', 'Bells')
+            id=data['id'],
+            item_id=data['item_id'],
+            variant_id_raw=data.get('variant_id_raw'),
+            primary_index=data.get('primary_index'),
+            secondary_index=data.get('secondary_index'),
+            variation_label=data.get('variation_label'),
+            body_title=data.get('body_title'),
+            pattern_label=data.get('pattern_label'),
+            pattern_title=data.get('pattern_title'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            body_customizable=bool(data.get('body_customizable', 0)),
+            pattern_customizable=bool(data.get('pattern_customizable', 0)),
+            cyrus_customizable=bool(data.get('cyrus_customizable', 0)),
+            pattern_options=data.get('pattern_options'),
+            internal_id=data.get('internal_id'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            image_url=data.get('image_url'),
+            image_url_alt=data.get('image_url_alt')
         )
     
-    def __str__(self) -> str:
-        return f"{self.price:,} {self.currency}"
-
-@dataclass
-class AvailabilitySource:
-    """Represents an availability source for an item"""
-    source: str
-    note: str = ""
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AvailabilitySource':
-        return cls(
-            source=data.get('from', data.get('source', '')),
-            note=data.get('note', '')
-        )
-    
-    def __str__(self) -> str:
-        if self.note:
-            return f"{self.source} ({self.note})"
-        return self.source
-
-@dataclass
-class ItemVariation:
-    """Represents a variation of an item"""
-    variation: str
-    pattern: str = ""
-    image_url: str = ""
-    colors: List[str] = field(default_factory=list)
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ItemVariation':
-        return cls(
-            variation=data.get('variation', ''),
-            pattern=data.get('pattern', ''),
-            image_url=data.get('image_url', ''),
-            colors=data.get('colors', [])
-        )
-    
-    def color_text(self) -> str:
-        """Get colors as formatted text"""
-        if not self.colors:
-            return "No colors specified"
-        return ", ".join(self.colors)
-
-@dataclass
-class ACNHItem:
-    """Represents an Animal Crossing: New Horizons item with all related data"""
-    
-    # Basic info
-    id: Optional[int]
-    name: str
-    name_normalized: str
-    url: str = ""
-    category: str = ""
-    color_variant: str = ""  # Color variant for our color-aware system
-    hex_id: str = ""         # Hex ID from ACNH data
-    
-    # Series and classification
-    item_series: str = ""
-    item_set: str = ""
-    themes: List[str] = field(default_factory=list)
-    hha_category: str = ""
-    hha_base: Optional[int] = None
-    tag: str = ""
-    
-    # Special properties
-    lucky: bool = False
-    lucky_season: str = ""
-    
-    # Pricing
-    buy_prices: List[BuyPrice] = field(default_factory=list)
-    sell_price: Optional[int] = None
-    
-    # Customization
-    variation_total: int = 0
-    pattern_total: int = 0
-    customizable: bool = False
-    custom_kits: int = 0
-    custom_kit_type: str = ""
-    custom_body_part: str = ""
-    custom_pattern_part: str = ""
-    
-    # Physical properties
-    grid_width: Optional[int] = None
-    grid_length: Optional[int] = None
-    
-    # Images
-    image_filename: str = ""
-    image_url: str = ""
-    height: Optional[float] = None
-    door_decor: bool = False
-    
-    # Game properties
-    version_added: str = ""
-    unlocked: bool = True
-    functions: List[str] = field(default_factory=list)
-    
-    # Availability and variations
-    availability: List[AvailabilitySource] = field(default_factory=list)
-    variations: List[ItemVariation] = field(default_factory=list)
-    
-    # Metadata
-    notes: str = ""
-    last_fetched: Optional[str] = None
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ACNHItem':
-        """Create an ACNHItem from a dictionary (usually from database)"""
-        
-        # Convert buy prices
-        buy_prices = []
-        if 'buy' in data and data['buy']:
-            for buy_data in data['buy']:
-                buy_prices.append(BuyPrice.from_dict(buy_data))
-        
-        # Convert availability sources
-        availability = []
-        if 'availability' in data and data['availability']:
-            for avail_data in data['availability']:
-                availability.append(AvailabilitySource.from_dict(avail_data))
-        
-        # Convert variations
-        variations = []
-        if 'variations' in data and data['variations']:
-            for var_data in data['variations']:
-                variations.append(ItemVariation.from_dict(var_data))
-        
-        return cls(
-            id=data.get('id'),
-            name=data.get('name', ''),
-            name_normalized=data.get('name_normalized', ''),
-            url=data.get('url', ''),
-            category=data.get('category', ''),
-            color_variant=data.get('color_variant', ''),
-            hex_id=data.get('hex_id', ''),
-            item_series=data.get('item_series', ''),
-            item_set=data.get('item_set', ''),
-            themes=data.get('themes', []),
-            hha_category=data.get('hha_category', ''),
-            hha_base=data.get('hha_base'),
-            tag=data.get('tag', ''),
-            lucky=data.get('lucky', False),
-            lucky_season=data.get('lucky_season', ''),
-            buy_prices=buy_prices,
-            sell_price=data.get('sell_price') or data.get('sell'),
-            variation_total=data.get('variation_total', 0),
-            pattern_total=data.get('pattern_total', 0),
-            customizable=data.get('customizable', False),
-            custom_kits=data.get('custom_kits', 0),
-            custom_kit_type=data.get('custom_kit_type', ''),
-            custom_body_part=data.get('custom_body_part', ''),
-            custom_pattern_part=data.get('custom_pattern_part', ''),
-            grid_width=data.get('grid_width'),
-            grid_length=data.get('grid_length'),
-            height=data.get('height'),
-            door_decor=data.get('door_decor', False),
-            version_added=data.get('version_added', ''),
-            unlocked=data.get('unlocked', True),
-            functions=data.get('functions', []),
-            availability=availability,
-            variations=variations,
-            notes=data.get('notes', ''),
-            image_filename=data.get('image_filename', ''),
-            image_url=data.get('image_url', ''),
-            last_fetched=data.get('last_fetched')
-        )
-    
-    def primary_image_url(self) -> str:
-        """Get the primary image URL for this item using your import system logic"""
-        # First try the main item image URL
-        if self.image_url:
-            return self.image_url
-        # Then try using image_filename (from your import_csv.py logic)
-        elif self.image_filename:
-            return f"https://acnhcdn.com/latest/FtrIcon/{self.image_filename}.png"
-        # Then try hex_id (from your color-aware system)
-        elif self.hex_id:
-            return f"https://acnhcdn.com/latest/FtrIcon/{self.hex_id}.png"
-        # Fallback to variation image if available
-        elif self.variations and self.variations[0].image_url:
-            return self.variations[0].image_url
-        return ""
-    
-    def _is_valid_image_url(self, url: str) -> bool:
-        """Validate that the image URL looks correct"""
-        if not url:
-            return False
-        # Check if it's a valid ACNH CDN URL
-        if url.startswith('https://acnhcdn.com/latest/FtrIcon/') and url.endswith('.png'):
-            return True
-        # Allow other valid image URLs
-        if url.startswith(('http://', 'https://')) and any(url.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']):
-            return True
-        return False
-    
+    @property
     def display_name(self) -> str:
-        """Get display name with color variant if present"""
-        # if self.color_variant:
-        #     return f"{self.name} ({self.color_variant})"
-        return self.name
-    
-    def size_text(self) -> str:
-        """Get size as formatted text"""
-        if self.grid_width and self.grid_length:
-            return f"{self.grid_width}×{self.grid_length}"
-        return "Unknown size"
-    
-    def buy_price_text(self) -> str:
-        """Get buy prices as formatted text"""
-        if not self.buy_prices:
-            return "Not for sale"
-        return "\n".join(str(price) for price in self.buy_prices)
-    
-    def sell_price_text(self) -> str:
-        """Get sell price as formatted text"""
-        if self.sell_price is None:
-            return "Cannot sell"
-        return f"{self.sell_price:,} Bells"
-    
-    def themes_text(self) -> str:
-        """Get themes as formatted text"""
-        if not self.themes:
-            return "No themes"
-        return ", ".join(self.themes)
-    
-    def functions_text(self) -> str:
-        """Get functions as formatted text"""
-        if not self.functions:
-            return "Decorative"
-        return ", ".join(self.functions)
-    
-    def availability_text(self) -> str:
-        """Get availability as formatted text"""
-        if not self.availability:
-            return "Unknown"
-        return "\n".join(str(avail) for avail in self.availability)
-    
-    def variation_summary(self) -> str:
-        """Get variation summary text"""
-        if self.variation_total == 0:
-            return "No variations"
-        elif self.variation_total == 1:
-            return "1 variation"
-        else:
-            return f"{self.variation_total} variations"
-    
-    def customization_summary(self) -> str:
-        """Get customization summary text"""
-        if not self.customizable:
-            return "Not customizable"
-        
+        """Get display name for this variant"""
         parts = []
-        if self.custom_body_part:
-            parts.append(f"Body: {self.custom_body_part}")
-        if self.custom_pattern_part:
-            parts.append(f"Pattern: {self.custom_pattern_part}")
+        if self.variation_label:
+            parts.append(self.variation_label)
+        if self.pattern_label:
+            parts.append(self.pattern_label)
+        return " / ".join(parts) if parts else "Default"
+    
+    @property
+    def colors(self) -> List[str]:
+        """Get list of colors for this variant"""
+        colors = []
+        if self.color1:
+            colors.append(self.color1)
+        if self.color2:
+            colors.append(self.color2)
+        return colors
+
+@dataclass(slots=True)
+class Item:
+    """Represents a base item from the items table"""
+    
+    id: int
+    name: str
+    category: str
+    internal_group_id: Optional[int]
+    is_diy: bool
+    buy_price: Optional[int]
+    sell_price: Optional[int]
+    hha_base: Optional[int]
+    source: Optional[str]
+    catalog: Optional[str]
+    version_added: Optional[str]
+    tag: Optional[str]
+    style1: Optional[str]
+    style2: Optional[str]
+    label_themes: Optional[str]
+    filename: Optional[str]
+    image_url: Optional[str]
+    extra_json: Optional[str]
+    variants: List[ItemVariant] = field(default_factory=list)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Item':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            category=data['category'],
+            internal_group_id=data.get('internal_group_id'),
+            is_diy=bool(data.get('is_diy', 0)),
+            buy_price=data.get('buy_price'),
+            sell_price=data.get('sell_price'),
+            hha_base=data.get('hha_base'),
+            source=data.get('source'),
+            catalog=data.get('catalog'),
+            version_added=data.get('version_added'),
+            tag=data.get('tag'),
+            style1=data.get('style1'),
+            style2=data.get('style2'),
+            label_themes=data.get('label_themes'),
+            filename=data.get('filename'),
+            image_url=data.get('image_url'),
+            extra_json=data.get('extra_json'),
+            variants=[]
+        )
+    
+    @property
+    def variant_count(self) -> int:
+        """Get number of variants for this item"""
+        return len(self.variants)
+    
+    @property
+    def has_variants(self) -> bool:
+        """Check if item has multiple variants"""
+        return self.variant_count > 1
+    
+    @property
+    def variation_pattern_summary(self) -> str:
+        """Get ACNH-style variation and pattern count summary"""
+        if not self.variants or len(self.variants) <= 1:
+            return ""
+        
+        # Count unique variations and patterns based on ACNH data structure
+        variations = set()
+        patterns = set()
+        
+        for variant in self.variants:
+            # Variations are the color/style options (variation_label)
+            if variant.variation_label and variant.variation_label.strip():
+                variations.add(variant.variation_label)
+                
+            # Patterns are the design/screen options (pattern_label)  
+            if variant.pattern_label and variant.pattern_label.strip():
+                patterns.add(variant.pattern_label)
+        
+        # Remove empty values
+        variations.discard(None)
+        variations.discard('')
+        patterns.discard(None)
+        patterns.discard('')
+        
+        # Format like Animal Crossing
+        parts = []
+        if len(variations) > 1:
+            parts.append(f"{len(variations)} variations")
+        if len(patterns) > 1:
+            parts.append(f"{len(patterns)} patterns")
         
         if parts:
-            kit_text = f" ({self.custom_kits} {self.custom_kit_type})" if self.custom_kits > 0 else ""
-            return f"Customizable: {', '.join(parts)}{kit_text}"
+            return f" {' and '.join(parts)}"
         else:
-            return "Customizable"
+            # Fallback to total variant count if we can't determine variations/patterns
+            return f" {len(self.variants)} variants"
     
-    def to_discord_embed(self, color: discord.Color = discord.Color.green()) -> discord.Embed:
-        """Convert this item to a Discord embed"""
+    @property
+    def primary_variant(self) -> Optional[ItemVariant]:
+        """Get the primary/default variant"""
+        if not self.variants:
+            return None
+        # Return first variant or one with primary_index=0
+        for variant in self.variants:
+            if variant.primary_index == 0:
+                return variant
+        return self.variants[0]
+    
+    @property
+    def display_image_url(self) -> Optional[str]:
+        """Get the best image URL for display"""
+        primary = self.primary_variant
+        if primary and primary.image_url:
+            return primary.image_url
+        return self.image_url
+    
+    def to_discord_embed(self, variant: Optional[ItemVariant] = None, is_variant_view: bool = False) -> discord.Embed:
+        """Create Discord embed for this item"""
+        selected_variant = variant or self.primary_variant
+        
+        # Build title
+        if is_variant_view and variant:
+            # Use emoji prefix for variant view
+            title = f"🏠 {self.name}"
+        else:
+            # Clean title for base item view
+            title = self.name
+        
         embed = discord.Embed(
-            title=self.display_name(),  # Use display name with color variant
-            url=self.url if self.url else None,
-            description=f"Animal Crossing: New Horizons Item",
-            color=color
+            title=title,
+            color=discord.Color.green()
         )
         
-        # Set image if available
-        image_url = self.primary_image_url()
-        if image_url and self._is_valid_image_url(image_url):
-            embed.set_image(url=image_url)
+        # Add basic info
+        info_lines = []
         
-        # Basic info
-        if self.category:
-            embed.add_field(name="Category", value=self.category, inline=True)
+        if is_variant_view and variant:
+            # Variant view format with emoji sections
+            info_lines.append("💰 Item Details")
+            info_lines.append(f"Category: {self.category}")
+        else:
+            # Base item view format - simple
+            info_lines.append(f"Category: {self.category}")
         
-        if self.item_series:
-            embed.add_field(name="Series", value=self.item_series, inline=True)
+        if self.sell_price:
+            info_lines.append(f"Sell Price: {self.sell_price:,} Bells")
         
-        embed.add_field(name="Size", value=self.size_text(), inline=True)
+        if self.buy_price:
+            info_lines.append(f"Buy Price: {self.buy_price:,} Bells")
+            
+        if self.source:
+            info_lines.append(f"Source: {self.source}")
         
-        # Pricing
-        if self.buy_prices:
-            embed.add_field(name="Buy Price", value=self.buy_price_text(), inline=True)
+        embed.description = "\n".join(info_lines)
         
-        if self.sell_price is not None:
-            embed.add_field(name="Sell Price", value=self.sell_price_text(), inline=True)
+        if is_variant_view and variant:
+            # Variant view format - cleaner with emoji sections
+            variant_info = []
+            variant_info.append("🎨 Variant Details")
+            
+            # Show variant name
+            default_parts = []
+            if variant.variation_label:
+                default_parts.append(variant.variation_label)
+            if variant.pattern_label:
+                default_parts.append(variant.pattern_label)
+            
+            if default_parts:
+                variant_info.append(f"Variant: {', '.join(default_parts)}")
+            
+            # Show hex code
+            if variant.item_hex:
+                variant_info.append(f"Hex: {variant.item_hex}")
+            
+            # Show customize command with $ prefix
+            if variant.item_hex and variant.ti_customize_str:
+                variant_info.append(f"TI Customize: $customize {variant.item_hex} {variant.ti_customize_str}")
+            
+            if len(variant_info) > 1:  # More than just the title
+                embed.add_field(name="", value="\n".join(variant_info), inline=False)
+        else:
+            # Base item view format - more detailed
+            if selected_variant:
+                variant_info = []
+                
+                # Show default variant details in clean format
+                default_parts = []
+                if selected_variant.variation_label:
+                    default_parts.append(selected_variant.variation_label)
+                if selected_variant.pattern_label:
+                    default_parts.append(selected_variant.pattern_label)
+                
+                if default_parts:
+                    variant_info.append(f"Default: {', '.join(default_parts)}")
+                
+                # Show only item hex (not all TI codes)
+                if selected_variant.item_hex:
+                    variant_info.append(f"Item Hex: {selected_variant.item_hex}")
+                
+                if variant_info:
+                    embed.add_field(name="Variant Details", value="\n".join(variant_info), inline=False)
+            
+            # Add variant count if multiple (base view only)
+            if self.has_variants:
+                # Remove parentheses and format nicely
+                variant_summary = self.variation_pattern_summary.strip("()")
+                embed.add_field(name="Variants", value=f"{variant_summary} available", inline=True)
+            
+            # Add HHA info if available (base view only)
+            if self.hha_base or (selected_variant and (selected_variant.body_customizable or selected_variant.pattern_customizable)):
+                hha_info = []
+                if self.hha_base:
+                    hha_info.append(f"HHA Points: {self.hha_base:,}")
+                
+                if selected_variant:
+                    customization = []
+                    if selected_variant.body_customizable:
+                        customization.append("Body")
+                    if selected_variant.pattern_customizable:
+                        customization.append("Pattern")
+                    if selected_variant.cyrus_customizable:
+                        customization.append("Cyrus")
+                    
+                    if customization:
+                        hha_info.append(f"Customizable: {', '.join(customization)}")
+                
+                if hha_info:
+                    embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
         
-        # Themes and functions
-        if self.themes:
-            embed.add_field(name="Themes", value=self.themes_text(), inline=False)
-        
-        if self.functions:
-            embed.add_field(name="Function", value=self.functions_text(), inline=True)
-        
-        # Variations and customization
-        if self.variation_total > 0:
-            embed.add_field(name="Variations", value=self.variation_summary(), inline=True)
-
-        if self.color_variant:
-            embed.add_field(name="Color Variant", value=self.color_variant, inline=True)
-        
-        if self.customizable:
-            embed.add_field(name="Customization", value=self.customization_summary(), inline=False)
-        
-        # Special properties
-        if self.lucky:
-            lucky_text = f"Lucky item"
-            if self.lucky_season:
-                lucky_text += f" ({self.lucky_season})"
-            embed.add_field(name="✨ Special", value=lucky_text, inline=True)
-        
-        # HHA info
-        if self.hha_base is not None and self.hha_base > 0:
-            embed.add_field(name="HHA Points", value=f"{self.hha_base:,}", inline=True)
-        
-        # Hex ID (important for your system)
-        if self.hex_id:
-            embed.add_field(name="Hex ID", value=self.hex_id, inline=True)
-        
-        # Availability
-        if self.availability:
-            embed.add_field(name="Availability", value=self.availability_text(), inline=False)
-        
-        # Footer
-        embed.set_footer(text="Data from Nookipedia GoogleDoc • nookipedia.com")
+        # Set image
+        image_url = selected_variant.image_url if selected_variant else self.display_image_url
+        if image_url:
+            embed.set_thumbnail(url=image_url)
         
         return embed
     
-    def to_detailed_embed(self) -> List[discord.Embed]:
-        """Convert this item to multiple detailed Discord embeds if needed"""
-        embeds = []
+    def to_embed(self) -> discord.Embed:
+        """Convert this item to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
+@dataclass(slots=True)
+class Critter:
+    """Represents a critter (fish, insect, sea creature)"""
+    
+    id: int
+    name: str
+    kind: str  # 'fish', 'insect', 'sea'
+    internal_id: Optional[int]
+    unique_entry_id: Optional[str]
+    sell_price: Optional[int]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    location: Optional[str]
+    shadow_size: Optional[str]
+    movement_speed: Optional[str]
+    catch_difficulty: Optional[str]
+    vision: Optional[str]
+    total_catches_to_unlock: Optional[str]
+    spawn_rates: Optional[str]
+    # Monthly availability (NH = Northern Hemisphere, SH = Southern Hemisphere)
+    nh_jan: Optional[str]
+    nh_feb: Optional[str]
+    nh_mar: Optional[str]
+    nh_apr: Optional[str]
+    nh_may: Optional[str]
+    nh_jun: Optional[str]
+    nh_jul: Optional[str]
+    nh_aug: Optional[str]
+    nh_sep: Optional[str]
+    nh_oct: Optional[str]
+    nh_nov: Optional[str]
+    nh_dec: Optional[str]
+    sh_jan: Optional[str]
+    sh_feb: Optional[str]
+    sh_mar: Optional[str]
+    sh_apr: Optional[str]
+    sh_may: Optional[str]
+    sh_jun: Optional[str]
+    sh_jul: Optional[str]
+    sh_aug: Optional[str]
+    sh_sep: Optional[str]
+    sh_oct: Optional[str]
+    sh_nov: Optional[str]
+    sh_dec: Optional[str]
+    time_of_day: Optional[str]
+    weather: Optional[str]
+    rarity: Optional[str]
+    description: Optional[str]
+    catch_phrase: Optional[str]
+    hha_base_points: Optional[int]
+    hha_category: Optional[str]
+    color1: Optional[str]
+    color2: Optional[str]
+    size: Optional[str]
+    surface: Optional[str]
+    icon_url: Optional[str]
+    critterpedia_url: Optional[str]
+    furniture_url: Optional[str]
+    source: Optional[str]
+    version_added: Optional[str]
+    extra_json: Optional[str]
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Critter':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            kind=data['kind'],
+            internal_id=data.get('internal_id'),
+            unique_entry_id=data.get('unique_entry_id'),
+            sell_price=data.get('sell_price'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            location=data.get('location'),
+            shadow_size=data.get('shadow_size'),
+            movement_speed=data.get('movement_speed'),
+            catch_difficulty=data.get('catch_difficulty'),
+            vision=data.get('vision'),
+            total_catches_to_unlock=data.get('total_catches_to_unlock'),
+            spawn_rates=data.get('spawn_rates'),
+            nh_jan=data.get('nh_jan'),
+            nh_feb=data.get('nh_feb'),
+            nh_mar=data.get('nh_mar'),
+            nh_apr=data.get('nh_apr'),
+            nh_may=data.get('nh_may'),
+            nh_jun=data.get('nh_jun'),
+            nh_jul=data.get('nh_jul'),
+            nh_aug=data.get('nh_aug'),
+            nh_sep=data.get('nh_sep'),
+            nh_oct=data.get('nh_oct'),
+            nh_nov=data.get('nh_nov'),
+            nh_dec=data.get('nh_dec'),
+            sh_jan=data.get('sh_jan'),
+            sh_feb=data.get('sh_feb'),
+            sh_mar=data.get('sh_mar'),
+            sh_apr=data.get('sh_apr'),
+            sh_may=data.get('sh_may'),
+            sh_jun=data.get('sh_jun'),
+            sh_jul=data.get('sh_jul'),
+            sh_aug=data.get('sh_aug'),
+            sh_sep=data.get('sh_sep'),
+            sh_oct=data.get('sh_oct'),
+            sh_nov=data.get('sh_nov'),
+            sh_dec=data.get('sh_dec'),
+            time_of_day=data.get('time_of_day'),
+            weather=data.get('weather'),
+            rarity=data.get('rarity'),
+            description=data.get('description'),
+            catch_phrase=data.get('catch_phrase'),
+            hha_base_points=data.get('hha_base_points'),
+            hha_category=data.get('hha_category'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            size=data.get('size'),
+            surface=data.get('surface'),
+            icon_url=data.get('icon_url'),
+            critterpedia_url=data.get('critterpedia_url'),
+            furniture_url=data.get('furniture_url'),
+            source=data.get('source'),
+            version_added=data.get('version_added'),
+            extra_json=data.get('extra_json')
+        )
+    
+    @property
+    def type_display(self) -> str:
+        """Get user-friendly type display"""
+        return {
+            'fish': '🐟 Fish',
+            'insect': '🦋 Bug',
+            'sea': '🌊 Sea Creature'
+        }.get(self.kind, self.kind.title())
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this critter"""
+        embed = discord.Embed(
+            title=f"{self.type_display}: {self.name}",
+            color=discord.Color.blue()
+        )
         
-        # Main embed
-        main_embed = self.to_discord_embed()
-        embeds.append(main_embed)
+        # Basic info
+        info_lines = []
+        if self.sell_price:
+            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
         
-        # Variations embed if there are many variations
-        if len(self.variations) > 3:
-            var_embed = discord.Embed(
-                title=f"{self.name} - Variations",
-                color=discord.Color.blue()
+        if self.location:
+            info_lines.append(f"**Location:** {self.location}")
+            
+        if self.shadow_size:
+            info_lines.append(f"**Shadow Size:** {self.shadow_size}")
+            
+        if self.time_of_day:
+            info_lines.append(f"**Time:** {self.time_of_day}")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add item hex if available
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+        
+        # Add catch info if available  
+        if self.catch_difficulty or self.vision or self.movement_speed:
+            catch_info = []
+            if self.catch_difficulty:
+                catch_info.append(f"**Difficulty:** {self.catch_difficulty}")
+            if self.vision:
+                catch_info.append(f"**Vision:** {self.vision}")
+            if self.movement_speed:
+                catch_info.append(f"**Movement:** {self.movement_speed}")
+            
+            embed.add_field(name="Catch Info", value="\n".join(catch_info), inline=True)
+        
+        # Set image
+        if self.icon_url:
+            embed.set_thumbnail(url=self.icon_url)
+        elif self.critterpedia_url:
+            embed.set_thumbnail(url=self.critterpedia_url)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this critter to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
+@dataclass(slots=True)
+class Recipe:
+    """Represents a DIY recipe"""
+    
+    id: int
+    name: str
+    internal_id: Optional[int]
+    product_item_id: Optional[int]
+    category: Optional[str]
+    source: Optional[str]
+    source_notes: Optional[str]
+    is_diy: bool
+    buy_price: Optional[int]
+    sell_price: Optional[int]
+    hha_base: Optional[int]
+    version_added: Optional[str]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    image_url: Optional[str]
+    image_url_alt: Optional[str]
+    extra_json: Optional[str]
+    ingredients: List[tuple] = field(default_factory=list)  # List of (ingredient_name, quantity)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Recipe':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            internal_id=data.get('internal_id'),
+            product_item_id=data.get('product_item_id'),
+            category=data.get('category'),
+            source=data.get('source'),
+            source_notes=data.get('source_notes'),
+            is_diy=bool(data.get('is_diy', 1)),
+            buy_price=data.get('buy_price'),
+            sell_price=data.get('sell_price'),
+            hha_base=data.get('hha_base'),
+            version_added=data.get('version_added'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            image_url=data.get('image_url'),
+            image_url_alt=data.get('image_url_alt'),
+            extra_json=data.get('extra_json'),
+            ingredients=[]
+        )
+    
+    def is_food(self) -> bool:
+        """Check if this recipe is for food based on category"""
+        if not self.category:
+            return False
+        return self.category.lower() in ['savory', 'sweet']
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this recipe"""
+        # Choose emoji and color based on recipe type
+        if self.is_food():
+            emoji = "🍳" if self.category and "savory" in self.category.lower() else "🧁"
+            color = discord.Color.from_rgb(255, 193, 7)  # Food yellow
+            recipe_type = "Food Recipe"
+        else:
+            emoji = "🛠️"
+            color = discord.Color.orange()
+            recipe_type = "DIY Recipe"
+        
+        embed = discord.Embed(
+            title=f"{emoji} {recipe_type}: {self.name}",
+            color=color
+        )
+        
+        # Basic info
+        info_lines = []
+        if self.category:
+            info_lines.append(f"**Category:** {self.category}")
+        
+        if self.sell_price:
+            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+        
+        if self.source:
+            source_text = self.source
+            if self.source_notes:
+                source_text += f" ({self.source_notes})"
+            info_lines.append(f"**Source:** {source_text}")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add ingredients if available
+        if self.ingredients:
+            ingredient_lines = []
+            for ingredient_name, quantity in self.ingredients:
+                ingredient_lines.append(f"• {quantity}x {ingredient_name}")
+            
+            embed.add_field(
+                name="📦 Ingredients", 
+                value="\n".join(ingredient_lines), 
+                inline=False
             )
-            
-            for i, variation in enumerate(self.variations[:10]):  # Limit to 10 to avoid Discord limits
-                var_embed.add_field(
-                    name=variation.variation,
-                    value=f"Colors: {variation.color_text()}",
-                    inline=True
-                )
-            
-            if len(self.variations) > 10:
-                var_embed.add_field(
-                    name="...",
-                    value=f"And {len(self.variations) - 10} more variations",
-                    inline=False
-                )
-            
-            embeds.append(var_embed)
         
-        return embeds
+        # Add item hex if available
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+        
+        # Set image
+        if self.image_url:
+            embed.set_thumbnail(url=self.image_url)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this recipe to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
+@dataclass(slots=True)
+class Villager:
+    """Represents a villager"""
+    id: int
+    name: str
+    species: Optional[str]
+    gender: Optional[str]
+    personality: Optional[str]
+    subtype: Optional[str]
+    hobby: Optional[str]
+    birthday: Optional[str]
+    catchphrase: Optional[str]
+    favorite_song: Optional[str]
+    favorite_saying: Optional[str]
+    style1: Optional[str]
+    style2: Optional[str]
+    color1: Optional[str]
+    color2: Optional[str]
+    default_clothing: Optional[str]
+    default_umbrella: Optional[str]
+    wallpaper: Optional[str]
+    flooring: Optional[str]
+    furniture_list: Optional[str]
+    furniture_name_list: Optional[str]
+    diy_workbench: Optional[str]
+    kitchen_equipment: Optional[str]
+    version_added: Optional[str]
+    name_color: Optional[str]
+    bubble_color: Optional[str]
+    filename: Optional[str]
+    unique_entry_id: Optional[str]
+    icon_image: Optional[str]
+    photo_image: Optional[str]
+    house_image: Optional[str]
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Villager':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            species=data.get('species'),
+            gender=data.get('gender'),
+            personality=data.get('personality'),
+            subtype=data.get('subtype'),
+            hobby=data.get('hobby'),
+            birthday=data.get('birthday'),
+            catchphrase=data.get('catchphrase'),
+            favorite_song=data.get('favorite_song'),
+            favorite_saying=data.get('favorite_saying'),
+            style1=data.get('style1'),
+            style2=data.get('style2'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            default_clothing=data.get('default_clothing'),
+            default_umbrella=data.get('default_umbrella'),
+            wallpaper=data.get('wallpaper'),
+            flooring=data.get('flooring'),
+            furniture_list=data.get('furniture_list'),
+            furniture_name_list=data.get('furniture_name_list'),
+            diy_workbench=data.get('diy_workbench'),
+            kitchen_equipment=data.get('kitchen_equipment'),
+            version_added=data.get('version_added'),
+            name_color=data.get('name_color'),
+            bubble_color=data.get('bubble_color'),
+            filename=data.get('filename'),
+            unique_entry_id=data.get('unique_entry_id'),
+            icon_image=data.get('icon_image'),
+            photo_image=data.get('photo_image'),
+            house_image=data.get('house_image')
+        )
+    
+    @property
+    def display_name(self) -> str:
+        """Get display name with gender emoji"""
+        emoji = "♂️" if self.gender == "Male" else "♀️" if self.gender == "Female" else ""
+        return f"{emoji} {self.name}".strip()
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this villager"""
+        embed = discord.Embed(
+            title=f"🔍 🏘️ {self.display_name}",
+            color=discord.Color.purple()
+        )
+        
+        # Basic info in simple format (no bold)
+        info_lines = []
+        if self.species:
+            info_lines.append(f"Species: {self.species}")
+        
+        if self.personality:
+            info_lines.append(f"Personality: {self.personality}")
+        
+        if self.hobby:
+            info_lines.append(f"Hobby: {self.hobby}")
+        
+        if self.birthday:
+            info_lines.append(f"Birthday: {self.birthday}")
+        
+        if self.catchphrase:
+            info_lines.append(f"Catchphrase: \"{self.catchphrase}\"")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add style/color preferences
+        if self.style1 or self.style2 or self.color1 or self.color2:
+            prefs = []
+            if self.style1:
+                style_text = self.style1
+                if self.style2:
+                    style_text += f", {self.style2}"
+                prefs.append(f"Style: {style_text}")
+            
+            if self.color1:
+                color_text = self.color1
+                if self.color2:
+                    color_text += f", {self.color2}"
+                prefs.append(f"Colors: {color_text}")
+            
+            embed.add_field(name="Preferences", value="\n".join(prefs), inline=True)
+        
+        # Add favorite things
+        if self.favorite_song or self.favorite_saying:
+            favorites = []
+            if self.favorite_song:
+                favorites.append(f"Song: {self.favorite_song}")
+            if self.favorite_saying:
+                favorites.append(f"Saying: \"{self.favorite_saying}\"")
+            
+            embed.add_field(name="Favorites", value="\n".join(favorites), inline=True)
+        
+        # Set image
+        if self.icon_image:
+            embed.set_thumbnail(url=self.icon_image)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this villager to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
+@dataclass(slots=True)
+class Artwork:
+    """Represents a piece of artwork"""
+    id: int
+    name: str
+    image_url: Optional[str]
+    image_url_alt: Optional[str]
+    genuine: bool
+    art_category: Optional[str]
+    buy_price: Optional[int]
+    sell_price: Optional[int]
+    color1: Optional[str]
+    color2: Optional[str]
+    size: Optional[str]
+    real_artwork_title: Optional[str]
+    artist: Optional[str]
+    description: Optional[str]
+    source: Optional[str]
+    source_notes: Optional[str]
+    hha_base_points: Optional[int]
+    hha_concept1: Optional[str]
+    hha_concept2: Optional[str]
+    hha_series: Optional[str]
+    hha_set: Optional[str]
+    interact: Optional[str]
+    tag: Optional[str]
+    speaker_type: Optional[str]
+    lighting_type: Optional[str]
+    catalog: Optional[str]
+    version_added: Optional[str]
+    unlocked: Optional[str]
+    filename: Optional[str]
+    internal_id: Optional[int]
+    unique_entry_id: Optional[str]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    extra_json: Optional[str]
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Artwork':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            image_url=data.get('image_url'),
+            image_url_alt=data.get('image_url_alt'),
+            genuine=bool(data.get('genuine', 0)),
+            art_category=data.get('art_category'),
+            buy_price=data.get('buy_price'),
+            sell_price=data.get('sell_price'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            size=data.get('size'),
+            real_artwork_title=data.get('real_artwork_title'),
+            artist=data.get('artist'),
+            description=data.get('description'),
+            source=data.get('source'),
+            source_notes=data.get('source_notes'),
+            hha_base_points=data.get('hha_base_points'),
+            hha_concept1=data.get('hha_concept1'),
+            hha_concept2=data.get('hha_concept2'),
+            hha_series=data.get('hha_series'),
+            hha_set=data.get('hha_set'),
+            interact=data.get('interact'),
+            tag=data.get('tag'),
+            speaker_type=data.get('speaker_type'),
+            lighting_type=data.get('lighting_type'),
+            catalog=data.get('catalog'),
+            version_added=data.get('version_added'),
+            unlocked=data.get('unlocked'),
+            filename=data.get('filename'),
+            internal_id=data.get('internal_id'),
+            unique_entry_id=data.get('unique_entry_id'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            extra_json=data.get('extra_json')
+        )
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this artwork"""
+        # Choose color and emoji based on authenticity
+        if self.genuine:
+            color = discord.Color.from_rgb(52, 152, 219)  # Blue for genuine
+            emoji = "🎨"
+            authenticity = "Genuine"
+        else:
+            color = discord.Color.from_rgb(231, 76, 60)  # Red for fake
+            emoji = "🎭"
+            authenticity = "Fake"
+        
+        embed = discord.Embed(
+            title=f"{emoji} {self.name} ({authenticity})",
+            color=color
+        )
+        
+        # Basic info
+        info_lines = []
+        if self.art_category:
+            info_lines.append(f"**Category:** {self.art_category}")
+        
+        if self.buy_price:
+            info_lines.append(f"**Buy Price:** {self.buy_price:,} Bells")
+        
+        if self.sell_price:
+            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+        
+        if self.source:
+            source_text = self.source
+            if self.source_notes:
+                source_text += f" ({self.source_notes})"
+            info_lines.append(f"**Source:** {source_text}")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add real artwork info if available
+        if self.real_artwork_title or self.artist:
+            real_info = []
+            if self.real_artwork_title:
+                real_info.append(f"**Title:** {self.real_artwork_title}")
+            if self.artist:
+                real_info.append(f"**Artist:** {self.artist}")
+            
+            embed.add_field(
+                name="📚 Real Artwork Info",
+                value="\n".join(real_info),
+                inline=False
+            )
+        
+        # Add description if available
+        if self.description:
+            embed.add_field(
+                name="📖 Description",
+                value=self.description,
+                inline=False
+            )
+        
+        # Add item hex if available (no TI codes as requested)
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+        
+        # Set image
+        if self.image_url:
+            embed.set_thumbnail(url=self.image_url)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this artwork to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
+# ACNHItem class removed - using new nooklook schema classes instead
