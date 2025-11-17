@@ -2,6 +2,8 @@ import asyncio
 import discord
 from discord.ext import commands, tasks
 import logging
+import shutil
+import os
 from datetime import datetime, timedelta
 from .settings import DISCORD_API_SECRET, GUILDS_ID
 from .services.acnh_service import NooklookService
@@ -140,6 +142,9 @@ class ACNHBot(commands.Bot):
                     # Wait a moment for any ongoing operations to complete
                     await asyncio.sleep(2)
                     
+                    # Create backup of existing database before update
+                    await self._create_database_backup()
+                    
                     # Perform the smart import in a controlled way
                     import_performed = self.dataset_importer.import_all_datasets_smart()
                     
@@ -172,6 +177,59 @@ class ACNHBot(commands.Bot):
         """Wait for the bot to be ready before starting periodic checks"""
         await self.wait_until_ready()
         self.logger.info("Bot ready, periodic data checks will begin")
+
+    async def _create_database_backup(self):
+        """Create a timestamped backup of the current database before updating"""
+        try:
+            db_path = "nooklook.db"
+            if not os.path.exists(db_path):
+                self.logger.warning("Database file not found, skipping backup")
+                return
+                
+            # Create backups directory if it doesn't exist
+            backup_dir = "backups"
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            # Create timestamped backup filename
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"nooklook_backup_{timestamp}.db"
+            backup_path = os.path.join(backup_dir, backup_filename)
+            
+            # Copy the database file
+            shutil.copy2(db_path, backup_path)
+            self.logger.info(f"Database backup created: {backup_path}")
+            
+            # Clean up old backups (keep last 10)
+            await self._cleanup_old_backups(backup_dir)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create database backup: {e}")
+            self.logger.warning("Continuing with update despite backup failure")
+
+    async def _cleanup_old_backups(self, backup_dir, keep_count=10):
+        """Remove old backup files, keeping only the most recent ones"""
+        try:
+            # Get all backup files
+            backup_files = [f for f in os.listdir(backup_dir) if f.startswith("nooklook_backup_") and f.endswith(".db")]
+            
+            if len(backup_files) <= keep_count:
+                return
+                
+            # Sort by modification time (newest first)
+            backup_files.sort(key=lambda x: os.path.getmtime(os.path.join(backup_dir, x)), reverse=True)
+            
+            # Remove old backups
+            files_to_remove = backup_files[keep_count:]
+            for old_backup in files_to_remove:
+                old_backup_path = os.path.join(backup_dir, old_backup)
+                os.remove(old_backup_path)
+                self.logger.debug(f"Removed old backup: {old_backup}")
+                
+            if files_to_remove:
+                self.logger.info(f"Cleaned up {len(files_to_remove)} old backup(s), keeping {keep_count} most recent")
+                
+        except Exception as e:
+            self.logger.error(f"Error cleaning up old backups: {e}")
 
     async def close(self):
         """Enhanced close method with proper cleanup"""
