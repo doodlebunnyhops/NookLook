@@ -17,10 +17,10 @@ class NooklookRepository:
             # Debug logging to track the path calculation
             import logging
             logger = logging.getLogger("bot.repos.acnh_items_repo")
-            logger.info(f" Repository __init__: __file__ = {repo_file}")
-            logger.info(f" Repository __init__: project_root = {project_root}")
-            logger.info(f" Repository __init__: calculated db_path = {db_path}")
-            logger.info(f" Repository __init__: db_path exists = {pathlib.Path(db_path).exists()}")
+            logger.debug(f" Repository __init__: __file__ = {repo_file}")
+            logger.debug(f" Repository __init__: project_root = {project_root}")
+            logger.debug(f" Repository __init__: calculated db_path = {db_path}")
+            logger.debug(f" Repository __init__: db_path exists = {pathlib.Path(db_path).exists()}")
         
         self.db = Database(str(db_path))
     

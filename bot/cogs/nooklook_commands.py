@@ -426,26 +426,26 @@ class ACNHCommands(commands.Cog):
         """Initialize the database when cog loads"""
         try:
             await self.service.init_database()
-            logger.info("✅ ACNH database initialized successfully")
-            logger.info(f"📊 Autocomplete cache initialized (max_size: {_autocomplete_cache.max_size}, regular_ttl: {_autocomplete_cache.ttl}s, random_ttl: {_autocomplete_cache.random_ttl}s)")
+            logger.info("ACNH database initialized successfully")
+            logger.info(f"Autocomplete cache initialized (max_size: {_autocomplete_cache.max_size}, regular_ttl: {_autocomplete_cache.ttl}s, random_ttl: {_autocomplete_cache.random_ttl}s)")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize ACNH database: {e}", exc_info=True)
+            logger.error(f"Failed to initialize ACNH database: {e}", exc_info=True)
     
     async def cog_unload(self):
         """Cleanup when cog unloads"""
         # Log detailed cache statistics before clearing
         stats = _autocomplete_cache.get_cache_stats()
-        logger.info(f"📊 Final Cache Stats - Size: {stats['cache_size']}, Hits: {stats['total_hits']}, Rate: {stats['hit_rate']}")
+        logger.info(f"Final Cache Stats - Size: {stats['cache_size']}, Hits: {stats['total_hits']}, Rate: {stats['hit_rate']}")
         if stats['popular_queries']:
             top_query = stats['popular_queries'][0]
-            logger.info(f"🔥 Most popular query: '{top_query[0]}' ({top_query[1]} hits)")
+            logger.info(f"Most popular query: '{top_query[0]}' ({top_query[1]} hits)")
         
         _autocomplete_cache.clear()
         
         # Remove service reference from bot
         if hasattr(self.bot, 'nooklook_service'):
             delattr(self.bot, 'nooklook_service')
-            logger.info("🗑️ NooklookService reference removed from bot")
+            logger.info("NooklookService reference removed from bot")
     
     @app_commands.command(name="search", description="Search across all ACNH content")
     @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
@@ -478,7 +478,9 @@ class ACNHCommands(commands.Cog):
                 "critters": "critter",     # Discord "critters" -> DB "critter"  
                 "food_recipes": "recipe",  # Discord "food_recipes" -> DB "recipe"
                 "diy_recipes": "recipe",   # Discord "diy_recipes" -> DB "recipe"
-                "villagers": "villager"    # Discord "villagers" -> DB "villager"
+                "villagers": "villager",    # Discord "villagers" -> DB "villager"
+                "artwork": "artwork",      # Discord "artwork" -> DB "artwork"
+                "fossils": "fossils"      # Discord "fossils" -> DB "fossil"
             }
             
             # Convert category to database format

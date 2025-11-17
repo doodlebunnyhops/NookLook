@@ -38,10 +38,11 @@ class ACNHBot(commands.Bot):
     
     async def setup_hook(self):
         """Called when the bot is starting up"""
+        self.logger.info("Starting bot setup hook...")
         try:
             # Initialize the database
             await self.acnh_service.init_database()
-            self.logger.info("ACNH database initialized")
+            self.logger.info("ACNH database initialized successfully")
             
             # Initialize dataset importer for periodic updates
             try:
@@ -53,12 +54,11 @@ class ACNHBot(commands.Bot):
             
             # Load the new nooklook commands cog
             await self.load_extension("bot.cogs.nooklook_commands")
-            self.logger.info("Loaded nooklook commands cog")
+            self.logger.info("Loaded nooklook commands cog successfully")
             
-            # Load the help cog if it exists
             try:
                 await self.load_extension("bot.cogs.help")
-                self.logger.info("Loaded help cog")
+                self.logger.info("Loaded help cog successfully")
             except Exception as help_error:
                 self.logger.warning(f"Could not load help cog (optional): {help_error}")
             
@@ -66,7 +66,7 @@ class ACNHBot(commands.Bot):
             self.logger.info("Setup complete - commands will sync when bot joins a guild")
                 
         except Exception as e:
-            self.logger.error(f"Error in setup_hook: {e}")
+            self.logger.error(f"Error in setup_hook: {e}", exc_info=True)
     
     async def on_ready(self):
         """Called when the bot is ready"""
@@ -161,7 +161,7 @@ class ACNHBot(commands.Bot):
                     # Always complete the update process
                     self.logger.info("Database update complete")
             else:
-                self.logger.debug(f"Data is current: {reason}")
+                self.logger.info(f"Data is current: {reason}")
                 
             # Update last check time
             self.last_data_check = datetime.utcnow()
@@ -227,7 +227,7 @@ class ACNHBot(commands.Bot):
             for old_backup in files_to_remove:
                 old_backup_path = os.path.join(backup_dir, old_backup)
                 os.remove(old_backup_path)
-                self.logger.debug(f"Removed old backup: {old_backup}")
+                self.logger.info(f"Removed old backup: {old_backup}")
                 
             if files_to_remove:
                 self.logger.info(f"Cleaned up {len(files_to_remove)} old backup(s), keeping {keep_count} most recent")

@@ -13,9 +13,9 @@ class Database:
         self.db_dir = pathlib.Path(db_path).parent
         
         # Debug logging for database initialization
-        logger.info(f" Database __init__: db_path = {db_path}")
-        logger.info(f" Database __init__: absolute path = {pathlib.Path(db_path).resolve()}")
-        logger.info(f" Database __init__: db_path exists = {pathlib.Path(db_path).exists()}")
+        logger.debug(f" Database __init__: db_path = {db_path}")
+        logger.debug(f" Database __init__: absolute path = {pathlib.Path(db_path).resolve()}")
+        logger.debug(f" Database __init__: db_path exists = {pathlib.Path(db_path).exists()}")
         
     async def ensure_db_directory(self):
         """Ensure the database directory exists"""
