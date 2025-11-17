@@ -270,7 +270,7 @@ PRAGMA temp_store = memory;
 
 ### Getting Help
 - **GitHub Issues** - For bugs and technical problems
-- **Discord Community** - BloominWatch server for community support
+- **Discord Community** - [BloominWatch server](https://discord.gg/bloominwatch) for community support
 - **Documentation** - Check README and other docs first
 - **Logs** - Always include relevant log output when asking for help
 

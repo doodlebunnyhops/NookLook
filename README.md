@@ -51,12 +51,16 @@
 
 ## 📊 Data Source
 
-All data is sourced from the **ACNH Spreadsheet community**, ensuring accuracy and completeness. The bot includes:
+All data is sourced from the **[ACNH Community Discord](https://discord.gg/kWMMYrN)** spreadsheet, converted from Google Sheets to CSV datasets and imported via `import_all_datasets.py`. This ensures accuracy and completeness with:
 - **13,000+** items across 25+ categories
 - **400+** villagers with complete details
 - **600+** recipes (DIY + cooking)
 - **40+** artwork pieces
 - **240+** critters with seasonal data
+
+**Image Sources:**
+- All item, villager, and content images are served from **[ACNH Community CDN](https://acnhcdn.com/)**
+- Images are not redistributed but linked directly to maintain up-to-date content
 
 ## 🚀 Getting Started
 
@@ -103,7 +107,7 @@ Contributions are welcome! Please feel free to:
 
 ## 📞 Support
 
-- **Support Server**: BloominWatch Discord
+- **Support Server**: [BloominWatch Discord](https://discord.gg/bloominwatch)
 - **Issues**: GitHub Issues for bug reports and feature requests
 - **Documentation**: Use `/help` in Discord for command details
 
@@ -140,7 +144,8 @@ Attribution required for all derivative works
 
 **Third-party attributions:**
 - Game data: Animal Crossing: New Horizons (©Nintendo Co., Ltd.)
-- Community data: ACNH Spreadsheet community
+- Community data: [ACNH Community Discord](https://discord.gg/kWMMYrN) spreadsheet
+- Images: [ACNH Community CDN](https://acnhcdn.com/)
 
 ---
 

@@ -230,7 +230,7 @@ In the event of a data breach:
 For privacy-related questions or requests:
 
 **Primary Contact:**
-- **Support Server**: BloominWatch Discord
+- **Support Server**: [BloominWatch Discord](https://discord.gg/bloominwatch)
 - **Issues**: GitHub repository
 - **Response Time**: Within 30 days
 

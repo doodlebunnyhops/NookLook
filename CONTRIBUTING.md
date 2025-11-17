@@ -51,9 +51,10 @@ Thank you for your interest in contributing to NookLook! This document provides 
 ### Data Sources
 **Acceptable Sources:**
 - Official Nintendo sources and documentation
-- ACNH Spreadsheet community verified data
+- [ACNH Community Discord](https://discord.gg/kWMMYrN) spreadsheet data
+- [ACNH Community CDN](https://acnhcdn.com/) for images
 - Community-verified information with proper attribution
-- Fan-created content with explicit permission
+- Fan-created content with permission
 
 **Prohibited Sources:**
 - Copyrighted materials without permission
@@ -149,7 +150,8 @@ Screenshots, mockups, or examples from other bots
 - **Source Links**: Link back to original repository
 
 ### Data Attribution
-- **ACNH Spreadsheet Community**: Credit in documentation and code comments
+- **ACNH Community Discord**: Credit [ACNH Community](https://discord.gg/kWMMYrN) in documentation and code comments
+- **ACNH Community CDN**: Credit [image CDN](https://acnhcdn.com/) for all visual assets
 - **Nintendo**: Include Nintendo copyright notice and fair use disclaimer
 - **Community Sources**: Attribute specific contributors where known
 
@@ -189,7 +191,7 @@ Screenshots, mockups, or examples from other bots
 
 ### Getting Help
 - **GitHub Issues** - For bug reports and feature requests
-- **Discord Server** - BloominWatch for community discussion
+- **Discord Server** - [BloominWatch](https://discord.gg/bloominwatch) for community discussion
 - **Documentation** - Check existing docs first
 
 ### Community Guidelines

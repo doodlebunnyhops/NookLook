@@ -18,7 +18,7 @@ We actively support the following versions of NookLook:
 Instead, please report security issues privately:
 
 1. **Email**: Create a private security advisory on GitHub
-2. **Discord**: Contact doodlebunnyhops directly in BloominWatch server
+2. **Discord**: Contact doodlebunnyhops directly in [BloominWatch server](https://discord.gg/bloominwatch)
 3. **Response Time**: We aim to respond within 48 hours
 
 ### What to Include
@@ -167,8 +167,8 @@ logging.error(f"Invalid input detected: {sanitized_input}")
 ## Security Contacts
 
 - **Primary**: GitHub Security Advisories
-- **Secondary**: Discord DM to doodlebunnyhops
-- **Community**: BloominWatch Discord server (for general questions)
+- **Secondary**: Discord DM to doodlebunnyhops in [BloominWatch](https://discord.gg/bloominwatch)
+- **Community**: [BloominWatch Discord server](https://discord.gg/bloominwatch) (for general questions)
 
 ## Security Resources
 
