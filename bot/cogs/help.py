@@ -189,7 +189,17 @@ class HelpDetailView(discord.ui.View):
         # Quick Start
         embed.add_field(
             name="Get Started",
-            value="Try `/lookup` and start typing for suggestions!\nUse the dropdown below for detailed help on any command.",
+            value="Try `/lookup` and start typing for suggestions!\n",
+            inline=False
+        )
+        
+        # Attribution and Support
+        embed.add_field(
+            name="Credits & Support",
+            value=(
+                "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
+                "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"
+            ),
             inline=False
         )
         
@@ -235,7 +245,17 @@ class Help(commands.Cog):
         # Quick Start
         embed.add_field(
             name="🚀 Get Started",
-            value="Try `/lookup` and start typing for suggestions!\nUse the dropdown below for detailed help on any command.",
+            value="Try `/lookup` and start typing for suggestions!\n",
+            inline=False
+        ) 
+
+        # Attribution and Support
+        embed.add_field(
+            name="Credits & Support",
+            value=(
+                "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
+                "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"
+            ),
             inline=False
         )
         
