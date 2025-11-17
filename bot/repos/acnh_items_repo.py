@@ -431,6 +431,50 @@ class NooklookRepository:
         results = await self.db.execute_query(query)
         return [row['category'] for row in results]
     
+    async def get_recipe_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get recipe name suggestions for autocomplete"""
+        # Use FTS5 search with fallback to LIKE search
+        try:
+            # First try FTS5 search on recipes
+            fts_query = """
+                SELECT r.name, r.id, rank
+                FROM search_index si
+                JOIN recipes r ON si.ref_table = 'recipes' AND si.ref_id = r.id
+                WHERE search_index MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """
+            results = await self.db.execute_query(fts_query, (search_term, limit))
+            
+            if results:
+                return [(row['name'], row['id']) for row in results]
+            
+        except Exception:
+            pass  # Fall back to LIKE search
+        
+        # Fallback LIKE search for recipes
+        like_query = """
+            SELECT name, id FROM recipes 
+            WHERE name LIKE ? 
+            ORDER BY name 
+            LIMIT ?
+        """
+        results = await self.db.execute_query(like_query, (f"%{search_term}%", limit))
+        return [(row['name'], row['id']) for row in results]
+    
+    async def get_random_recipes(self, limit: int = 25) -> List['Recipe']:
+        """Get random recipes for autocomplete when query is too short"""
+        query = "SELECT * FROM recipes ORDER BY RANDOM() LIMIT ?"
+        results = await self.db.execute_query(query, (limit,))
+        
+        recipes = []
+        for row in results:
+            recipe = Recipe.from_dict(row)
+            # Don't load ingredients for autocomplete suggestions (performance)
+            recipes.append(recipe)
+        
+        return recipes
+    
     async def get_database_stats(self) -> Dict[str, int]:
         """Get database statistics"""
         stats = {}

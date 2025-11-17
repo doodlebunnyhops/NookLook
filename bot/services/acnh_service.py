@@ -49,6 +49,27 @@ class NooklookService:
         """Get item name by internal_id or internal_group_id"""
         return await self.repo.get_item_name_by_internal_id(internal_id)
     
+    async def get_recipe_by_id(self, recipe_id: int) -> Optional[Recipe]:
+        """Get a specific recipe by ID with ingredients"""
+        return await self.repo.get_recipe_by_id(recipe_id)
+    
+    async def get_recipe_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get recipe name suggestions for autocomplete"""
+        try:
+            return await self.repo.get_recipe_suggestions(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting recipe suggestions: {e}")
+            return []
+    
+    async def get_random_recipe_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random recipe suggestions for autocomplete when query is too short"""
+        try:
+            random_recipes = await self.repo.get_random_recipes(limit)
+            return [(recipe.name, recipe.id) for recipe in random_recipes if recipe.name]
+        except Exception as e:
+            logger.error(f"Error getting random recipe suggestions: {e}")
+            return []
+    
     async def browse_items(self, category: str = None, color: str = None, 
                           price_range: str = None, page: int = 0, per_page: int = 10) -> Dict[str, Any]:
         """Browse items with filtering and pagination"""

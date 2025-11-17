@@ -564,11 +564,27 @@ class Recipe:
             ingredients=[]
         )
     
+    def is_food(self) -> bool:
+        """Check if this recipe is for food based on category"""
+        if not self.category:
+            return False
+        return self.category.lower() in ['savory', 'sweet']
+    
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this recipe"""
+        # Choose emoji and color based on recipe type
+        if self.is_food():
+            emoji = "🍳" if self.category and "savory" in self.category.lower() else "🧁"
+            color = discord.Color.from_rgb(255, 193, 7)  # Food yellow
+            recipe_type = "Food Recipe"
+        else:
+            emoji = "🛠️"
+            color = discord.Color.orange()
+            recipe_type = "DIY Recipe"
+        
         embed = discord.Embed(
-            title=f"📋 Recipe: {self.name}",
-            color=discord.Color.orange()
+            title=f"{emoji} {recipe_type}: {self.name}",
+            color=color
         )
         
         # Basic info
@@ -599,19 +615,9 @@ class Recipe:
                 inline=False
             )
         
-        # Add TI info if available
-        if self.item_hex or self.ti_full_hex:
-            ti_info = []
-            if self.item_hex:
-                ti_info.append(f"**Item Hex:** `{self.item_hex}`")
-            
-            if self.ti_customize_str:
-                ti_info.append(f"**TI Customize:** `!customize {self.item_hex or 'XXXX'} {self.ti_customize_str}`")
-            
-            if self.ti_full_hex:
-                ti_info.append(f"**TI Drop Hex:** `{self.ti_full_hex}`")
-            
-            embed.add_field(name="TI Codes", value="\n".join(ti_info), inline=False)
+        # Add item hex if available
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
         
         # Set image
         if self.image_url:

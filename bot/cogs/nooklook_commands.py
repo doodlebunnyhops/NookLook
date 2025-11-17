@@ -43,6 +43,31 @@ async def villager_name_autocomplete(interaction: discord.Interaction, current: 
         logger.error(f"Error in villager autocomplete: {e}")
         return []
 
+async def recipe_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """Autocomplete for recipe names"""
+    try:
+        # Get the cog to access the service
+        cog = interaction.client.get_cog('ACNHCommands')
+        if not cog or not hasattr(cog, 'service'):
+            return []
+        
+        # Get recipe suggestions
+        if not current or len(current) <= 2:
+            # Show random recipes when query is too short
+            suggestions = await cog.service.get_random_recipe_suggestions(25)
+        else:
+            suggestions = await cog.service.get_recipe_suggestions(current)
+        
+        # Convert to choices
+        choices = []
+        for name, recipe_id in suggestions:
+            choices.append(app_commands.Choice(name=name, value=str(recipe_id)))
+        
+        return choices[:25]  # Discord limit
+    except Exception as e:
+        logger.error(f"Error in recipe autocomplete: {e}")
+        return []
+
 class BrowseGroup(app_commands.Group):
     """Command group for browsing different types of ACNH content"""
     
@@ -430,6 +455,62 @@ class ACNHCommands(commands.Cog):
             embed = discord.Embed(
                 title="❌ Error",
                 description="An error occurred while looking up the villager.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    @app_commands.command(name="recipe", description="Look up a specific ACNH recipe")
+    @app_commands.describe(name="The recipe name to look up")
+    @app_commands.autocomplete(name=recipe_name_autocomplete)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def recipe(self, interaction: discord.Interaction, name: str):
+        """Look up recipe details"""
+        ephemeral = not is_dm(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        try:
+            # Convert name to recipe ID if it's numeric (from autocomplete)
+            if name.isdigit():
+                recipe_id = int(name)
+                recipe = await self.service.get_recipe_by_id(recipe_id)
+            else:
+                # Search for recipe by name
+                search_results = await self.service.search_all(name, category_filter="recipes")
+                recipe = search_results[0] if search_results else None
+            
+            if not recipe:
+                embed = discord.Embed(
+                    title="❌ Recipe Not Found",
+                    description=f"Sorry, I couldn't find a recipe named **{name}** 😿\n"
+                               f"Try using `/search {name}` to see if there are similar names.",
+                    color=0xe74c3c
+                )
+                
+                # Add suggestion for food vs DIY search
+                embed.add_field(
+                    name="💡 Search Tips",
+                    value="• Food recipes: savory dishes, desserts, and drinks\n"
+                          "• DIY recipes: furniture, tools, and decorations\n"
+                          "• Try `/search` with partial names or ingredients",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                return
+            
+            # Create the recipe embed
+            embed = recipe.to_discord_embed()
+            
+            # Add recipe type info in footer
+            recipe_type = "🍳 Food Recipe" if recipe.is_food() else "🛠️ DIY Recipe"
+            embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
+            
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+        except Exception as e:
+            logger.error(f"Error in recipe command: {e}")
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while looking up the recipe.",
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
