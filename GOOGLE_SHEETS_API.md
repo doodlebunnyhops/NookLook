@@ -2,12 +2,12 @@
 
 ## Overview
 
-The ACNH dataset importer pulls data directly from the comprehensive Animal Crossing: New Horizons dataset maintained by the ACNH Community (ACNH Sheets Discord). This eliminates the need for manual CSV downloads and provides several benefits:
+The ACNH dataset importer pulls data directly from the comprehensive Animal Crossing: New Horizons dataset maintained by the ACNH Community (ACNH Sheets Discord). The bot automatically checks for source updates every 6 hours and refreshes the database when changes are detected. This provides several benefits:
 
-- **Always up-to-date data**: No need to manually download and convert CSV files
-- **Automatic updates**: Data is fetched fresh from the source every time
-- **Reduced maintenance**: No need to manage local CSV files
-- **Real-time data**: Changes in the community sheet are immediately available
+- **Always up-to-date data**: Bot automatically syncs with source data every 6 hours
+- **Automatic updates**: No manual intervention required for data updates
+- **Reduced maintenance**: Bot handles all data synchronization automatically
+- **Real-time data**: Changes in the community sheet are detected and imported within 6 hours
 - **Community-driven**: Data sourced from the dedicated ACNH Sheets Discord community
 
 ## Quick Start Guide
@@ -18,10 +18,10 @@ You'll need a Google Cloud Platform API key to access the Google Sheets API:
 
 1. **Go to Google Cloud Console**: Visit [console.cloud.google.com](https://console.cloud.google.com)
 2. **Create or Select Project**: Create a new project or select an existing one
-3. **Enable Google Sheets API**:
+3. **Enable Required APIs**:
    - Go to "APIs & Services" > "Library"
-   - Search for "Google Sheets API"
-   - Click on it and press "Enable"
+   - Search for "Google Sheets API" and click "Enable"
+   - Search for "Google Drive API" and click "Enable" (needed for sheet modification timestamps)
 4. **Create API Key**:
    - Go to "APIs & Services" > "Credentials"
    - Click "Create Credentials" > "API Key"
@@ -29,7 +29,7 @@ You'll need a Google Cloud Platform API key to access the Google Sheets API:
 5. **Restrict API Key** (Recommended):
    - Click on your API key to edit it
    - Under "API restrictions", select "Restrict key"
-   - Choose "Google Sheets API" from the list
+   - Choose both "Google Sheets API" AND "Google Drive API" from the list
    - Save your changes
 
 ### 2. Setup Environment Variables
@@ -92,42 +92,50 @@ The data comes from the comprehensive ACNH dataset maintained by the **ACNH Shee
 
 ### Sheet Categories
 
-The system automatically imports data from all these categories:
+The bot automatically imports data from all these Google Sheet categories:
 
-| CSV Filename | Google Sheet Title |
-|--------------|-------------------|
-| `accessories.csv` | `Accessories` |
-| `bags.csv` | `Bags` |
-| `bottoms.csv` | `Bottoms` |
-| `ceiling-decor.csv` | `Ceiling Decor` |
-| `clothing-other.csv` | `Clothing Other` |
-| `dress-up.csv` | `Dress-Up` |
-| `fencing.csv` | `Fencing` |
-| `floors.csv` | `Floors` |
-| `gyroids.csv` | `Gyroids` |
-| `headwear.csv` | `Headwear` |
-| `housewares.csv` | `Housewares` |
-| `interior-structures.csv` | `Interior Structures` |
-| `miscellaneous.csv` | `Miscellaneous` |
-| `music.csv` | `Music` |
-| `other.csv` | `Other` |
-| `photos.csv` | `Photos` |
-| `posters.csv` | `Posters` |
-| `rugs.csv` | `Rugs` |
-| `shoes.csv` | `Shoes` |
-| `socks.csv` | `Socks` |
-| `tools-goods.csv` | `Tools/Goods` |
-| `tops.csv` | `Tops` |
-| `umbrellas.csv` | `Umbrellas` |
-| `wall-mounted.csv` | `Wall-mounted` |
-| `wallpaper.csv` | `Wallpaper` |
-| `fish.csv` | `Fish` |
-| `insects.csv` | `Insects` |
-| `sea-creatures.csv` | `Sea Creatures` |
-| `fossils.csv` | `Fossils` |
-| `artwork.csv` | `Artwork` |
-| `villagers.csv` | `Villagers` |
-| `recipes.csv` | `Recipes` |
+| Category | Google Sheet Title | Database Table |
+|----------|-------------------|----------------|
+| Accessories | `Accessories` | `items` |
+| Bags | `Bags` | `items` |
+| Bottoms | `Bottoms` | `items` |
+| Ceiling Decor | `Ceiling Decor` | `items` |
+| Clothing Other | `Clothing Other` | `items` |
+| Dress-Up | `Dress-Up` | `items` |
+| Fencing | `Fencing` | `items` |
+| Floors | `Floors` | `items` |
+| Gyroids | `Gyroids` | `items` |
+| Headwear | `Headwear` | `items` |
+| Housewares | `Housewares` | `items` |
+| Interior Structures | `Interior Structures` | `items` |
+| Miscellaneous | `Miscellaneous` | `items` |
+| Music | `Music` | `items` |
+| Other | `Other` | `items` |
+| Photos | `Photos` | `items` |
+| Posters | `Posters` | `items` |
+| Rugs | `Rugs` | `items` |
+| Shoes | `Shoes` | `items` |
+| Socks | `Socks` | `items` |
+| Tools/Goods | `Tools/Goods` | `items` |
+| Tops | `Tops` | `items` |
+| Umbrellas | `Umbrellas` | `items` |
+| Wall-mounted | `Wall-mounted` | `items` |
+| Wallpaper | `Wallpaper` | `items` |
+| Fish | `Fish` | `critters` |
+| Insects | `Insects` | `critters` |
+| Sea Creatures | `Sea Creatures` | `critters` |
+| Fossils | `Fossils` | `fossils` |
+| Artwork | `Artwork` | `artwork` |
+| Villagers | `Villagers` | `villagers` |
+| Recipes | `Recipes` | `recipes` |
+
+## Automatic Updates
+
+Once the bot is running, it automatically:
+- **Checks for updates every 6 hours**: The bot monitors the Google Sheet for changes
+- **Detects modifications**: Uses Google Drive API to check sheet modification timestamps
+- **Imports new data**: Automatically updates the database when changes are found
+- **Logs update activity**: All update checks and imports are logged for monitoring
 
 ## What Gets Imported
 
@@ -167,9 +175,22 @@ Running `python run_full_import.py` creates a complete database with:
 
 ## Usage Examples
 
-### Basic Import
+### Initial Database Setup
 ```bash
+# One-time setup: Create initial database
 python run_full_import.py
+```
+
+### Start the Bot (with Auto-Updates)
+```bash
+# Start the Discord bot with automatic 6-hour update checks
+python start_bot.py
+```
+
+### Manual Force Update
+```bash
+# Force immediate update (bypass 6-hour timer)
+python force_import.py
 ```
 
 ## Expected Output
@@ -177,15 +198,15 @@ python run_full_import.py
 A successful import will show:
 
 ```
-🚀 Starting full ACNH dataset import from Google Sheets API
+Starting full ACNH dataset import from Google Sheets API
 ======================================================================
-✅ Importer initialized successfully
+Importer initialized successfully
 
-📊 Initializing database...
+Initializing database...
 Database initialized successfully
 
-📥 Starting dataset import...
-Processing accessories.csv from sheet 'Accessories'
+Starting dataset import...
+Processing sheet 'Accessories'
    Successfully fetched 280 rows
    Processed 280 rows for accessories
 
@@ -195,14 +216,13 @@ Processing accessories.csv from sheet 'Accessories'
 FINAL IMPORT STATISTICS
 ============================================================
 Total Processed:  26,240
-Total Imported:   11,456  
-Total Skipped:    27
+Total Imported:   11,543
+Total Skipped:    0
 Total Errors:     0
 
 Import completed successfully with no errors!
+
 Database created: nooklook.db
-======================================================================
-🎉 Full import completed successfully!
 ```
 
 ## Troubleshooting
@@ -213,8 +233,9 @@ Database created: nooklook.db
 **Solutions**:
 - Check your `.env` file exists and contains `GOOGLE_SHEETS_API_KEY=your_key`
 - Verify your API key is valid in [Google Cloud Console](https://console.cloud.google.com)
-- Ensure Google Sheets API is enabled for your project
-- Make sure API key isn't restricted from accessing Google Sheets API
+- Ensure both Google Sheets API AND Google Drive API are enabled for your project
+- Make sure API key isn't restricted from accessing Google Sheets API or Google Drive API
+- Both APIs are required: Sheets API for data access, Drive API for modification timestamps
 
 ### ❌ Import Errors
 **Problem**: `404 Client Error` or `403 Forbidden`

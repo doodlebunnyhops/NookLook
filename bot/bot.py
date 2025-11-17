@@ -1,9 +1,11 @@
 import asyncio
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import logging
+from datetime import datetime, timedelta
 from .settings import DISCORD_API_SECRET, GUILDS_ID
 from .services.acnh_service import NooklookService
+from import_all_datasets import ACNHDatasetImporter
 
 
 class ACNHBot(commands.Bot):
@@ -22,6 +24,15 @@ class ACNHBot(commands.Bot):
         self.logger = logging.getLogger("bot")
         self.acnh_service = NooklookService()
         self._shutdown_gracefully = False
+        
+        # Data update tracking  
+        self.dataset_importer = None
+        self.last_data_check = None
+        self.data_check_interval_hours = 6  # Check every 6 hours (reasonable frequency)
+        self.data_update_in_progress = False  # Prevent concurrent updates
+    
+
+
     
     async def setup_hook(self):
         """Called when the bot is starting up"""
@@ -29,6 +40,14 @@ class ACNHBot(commands.Bot):
             # Initialize the database
             await self.acnh_service.init_database()
             self.logger.info("ACNH database initialized")
+            
+            # Initialize dataset importer for periodic updates
+            try:
+                self.dataset_importer = ACNHDatasetImporter()
+                self.logger.info("Dataset importer initialized for periodic updates")
+            except Exception as importer_error:
+                self.logger.error(f"Could not initialize dataset importer: {importer_error}")
+                self.logger.warning("Periodic data updates will be disabled")
             
             # Load the new nooklook commands cog
             await self.load_extension("bot.cogs.nooklook_commands")
@@ -55,31 +74,104 @@ class ACNHBot(commands.Bot):
         # Sync commands now that we know our guild status
         try:
             if len(self.guilds) == 0:
-                self.logger.warning("⚠️  Bot is not in any guilds! Invite the bot to a server to use commands.")
-                self.logger.info("💡 Create an invite link at: https://discord.com/developers/applications/")
+                self.logger.warning("Bot is not in any guilds! Invite the bot to a server to use commands.")
+                self.logger.info("Create an invite link at: https://discord.com/developers/applications/")
             else:
                 # We're in at least one guild, sync commands to all guilds
                 # Sync globally to ensure commands appear in all current and future guilds
                 await self.tree.sync()
-                self.logger.info(f"✅ Synced commands globally to all {len(self.guilds)} guilds")
+                self.logger.info(f"Synced commands globally to all {len(self.guilds)} guilds")
+                
+                # Start periodic data update checks
+                if self.dataset_importer:
+                    self.periodic_data_check.start()
+                    self.logger.info(f"Started automatic data freshness checks (every 6 hours)")
+                    self.logger.info("Bot will automatically stay up-to-date with Google Sheets data")
                     
-                self.logger.info("🚀 Bot is ready!")
+                self.logger.info("Bot is ready!")
         except Exception as e:
             self.logger.error(f"Error syncing commands: {e}")
 
     async def on_guild_join(self, guild):
         """Called when the bot joins a new guild"""
-        self.logger.info(f"🎉 Joined new guild: {guild.name} (ID: {guild.id})")
+        self.logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
         self.logger.info(f"Bot is now in {len(self.guilds)} guilds")
         
         # Optional: Sync commands immediately for this guild for instant availability
         # Note: This is not strictly necessary since global commands will appear automatically
         try:
             synced = await self.tree.sync(guild=guild)
-            self.logger.info(f"✅ Synced {len(synced)} commands to {guild.name} immediately")
+            self.logger.info(f"Synced {len(synced)} commands to {guild.name} immediately")
         except Exception as e:
             self.logger.error(f"Error syncing commands to {guild.name}: {e}")
             # Don't worry too much - global commands will still work
+
+
+
+    @tasks.loop(hours=6)  # Check every 6 hours (reasonable frequency for sheet updates)
+    async def periodic_data_check(self):
+        """Periodically check if Google Sheet data has been updated and refresh database if needed"""
+        
+        # Prevent concurrent updates
+        if self.data_update_in_progress:
+            self.logger.info("Data update already in progress, skipping this check")
+            return
+            
+        try:
+            self.data_update_in_progress = True
+            self.logger.info("Performing scheduled data freshness check...")
+            
+            if not self.dataset_importer:
+                self.logger.warning("Dataset importer not available, skipping data check")
+                return
+            
+            # Check if import is needed (this also logs the reason)
+            needs_import, reason, sheet_info = self.dataset_importer.check_if_import_needed()
+            
+            if needs_import:
+                self.logger.info(f"Data update detected: {reason}")
+                self.logger.info("Starting automatic database refresh...")
+                
+                try:
+                    # Close any existing database connections in the ACNH service
+                    await self.acnh_service.close_connections()
+                    self.logger.info("Closed existing database connections")
+                    
+                    # Wait a moment for any ongoing operations to complete
+                    await asyncio.sleep(2)
+                    
+                    # Perform the smart import in a controlled way
+                    import_performed = self.dataset_importer.import_all_datasets_smart()
+                    
+                    if import_performed:
+                        self.logger.info("Database automatically refreshed with latest data!")
+                        
+                        # Reinitialize the ACNH service with fresh connections
+                        await self.acnh_service.init_database()
+                        self.logger.info("Bot service refreshed with new data")
+                    else:
+                        self.logger.info("No data changes detected during import check")
+                        
+                finally:
+                    # Always complete the update process
+                    self.logger.info("Database update complete")
+            else:
+                self.logger.debug(f"Data is current: {reason}")
+                
+            # Update last check time
+            self.last_data_check = datetime.utcnow()
+            
+        except Exception as e:
+            self.logger.error(f"Error during automatic data check: {e}")
+            self.logger.error("Bot will continue running with existing data")
+        finally:
+            self.data_update_in_progress = False
+
+    @periodic_data_check.before_loop
+    async def before_periodic_data_check(self):
+        """Wait for the bot to be ready before starting periodic checks"""
+        await self.wait_until_ready()
+        self.logger.info("Bot ready, periodic data checks will begin")
 
     async def close(self):
         """Enhanced close method with proper cleanup"""
@@ -87,14 +179,19 @@ class ACNHBot(commands.Bot):
             return
             
         self._shutdown_gracefully = True
-        self.logger.info("🛑 Starting graceful shutdown...")
+        self.logger.info("Starting graceful shutdown...")
+        
+        # Stop periodic data check task
+        if hasattr(self, 'periodic_data_check') and self.periodic_data_check.is_running():
+            self.periodic_data_check.cancel()
+            self.logger.info("Stopped periodic data check task")
         
         # The ACNH service uses context managers for DB connections, so no cleanup needed
-        self.logger.info("✅ ACNH service uses auto-closing connections")
+        self.logger.info("ACNH service uses auto-closing connections")
         
         # Call the parent close method
         await super().close()
-        self.logger.info("✅ Bot connection closed")
+        self.logger.info("Bot connection closed")
 
 
 async def main():
@@ -106,30 +203,30 @@ async def main():
         return
     
     try:
-        print("🚀 Starting ACNH Lookup Bot...")
+        print("Starting ACNH Lookup Bot...")
         await bot.start(DISCORD_API_SECRET)
     except KeyboardInterrupt:
-        print("\n🛑 Received shutdown signal...")
+        print("\nReceived shutdown signal...")
     except asyncio.CancelledError:
-        print("\n🛑 Bot operation cancelled...")
+        print("\nBot operation cancelled...")
     except Exception as e:
-        print(f"❌ Error running bot: {e}")
+        print(f"Error running bot: {e}")
     finally:
-        print("🔄 Cleaning up...")
+        print("Cleaning up...")
         if not bot.is_closed():
             try:
                 await asyncio.wait_for(bot.close(), timeout=5.0)
-                print("✅ Bot shutdown complete")
+                print("Bot shutdown complete")
             except asyncio.TimeoutError:
-                print("⚠️  Bot shutdown timed out")
+                print("Bot shutdown timed out")
             except Exception as e:
-                print(f"⚠️  Error during shutdown: {e}")
+                print(f"Error during shutdown: {e}")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("👋 Goodbye!")
+        print("Goodbye!")
     except Exception as e:
-        print(f"❌ Fatal error: {e}")
+        print(f"Fatal error: {e}")

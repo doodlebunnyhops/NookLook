@@ -6,8 +6,8 @@ Imports all available datasets from Google Sheets into the database
 from import_all_datasets import ACNHDatasetImporter
 
 def main():
-    """Run the full import process"""
-    print("🚀 Starting full ACNH dataset import from Google Sheets API")
+    """Run the smart import process (only imports if data changed)"""
+    print("🚀 Starting smart ACNH dataset import from Google Sheets API")
     print("=" * 70)
     
     try:
@@ -16,18 +16,22 @@ def main():
         print("✅ Importer initialized successfully")
         
         # Initialize database
-        print("\n📊 Initializing database...")
+        print("\nInitializing database...")
         importer.init_database()
         
-        # Import all datasets
-        print("\n📥 Starting dataset import...")
-        importer.import_all_datasets()
+        # Smart import (only if data changed)
+        print("\nStarting smart dataset import...")
+        import_performed = importer.import_all_datasets_smart()
         
-        print("\n" + "=" * 70)
-        print("🎉 Full import completed successfully!")
+        if import_performed:
+            print("\n" + "=" * 70)
+            print("Smart import completed successfully!")
+        else:
+            print("\n" + "=" * 70)
+            print("No import needed - data is already up-to-date!")
         
     except Exception as e:
-        print(f"\n❌ Import failed: {e}")
+        print(f"\nImport failed: {e}")
         import traceback
         traceback.print_exc()
         return 1

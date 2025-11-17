@@ -54,10 +54,10 @@
 NookLook uses comprehensive data from the [ACNH Sheets Discord](https://discord.gg/8jNFHxG) community. The bot automatically imports the latest data via Google Sheets API, ensuring you always have up-to-date information.
 
 **Automated via Google Sheets API:**
-- 🔄 Real-time data synchronization
-- 📊 **26,000+** records across all categories  
-- 🖼️ Automatic image URL extraction
-- 🔢 TI code generation for trading
+- Real-time data synchronization
+- **26,000+** records across all categories  
+- Automatic image URL extraction
+- TI code generation for trading
 - **400+** villagers with complete details
 - **600+** recipes (DIY + cooking)
 - **40+** artwork pieces
@@ -124,20 +124,10 @@ python start_bot.py
    python run_full_import.py
    ```
 
-This automatically imports the latest data from the [ACNH Sheets Discord](https://discord.gg/8jNFHxG) community spreadsheet with:
+This automatically imports the latest data from the [ACNH Sheets Discord](https://discord.gg/8jNFHxG) community spreadsheet.
 
 > **Note**: See [GOOGLE_SHEETS_API.md](GOOGLE_SHEETS_API.md) for detailed setup instructions and troubleshooting.
 
-### Alternative: CSV Method (Legacy)
-
-For legacy setups or offline development:
-
-_this requires that you have pulled csv's into datasets/_
-
-```bash
-# Manual CSV import (deprecated)
-python import_all_datasets.py
-```
 
 ## Requirements
 
