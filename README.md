@@ -51,8 +51,13 @@
 
 ## Data Source
 
-All data is sourced from the **[ACNH Community Discord](https://discord.gg/kWMMYrN)** spreadsheet, converted from Google Sheets to CSV datasets and imported via `import_all_datasets.py`. This ensures accuracy and completeness with:
-- **13,000+** items across 25+ categories
+NookLook uses comprehensive data from the [ACNH Sheets Discord](https://discord.gg/8jNFHxG) community. The bot automatically imports the latest data via Google Sheets API, ensuring you always have up-to-date information.
+
+**Automated via Google Sheets API:**
+- 🔄 Real-time data synchronization
+- 📊 **26,000+** records across all categories  
+- 🖼️ Automatic image URL extraction
+- 🔢 TI code generation for trading
 - **400+** villagers with complete details
 - **600+** recipes (DIY + cooking)
 - **40+** artwork pieces
@@ -62,6 +67,8 @@ All data is sourced from the **[ACNH Community Discord](https://discord.gg/kWMMY
 - All item, villager, and content images are served from **[ACNH Community CDN](https://acnhcdn.com/)**
 - Images are not redistributed but linked directly to maintain up-to-date content
 
+**Community Attribution**: All data courtesy of the amazing ACNH research community at [discord.gg/8jNFHxG](https://discord.gg/8jNFHxG)
+
 ## Getting Started
 
 1. **Invite the Bot** - Add NookLook to your Discord server
@@ -70,6 +77,10 @@ All data is sourced from the **[ACNH Community Discord](https://discord.gg/kWMMY
 4. **Search Everything** - Use `/search` with category filters for specific content
 
 ## Development Setup
+
+### Quick Start with Google Sheets API
+
+The easiest way to set up NookLook is using the Google Sheets API integration:
 
 ```bash
 # Clone the repository
@@ -81,13 +92,51 @@ pip install -r requirements.txt
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your bot token
+# Edit .env with your API key (see .env.example for all options)
 
-# Initialize database
-python import_all_datasets.py
+# Create database from Google Sheets (recommended)
+python run_full_import.py
 
 # Start the bot
 python start_bot.py
+```
+
+### Google Sheets API Setup
+
+1. **Get Google Cloud API Key**:
+   - Visit [Google Cloud Console](https://console.cloud.google.com)
+   - Create/select a project
+   - Enable "Google Sheets API" in APIs & Services
+   - Create credentials → API Key
+   - Restrict key to Google Sheets API (recommended)
+
+2. **Configure Environment**:
+   ```bash
+   # Copy the example file
+   cp .env.example .env
+   
+   # Edit .env and add your API key:
+   GOOGLE_SHEETS_API_KEY=your_google_cloud_api_key_here
+   ```
+
+3. **Run Import**:
+   ```bash
+   python run_full_import.py
+   ```
+
+This automatically imports the latest data from the [ACNH Sheets Discord](https://discord.gg/8jNFHxG) community spreadsheet with:
+
+> **Note**: See [GOOGLE_SHEETS_API.md](GOOGLE_SHEETS_API.md) for detailed setup instructions and troubleshooting.
+
+### Alternative: CSV Method (Legacy)
+
+For legacy setups or offline development:
+
+_this requires that you have pulled csv's into datasets/_
+
+```bash
+# Manual CSV import (deprecated)
+python import_all_datasets.py
 ```
 
 ## Requirements

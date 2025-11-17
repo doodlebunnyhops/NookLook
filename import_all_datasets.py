@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Complete ACNH Dataset Importer
-Imports all CSV datasets into the nooklook.db SQLite database using the nooklook_schema.sql structure
+Imports all ACNH datasets from Google Sheets API into the nooklook.db SQLite database using the nooklook_schema.sql structure
 """
 import sqlite3
 import csv
@@ -9,12 +9,17 @@ import pathlib
 import sys
 import os
 import json
+import requests
+from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional, Tuple
 
 class ACNHDatasetImporter:
-    """Imports all ACNH datasets from CSV files into the database"""
+    """Imports all ACNH datasets from Google Sheets API into the database"""
     
     def __init__(self, db_path: str = "nooklook.db", datasets_dir: str = "datasets"):
+        # Load environment variables
+        load_dotenv()
+        
         self.db_path = db_path
         self.datasets_dir = pathlib.Path(datasets_dir)
         self.import_stats = {
@@ -22,6 +27,52 @@ class ACNHDatasetImporter:
             "imported": 0,
             "skipped": 0,
             "errors": 0
+        }
+        
+        # Google Sheets API configuration
+        self.google_sheet_url = os.getenv('GOOGLE_SHEET')
+        self.gcp_api_key = os.getenv('GCP_API_KEY')
+        
+        if not self.google_sheet_url or not self.gcp_api_key:
+            raise ValueError("GOOGLE_SHEET and GCP_API_KEY must be set in environment variables")
+            
+        # Extract spreadsheet ID from URL
+        self.spreadsheet_id = self._extract_spreadsheet_id(self.google_sheet_url)
+        
+        # Mapping from CSV filenames to Google Sheet titles
+        self.sheet_mappings = {
+            'accessories.csv': 'Accessories',
+            'bags.csv': 'Bags', 
+            'bottoms.csv': 'Bottoms',
+            'ceiling-decor.csv': 'Ceiling Decor',
+            'clothing-other.csv': 'Clothing Other',
+            'dress-up.csv': 'Dress-Up',
+            'fencing.csv': 'Fencing',
+            'floors.csv': 'Floors',
+            'gyroids.csv': 'Gyroids',
+            'headwear.csv': 'Headwear',
+            'housewares.csv': 'Housewares',
+            'interior-structures.csv': 'Interior Structures',
+            'miscellaneous.csv': 'Miscellaneous',
+            'music.csv': 'Music',
+            'other.csv': 'Other',
+            'photos.csv': 'Photos',
+            'posters.csv': 'Posters',
+            'rugs.csv': 'Rugs',
+            'shoes.csv': 'Shoes',
+            'socks.csv': 'Socks',
+            'tools-goods.csv': 'Tools/Goods',
+            'tops.csv': 'Tops',
+            'umbrellas.csv': 'Umbrellas',
+            'wall-mounted.csv': 'Wall-mounted',
+            'wallpaper.csv': 'Wallpaper',
+            'fish.csv': 'Fish',
+            'insects.csv': 'Insects', 
+            'sea-creatures.csv': 'Sea Creatures',
+            'fossils.csv': 'Fossils',
+            'artwork.csv': 'Artwork',
+            'villagers.csv': 'Villagers',
+            'recipes.csv': 'Recipes',
         }
         
     def init_database(self, schema_path: str = "schemas/nooklook_schema.sql"):
@@ -113,33 +164,151 @@ class ACNHDatasetImporter:
         }
         
         for filename, (table_type, category) in dataset_mappings.items():
-            file_path = self.datasets_dir / filename
-            if file_path.exists():
-                print(f"\nProcessing {filename}")
+            sheet_title = self.sheet_mappings.get(filename)
+            if sheet_title:
+                print(f"\nProcessing {filename} from sheet '{sheet_title}'")
                 try:
+                    # Fetch data from Google Sheets API
+                    rows = self._fetch_sheet_data(sheet_title)
+                    if not rows:
+                        print(f"   Warning: No data found for sheet '{sheet_title}'")
+                        continue
+                        
                     if table_type == 'items':
-                        self._import_items_dataset(file_path, category)
+                        self._import_items_dataset_from_rows(rows, category)
                     elif table_type == 'critters':
-                        self._import_critters_dataset(file_path, category)
+                        self._import_critters_dataset_from_rows(rows, category)
                     elif table_type == 'fossils':
-                        self._import_fossils_dataset(file_path)
+                        self._import_fossils_dataset_from_rows(rows)
                     elif table_type == 'artwork':
-                        self._import_artwork_dataset(file_path)
+                        self._import_artwork_dataset_from_rows(rows)
                     elif table_type == 'villagers':
-                        self._import_villagers_dataset(file_path)
+                        self._import_villagers_dataset_from_rows(rows)
                     elif table_type == 'recipes':
-                        self._import_recipes_dataset(file_path)
+                        self._import_recipes_dataset_from_rows(rows)
                 except Exception as e:
                     print(f"Error processing {filename}: {e}")
                     self.import_stats["errors"] += 1
             else:
-                print(f"File not found: {filename}")
+                print(f"Sheet mapping not found for: {filename}")
         
         # Populate search index and museum index
         self._populate_search_index()
         self._populate_museum_index()
         
         self._print_final_stats()
+
+    def _extract_spreadsheet_id(self, url: str) -> str:
+        """Extract spreadsheet ID from Google Sheets URL"""
+        if '/spreadsheets/' in url:
+            # Handle both regular URLs and API URLs
+            if '/spreadsheets/d/' in url:
+                return url.split('/spreadsheets/d/')[1].split('/')[0]
+            else:
+                # API URL format: https://sheets.googleapis.com/v4/spreadsheets/{id}
+                return url.split('/spreadsheets/')[1].split('/')[0]
+        raise ValueError(f"Invalid Google Sheets URL: {url}")
+    
+    def _fetch_sheet_data(self, sheet_title: str) -> List[Dict[str, str]]:
+        """Fetch data from a Google Sheet and return as list of dictionaries"""
+        print(f"   Fetching data from Google Sheets API for '{sheet_title}'...")
+        
+        # URL-encode the sheet title to handle special characters like '/'
+        # Use replace for forward slashes specifically, as quote() doesn't work for sheet names
+        encoded_sheet_title = sheet_title.replace('/', '%2F')
+        
+        # Construct the API URL with FORMULA render option to get IMAGE formulas
+        api_url = f"https://sheets.googleapis.com/v4/spreadsheets/{self.spreadsheet_id}/values/{encoded_sheet_title}?key={self.gcp_api_key}&valueRenderOption=FORMULA"
+        
+        try:
+            response = requests.get(api_url)
+            response.raise_for_status()
+            
+            data = response.json()
+            values = data.get('values', [])
+            
+            if not values:
+                return []
+            
+            # First row contains headers
+            headers = values[0]
+            rows = []
+            
+            # Convert to list of dictionaries
+            for row_data in values[1:]:
+                # Pad row_data to match headers length
+                while len(row_data) < len(headers):
+                    row_data.append('')
+                
+                row_dict = {}
+                for i, header in enumerate(headers):
+                    row_dict[header] = row_data[i] if i < len(row_data) else ''
+                
+                rows.append(row_dict)
+            
+            print(f"   Successfully fetched {len(rows)} rows")
+            return rows
+            
+        except requests.exceptions.RequestException as e:
+            print(f"   Error fetching data from Google Sheets: {e}")
+            return []
+        except (KeyError, IndexError) as e:
+            print(f"   Error parsing Google Sheets response: {e}")
+            return []
+
+    def _import_items_dataset_from_rows(self, rows: List[Dict[str, str]], category: str):
+        """Import items dataset from API data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        for row in rows:
+            try:
+                self.import_stats["processed"] += 1
+                
+                # Extract basic item info
+                name = self._get_value(row, ['Name'])
+                if not name:
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Check if item already exists (use internal_group_id + category as unique identifier)
+                internal_group_id = self._get_int_value(row, ['ClothGroup ID', 'Internal ID'])
+                cursor.execute("SELECT id FROM items WHERE internal_group_id = ? AND category = ?", (internal_group_id, category))
+                existing_item = cursor.fetchone()
+                
+                if existing_item:
+                    item_id = existing_item[0]
+                else:
+                    # Insert new item
+                    item_data = self._map_item_data(row, category)
+                    cursor.execute("""
+                        INSERT INTO items (name, category, internal_group_id, is_diy, buy_price, sell_price, 
+                                         hha_base, source, catalog, version_added, tag, style1, style2, 
+                                         label_themes, filename, image_url, extra_json)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, item_data)
+                    item_id = cursor.lastrowid
+                    self.import_stats["imported"] += 1
+                
+                # Always insert variant data (even for base items without variations)
+                variant_data = self._map_variant_data(row, item_id)
+                cursor.execute("""
+                    INSERT INTO item_variants (item_id, variant_id_raw, primary_index, secondary_index, variation_label, 
+                                             body_title, pattern_label, pattern_title, color1, color2, body_customizable, 
+                                             pattern_customizable, cyrus_customizable, pattern_options, internal_id, 
+                                             item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex, 
+                                             image_url, image_url_alt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, variant_data)
+                
+            except Exception as e:
+                print(f"   Error processing row {name if 'name' in locals() else 'Unknown'}: {e}")
+                self.import_stats["errors"] += 1
+                continue
+        
+        conn.commit()
+        conn.close()
+        print(f"   Processed {len(rows)} rows for {category}")
 
     def _import_items_dataset(self, file_path: pathlib.Path, category: str):
         """Import items dataset (clothing, furniture, etc.)"""
@@ -196,6 +365,235 @@ class ACNHDatasetImporter:
         conn.commit()
         conn.close()
         print(f"   Processed {len(rows)} rows for {category}")
+
+    def _import_critters_dataset_from_rows(self, rows: List[Dict[str, str]], critter_type: str):
+        """Import critters dataset from API data"""
+        # Map critter type
+        kind_map = {
+            'fish': 'fish',
+            'insects': 'insect', 
+            'sea-creatures': 'sea'
+        }
+        kind = kind_map.get(critter_type, critter_type)
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        for row in rows:
+            try:
+                self.import_stats["processed"] += 1
+                
+                name = self._get_value(row, ['Name'])
+                if not name:
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Check if already exists
+                cursor.execute("SELECT id FROM critters WHERE name = ? AND kind = ?", (name, kind))
+                if cursor.fetchone():
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Insert critter data
+                critter_data = self._map_critter_data(row, kind)
+                cursor.execute("""
+                    INSERT INTO critters (name, kind, internal_id, unique_entry_id, sell_price, item_hex, 
+                                        ti_primary, ti_secondary, ti_customize_str, ti_full_hex, location, 
+                                        shadow_size, movement_speed, catch_difficulty, vision, total_catches_to_unlock, 
+                                        spawn_rates, nh_jan, nh_feb, nh_mar, nh_apr, nh_may, nh_jun, 
+                                        nh_jul, nh_aug, nh_sep, nh_oct, nh_nov, nh_dec, sh_jan, sh_feb, 
+                                        sh_mar, sh_apr, sh_may, sh_jun, sh_jul, sh_aug, sh_sep, sh_oct, 
+                                        sh_nov, sh_dec, time_of_day, weather, rarity, description, catch_phrase, 
+                                        hha_base_points, hha_category, color1, color2, size, surface, 
+                                        icon_url, critterpedia_url, furniture_url, source, 
+                                        version_added, extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, critter_data)
+                self.import_stats["imported"] += 1
+                
+            except Exception as e:
+                print(f"   Error processing critter {name if 'name' in locals() else 'Unknown'}: {e}")
+                self.import_stats["errors"] += 1
+                continue
+        
+        conn.commit()
+        conn.close()
+        print(f"   Processed {len(rows)} rows for {critter_type}")
+    
+    def _import_fossils_dataset_from_rows(self, rows: List[Dict[str, str]]):
+        """Import fossils dataset from API data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        for row in rows:
+            try:
+                self.import_stats["processed"] += 1
+                
+                name = self._get_value(row, ['Name'])
+                if not name:
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Check if already exists
+                cursor.execute("SELECT id FROM fossils WHERE name = ?", (name,))
+                if cursor.fetchone():
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Insert fossil data
+                fossil_data = self._map_fossil_data(row)
+                cursor.execute("""
+                    INSERT INTO fossils (name, image_url, image_url_alt, buy_price, sell_price, fossil_group,
+                                       description, hha_base_points, color1, color2, size, source, museum,
+                                       interact, catalog, filename, internal_id, unique_entry_id, item_hex,
+                                       ti_primary, ti_secondary, ti_customize_str, ti_full_hex, extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, fossil_data)
+                self.import_stats["imported"] += 1
+                
+            except Exception as e:
+                print(f"   Error processing fossil {name if 'name' in locals() else 'Unknown'}: {e}")
+                self.import_stats["errors"] += 1
+                continue
+        
+        conn.commit()
+        conn.close()
+        print(f"   Processed {len(rows)} rows for fossils")
+    
+    def _import_artwork_dataset_from_rows(self, rows: List[Dict[str, str]]):
+        """Import artwork dataset from API data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        for row in rows:
+            try:
+                self.import_stats["processed"] += 1
+                
+                name = self._get_value(row, ['Name'])
+                if not name:
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Check if already exists
+                cursor.execute("SELECT id FROM artwork WHERE name = ?", (name,))
+                if cursor.fetchone():
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Insert artwork data
+                artwork_data = self._map_artwork_data(row)
+                cursor.execute("""
+                    INSERT INTO artwork (name, image_url, image_url_alt, genuine, art_category, buy_price, 
+                                       sell_price, color1, color2, size, real_artwork_title, artist, 
+                                       description, source, source_notes, hha_base_points, hha_concept1,
+                                       hha_concept2, hha_series, hha_set, interact, tag, speaker_type,
+                                       lighting_type, catalog, version_added, unlocked, filename, 
+                                       internal_id, unique_entry_id, item_hex, ti_primary, ti_secondary,
+                                       ti_customize_str, ti_full_hex, extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, artwork_data)
+                self.import_stats["imported"] += 1
+                
+            except Exception as e:
+                print(f"   Error processing artwork {name if 'name' in locals() else 'Unknown'}: {e}")
+                self.import_stats["errors"] += 1
+                continue
+        
+        conn.commit()
+        conn.close()
+        print(f"   Processed {len(rows)} rows for artwork")
+    
+    def _import_villagers_dataset_from_rows(self, rows: List[Dict[str, str]]):
+        """Import villagers dataset from API data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        for row in rows:
+            try:
+                self.import_stats["processed"] += 1
+                
+                name = self._get_value(row, ['Name'])
+                if not name:
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Check if already exists
+                cursor.execute("SELECT id FROM villagers WHERE name = ?", (name,))
+                if cursor.fetchone():
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Insert villager data
+                villager_data = self._map_villager_data(row)
+                cursor.execute("""
+                    INSERT INTO villagers (name, species, gender, personality, subtype, hobby, birthday,
+                                         catchphrase, favorite_song, favorite_saying, style1, style2, 
+                                         color1, color2, default_clothing, default_umbrella, wallpaper,
+                                         flooring, furniture_list, furniture_name_list, diy_workbench,
+                                         kitchen_equipment, version_added, name_color, bubble_color,
+                                         filename, unique_entry_id, icon_image, photo_image, house_image)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, villager_data)
+                self.import_stats["imported"] += 1
+                
+            except Exception as e:
+                print(f"   Error processing villager {name if 'name' in locals() else 'Unknown'}: {e}")
+                self.import_stats["errors"] += 1
+                continue
+        
+        conn.commit()
+        conn.close()
+        print(f"   Processed {len(rows)} rows for villagers")
+    
+    def _import_recipes_dataset_from_rows(self, rows: List[Dict[str, str]]):
+        """Import recipes dataset from API data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        for row in rows:
+            try:
+                self.import_stats["processed"] += 1
+                
+                name = self._get_value(row, ['Name'])
+                if not name:
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Check if already exists
+                cursor.execute("SELECT id FROM recipes WHERE name = ?", (name,))
+                if cursor.fetchone():
+                    self.import_stats["skipped"] += 1
+                    continue
+                
+                # Insert recipe data
+                recipe_data = self._map_recipe_data(row)
+                cursor.execute("""
+                    INSERT INTO recipes (name, category, source, source_notes,
+                                       version_added, buy_price, sell_price, hha_base, item_hex,
+                                       ti_primary, ti_secondary, ti_customize_str, ti_full_hex, 
+                                       internal_id, image_url, image_url_alt, extra_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, recipe_data)
+                recipe_id = cursor.lastrowid
+                
+                # Insert recipe ingredients
+                ingredients = self._extract_recipe_ingredients(row)
+                for ingredient_name, quantity in ingredients:
+                    cursor.execute("""
+                        INSERT INTO recipe_ingredients (recipe_id, ingredient_name, quantity)
+                        VALUES (?, ?, ?)
+                    """, (recipe_id, ingredient_name, quantity))
+                
+                self.import_stats["imported"] += 1
+                
+            except Exception as e:
+                print(f"   Error processing recipe {name if 'name' in locals() else 'Unknown'}: {e}")
+                self.import_stats["errors"] += 1
+                continue
+        
+        conn.commit()
+        conn.close()
+        print(f"   Processed {len(rows)} rows for recipes")
 
     def _import_critters_dataset(self, file_path: pathlib.Path, critter_type: str):
         """Import critters dataset (fish, insects, sea creatures)"""
@@ -905,21 +1303,19 @@ class ACNHDatasetImporter:
         
         return (
             self._get_value(row, ['Name']),  # name
-            internal_id,  # internal_id
-            None,  # product_item_id (would need to lookup)
             self._get_value(row, ['Category']),  # category
             self._get_value(row, ['Source']),  # source
             self._get_value(row, ['Source Notes']),  # source_notes
-            1,  # is_diy (all recipes are DIY by default)
-            None,  # buy_price (NFS)
+            self._get_value(row, ['Version Added']),  # version_added
+            None,  # buy_price (recipes don't typically have buy prices)
             self._get_int_value(row, ['Sell']),  # sell_price
             None,  # hha_base
-            self._get_value(row, ['Version Added']),  # version_added
             item_hex,  # item_hex (calculated)
             ti_primary,  # ti_primary (calculated)
             ti_secondary,  # ti_secondary (calculated)
             ti_customize_str,  # ti_customize_str (calculated)
             ti_full_hex,  # ti_full_hex (calculated)
+            internal_id,  # internal_id
             self._get_image_url_columns(row)[0],  # image_url (dynamically detected)
             self._get_image_url_columns(row)[1],  # image_url_alt (dynamically detected)
             None  # extra_json
@@ -986,20 +1382,9 @@ class ACNHDatasetImporter:
         # Priority order for alternate image URL  
         alt_image_candidates = ['Storage Image', 'High-Res Texture', 'Critterpedia Image', 'Furniture Image']
         
-        main_url = None
-        alt_url = None
-        
-        # Find main image URL
-        for candidate in main_image_candidates:
-            if candidate in row and row[candidate] and row[candidate].strip() and row[candidate].strip().upper() not in ['NA', 'NFS', 'N/A']:
-                main_url = row[candidate].strip()
-                break
-        
-        # Find alternate image URL  
-        for candidate in alt_image_candidates:
-            if candidate in row and row[candidate] and row[candidate].strip() and row[candidate].strip().upper() not in ['NA', 'NFS', 'N/A']:
-                alt_url = row[candidate].strip()
-                break
+        # Use _get_value which handles IMAGE formula extraction
+        main_url = self._get_value(row, main_image_candidates)
+        alt_url = self._get_value(row, alt_image_candidates)
                 
         return main_url, alt_url
 
@@ -1030,14 +1415,32 @@ class ACNHDatasetImporter:
     def _get_value(self, row: Dict[str, str], possible_keys: List[str]) -> Optional[str]:
         """Get value from row, trying multiple possible column names"""
         for key in possible_keys:
-            if key in row and row[key] and row[key].strip():
-                value = row[key].strip()
-                if value.upper() not in ['NFS', 'NA', 'N/A', '']:
+            if key in row and row[key] is not None:
+                # Convert to string if it's not already
+                raw_value = row[key]
+                if isinstance(raw_value, (int, float)):
+                    value = str(raw_value)
+                else:
+                    value = raw_value.strip() if hasattr(raw_value, 'strip') else str(raw_value)
+                
+                if value and value.upper() not in ['NFS', 'NA', 'N/A', '']:
                     # Clean up corrupted Unicode characters commonly found in time ranges
                     value = self._clean_unicode_characters(value)
+                    # Extract URL from IMAGE formula if present
+                    value = self._extract_url_from_formula(value)
                     return value
         return None
 
+    def _extract_url_from_formula(self, value: str) -> str:
+        """Extract URL from IMAGE formula or return original value"""
+        if value.startswith('=IMAGE("') and value.endswith('")'):
+            # Extract URL from =IMAGE("url") formula
+            return value[8:-2]  # Remove =IMAGE(" and ")
+        elif value.startswith('=IMAGE(') and value.endswith(')'):
+            # Handle =IMAGE(url) without quotes  
+            return value[7:-1]  # Remove =IMAGE( and )
+        return value
+    
     def _clean_unicode_characters(self, text: str) -> str:
         """Clean up corrupted Unicode characters, especially dash characters in time ranges"""
         if not text:
