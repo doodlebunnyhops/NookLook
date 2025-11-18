@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 from typing import List, Dict, Any, Optional, Callable, Union
 import logging
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Fossil, Artwork
 
 logger = logging.getLogger(__name__)
 
@@ -565,6 +565,10 @@ class SearchResultsView(discord.ui.View):
         elif isinstance(result, Recipe):
             embed = result.to_embed()
         elif isinstance(result, Villager):
+            embed = result.to_embed()
+        elif isinstance(result, Fossil):
+            embed = result.to_embed()
+        elif isinstance(result, Artwork):
             embed = result.to_embed()
         else:
             # Fallback generic embed

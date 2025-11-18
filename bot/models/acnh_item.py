@@ -1014,7 +1014,7 @@ class Fossil:
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this fossil"""
         embed = discord.Embed(
-            title=f"🦴 Fossil: {self.name}",
+            title=f"Fossil: {self.name}",
             color=discord.Color.from_rgb(139, 69, 19)  # Brown for fossils
         )
         

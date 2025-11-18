@@ -575,7 +575,7 @@ class ACNHCommands(commands.Cog):
                 "diy_recipes": "recipe",   # Discord "diy_recipes" -> DB "recipe"
                 "villagers": "villager",    # Discord "villagers" -> DB "villager"
                 "artwork": "artwork",      # Discord "artwork" -> DB "artwork"
-                "fossils": "fossils"      # Discord "fossils" -> DB "fossil"
+                "fossils": "fossil"       # Discord "fossils" -> DB "fossil"
             }
             
             # Convert category to database format
