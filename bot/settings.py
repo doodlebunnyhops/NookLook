@@ -1,6 +1,7 @@
 import pathlib
 import os
 import logging
+import logging.handlers
 from logging.config import dictConfig
 from dotenv import load_dotenv # type: ignore
 import discord
@@ -55,28 +56,38 @@ LOGGING_CONFIG = {
             "stream": "ext://sys.stdout",  # Explicitly use stdout with proper encoding
         },
         "file": {
-            "level": "INFO",  # Changed from INFO to INFO
-            "class": "logging.FileHandler",
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": "logs/infos.log",
-            "mode": "a",  # Changed from "w" to "a" (append mode)
+            "maxBytes": 10485760,  # 10MB per file
+            "backupCount": 5,  # Keep 5 backup files
             "formatter": "verbose",
             "encoding": "utf-8",  # Add UTF-8 encoding to handle emoji characters
+        },
+        "error_file": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "logs/errors.log",
+            "maxBytes": 5242880,  # 5MB per file
+            "backupCount": 10,  # Keep more error history
+            "formatter": "verbose",
+            "encoding": "utf-8",
         },
     },
     "loggers": {
         "bot": {
-            "handlers": ["console", "file"],  # Added file handler
-            "level": "INFO",  # Changed from INFO to INFO
+            "handlers": ["console", "file", "error_file"],
+            "level": "INFO", 
             "propagate": False
         },
         "discord": {
-            "handlers": ["console2", "file"],
+            "handlers": ["console2", "file", "error_file"],
             "level": "INFO",
             "propagate": False,
         },
         # Add root logger to catch any other logs
         "": {
-            "handlers": ["console", "file"],
+            "handlers": ["console", "file", "error_file"],
             "level": "INFO",
         }
     },
