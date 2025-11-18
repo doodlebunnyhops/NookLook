@@ -1,0 +1,15 @@
+[Unit]
+Description=Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/Path/To/NookLook
+Environment=PATH=/Path/To/NookLook/venv/bin
+ExecStart=/Path/To/NookLook/venv/bin/python start_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
