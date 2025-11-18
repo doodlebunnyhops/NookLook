@@ -31,6 +31,7 @@ CREATE TABLE items (
     -- Image base
     filename            TEXT,                       -- Base filename from CSV
     image_url           TEXT,                       -- generic icon for the whole item group, set to default variant if needed
+    nookipedia_url      TEXT,                       -- URL to Nookipedia page for this item
 
     -- Extra JSON for category-specific oddities if needed
     extra_json          TEXT
@@ -133,6 +134,7 @@ CREATE TABLE recipes (
     
     image_url           TEXT,             -- Recipe card image or icon URL
     image_url_alt       TEXT,             -- Alternate image URL if applicable
+    nookipedia_url      TEXT,             -- URL to Nookipedia page for this recipe
     extra_json          TEXT,             -- For future specialty fields
     FOREIGN KEY (product_item_id) REFERENCES items(id) ON DELETE SET NULL
 );
@@ -225,6 +227,7 @@ CREATE TABLE critters (
     icon_url                TEXT,
     critterpedia_url        TEXT,
     furniture_url           TEXT,
+    nookipedia_url          TEXT,             -- URL to Nookipedia page for this critter
     source                  TEXT,
     version_added           TEXT,
     extra_json              TEXT
@@ -272,6 +275,7 @@ CREATE TABLE fossils (
     ti_secondary            INTEGER,          -- NULL for 1D items (fossils are typically 1D)
     ti_customize_str        TEXT,             -- E.g. '0' for most fossils
     ti_full_hex             TEXT,             -- 16-char TI drop hex
+    nookipedia_url          TEXT,             -- URL to Nookipedia page for this fossil
     
     extra_json              TEXT
 );
@@ -329,6 +333,7 @@ CREATE TABLE artwork (
     ti_secondary            INTEGER,          -- NULL for 1D items (artwork is typically 1D)
     ti_customize_str        TEXT,             -- E.g. '0' for most artwork
     ti_full_hex             TEXT,             -- 16-char TI drop hex
+    nookipedia_url          TEXT,             -- URL to Nookipedia page for this artwork
     
     extra_json              TEXT
 );
@@ -394,7 +399,8 @@ CREATE TABLE villagers (
     
     icon_image          TEXT,
     photo_image         TEXT,
-    house_image         TEXT
+    house_image         TEXT,
+    nookipedia_url      TEXT             -- URL to Nookipedia page for this villager
 );
 
 CREATE INDEX idx_villagers_name ON villagers(name);
