@@ -15,6 +15,7 @@ from bot.ui.pagination import (
     SearchResultsView,
     PaginatedResultView
 )
+from bot.ui.nookipedia_view import get_nookipedia_view
 from bot.utils.image_fallback import safe_set_image, safe_set_thumbnail
 import asyncio
 from functools import lru_cache
@@ -439,6 +440,22 @@ async def critter_name_autocomplete(interaction: discord.Interaction, current: s
         logger.error(f"Error in critter autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
+def get_combined_view(existing_view: Optional[discord.ui.View], nookipedia_url: Optional[str]) -> Optional[discord.ui.View]:
+    """Combine an existing view with Nookipedia button if URL is available"""
+    nookipedia_view = get_nookipedia_view(nookipedia_url)
+    
+    if existing_view and nookipedia_view:
+        # Add Nookipedia button to existing view
+        for item in nookipedia_view.children:
+            existing_view.add_item(item)
+        return existing_view
+    elif nookipedia_view:
+        # Only Nookipedia button
+        return nookipedia_view
+    else:
+        # Return existing view or None
+        return existing_view
+
 class ACNHCommands(commands.Cog):
     """ACNH lookup commands using nooklook database"""
     
@@ -551,8 +568,11 @@ class ACNHCommands(commands.Cog):
                 
                 # If it's an item with variants, show variant selector
                 if hasattr(result, 'variants') and len(result.variants) > 1:
-                    view = VariantSelectView(result, interaction.user)
-                    embed = view.create_embed()
+                    variant_view = VariantSelectView(result, interaction.user)
+                    embed = variant_view.create_embed()
+                    # Add Nookipedia button to variant view
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(variant_view, nookipedia_url)
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
                 else:
                     # Show regular embed
@@ -564,7 +584,11 @@ class ACNHCommands(commands.Cog):
                     embed.set_footer(text=f"Search result for '{query}'")
                     category_info = f" in {category}" if category else ""
                     logger.info(f"✅ /search command completed for user {user_id} - found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                    
+                    # Add Nookipedia button if available
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(None, nookipedia_url)
+                    await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
             # Multiple results - show navigation view
             else:
@@ -710,13 +734,19 @@ class ACNHCommands(commands.Cog):
                     # Multiple variants - show selector
                     embed = result.to_discord_embed()
                     embed = await safe_embed_images(embed, 'item')
-                    view = VariantSelectView(result, interaction.user)
+                    variant_view = VariantSelectView(result, interaction.user)
+                    # Add Nookipedia button to variant view
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(variant_view, nookipedia_url)
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
                 else:
                     # Single item - show directly
                     embed = result.to_discord_embed()
                     embed = await safe_embed_images(embed, 'item')
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                    # Add Nookipedia button if available
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(None, nookipedia_url)
+                    await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
                 return
             
             # Multiple results - show search-style list with pagination
@@ -781,8 +811,10 @@ class ACNHCommands(commands.Cog):
             embed = villager.to_discord_embed()
             embed = await safe_embed_images(embed, 'villager')
             
-            # Create a view with buttons for additional details
-            view = VillagerDetailsView(villager, interaction.user, self.service)
+            # Create a view with buttons for additional details and add Nookipedia button
+            details_view = VillagerDetailsView(villager, interaction.user, self.service)
+            nookipedia_url = getattr(villager, 'nookipedia_url', None)
+            view = get_combined_view(details_view, nookipedia_url)
             
             await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
@@ -976,8 +1008,10 @@ class ACNHCommands(commands.Cog):
                 footer_text += f" • {critter.location}"
             embed.set_footer(text=footer_text)
             
-            # Create a view with availability button
-            view = CritterAvailabilityView(critter, interaction.user)
+            # Create a view with availability button and add Nookipedia button
+            availability_view = CritterAvailabilityView(critter, interaction.user)
+            nookipedia_url = getattr(critter, 'nookipedia_url', None)
+            view = get_combined_view(availability_view, nookipedia_url)
             
             logger.info(f"✅ /critter command completed successfully for user {user_id} - found: {critter.name}")
             await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)

@@ -333,10 +333,6 @@ class Item:
         if image_url:
             embed.set_thumbnail(url=image_url)
         
-        # Add Nookipedia link if available
-        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
-            embed.url = self.nookipedia_url
-        
         return embed
     
     def to_embed(self) -> discord.Embed:
@@ -528,10 +524,6 @@ class Critter:
         elif self.critterpedia_url:
             embed.set_thumbnail(url=self.critterpedia_url)
         
-        # Add Nookipedia link if available
-        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
-            embed.url = self.nookipedia_url
-        
         return embed
     
     def to_embed(self) -> discord.Embed:
@@ -652,10 +644,6 @@ class Recipe:
         # Set image with fallback handling
         if self.image_url:
             embed.set_thumbnail(url=self.image_url)
-        
-        # Add Nookipedia link if available
-        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
-            embed.url = self.nookipedia_url
         
         return embed
     
@@ -798,10 +786,6 @@ class Villager:
         # Set image with fallback handling
         if self.icon_image:
             embed.set_thumbnail(url=self.icon_image)
-        
-        # Add Nookipedia link if available
-        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
-            embed.url = self.nookipedia_url
         
         return embed
     
@@ -959,10 +943,6 @@ class Artwork:
         # Set image with fallback handling
         if self.image_url:
             embed.set_thumbnail(url=self.image_url)
-        
-        # Add Nookipedia link if available
-        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
-            embed.url = self.nookipedia_url
         
         return embed
     
