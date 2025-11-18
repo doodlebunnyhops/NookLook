@@ -31,16 +31,24 @@ Your bot instance **MUST** include these disclaimers:
 ## Technical Setup
 
 ### Prerequisites
-- **Python 3.11+** (required for modern async features)
+- **Python 3.12+** (required for modern async features)
 - **Git** for cloning the repository
 - **Discord Application** with bot token
 - **Hosting Environment** (VPS, cloud service, or local machine)
+- **Optional: Nookipedia API key** for enhanced data quality
+
+### Important Files
+The repository includes example configuration files:
+- `.env.example` - Environment variable template
+- `bot.service.example` - Systemd service template for Linux
+
+Copy and customize these for your deployment.
 
 ### Step 1: Clone and Setup
 ```bash
 # Clone the repository
 git clone https://github.com/doodlebunnyhops/nooklook.git
-cd nooklook/acnh-lookup
+cd nooklook
 
 # Create virtual environment (recommended)
 python -m venv bot_env
@@ -72,107 +80,75 @@ pip install -r requirements.txt
    - Generate and use the invite link
 
 ### Step 3: Configuration
+
+**Do not edit the .env.example! You don't accidently want to commit your secrets ...**
+
 ```bash
 # Copy environment template
 cp .env.example .env
 
-# Edit .env with your settings
+# Edit .env with your settings (see .env.example for all available options)
 # Required variables:
-DISCORD_TOKEN=your_bot_token_here
-DATABASE_PATH=./bot/db/nooklook.db
-LOG_LEVEL=INFO
+DISCORD_API_TOKEN=your_bot_token_here
 
-# Optional variables:
-ENVIRONMENT=production
-SENTRY_DSN=your_sentry_dsn_here
+# Google Sheets API Configuration
+# Get your API key from Google Cloud Console (see GOOGLE_SHEETS_API.md)
+GOOGLE_SHEETS_API_KEY=your_google_cloud_api_key_here
+GOOGLE_SHEET=https://sheets.googleapis.com/v4/spreadsheets/13d_LAJPlxMa_DubPTuirkIV4DERBMXbrWQsmSh8ReK4
+
+
+# Optional but recommended - Nookipedia API for enhanced data:
+NOOKIPEDIA_API=your_nookipedia_api_key_here
+
+# Other optional variables (see .env.example for complete list):
+GUILD=your_guild_id_here  # For faster command syncing
+FEEDBACK_CH=your_feedback_channel_id_here
 ```
 
 ### Step 4: Database Setup
 ```bash
-# Initialize the database with ACNH data
-python import_all_datasets.py
+# STEP 1: Initialize the database with ACNH data (REQUIRED FIRST)
+python db_tools/run_full_import.py
+
+# STEP 2: Add Nookipedia data for enhanced experience (optional)
+# (requires NOOKIPEDIA_API in .env - configured above)
+python nookipedia/update_db.py
 
 # Verify database setup
 python -c "
 import sqlite3
-conn = sqlite3.connect('./bot/db/nooklook.db')
+conn = sqlite3.connect('./data/nooklook.db')
 cursor = conn.cursor()
 cursor.execute('SELECT COUNT(*) FROM items')
 print(f'Items loaded: {cursor.fetchone()[0]}')
 conn.close()
 "
 ```
+Should see `Items loaded: 9863`
+
+#### Nookipedia API Setup (Optional but Recommended)
+For enhanced villager images and data quality:
+
+1. **Get API Key:**
+   - Apply at https://api.nookipedia.com/
+   - Add your key to `.env` as `NOOKIPEDIA_API=your_key_here`
+
+2. **Database Update Process:**
+   *(This happens in Step 4 after the base database is created)*
+
+
+**What Nookipedia Update Adds:**
+- High-quality villager photos and icons
+- House interior/exterior images  
+- Nookipedia URLs for all content
 
 ### Step 5: Test and Deploy
 ```bash
-# Test the bot locally
+# Test the bot locally from root of project
 python start_bot.py
 
 # Check for any errors in the console
 # Test basic commands like /info and /lookup
-```
-
-## Deployment Options
-
-### Option 1: VPS/Cloud Server
-**Recommended for:** Persistent uptime, community use
-
-```bash
-# Using systemd service (Linux)
-sudo nano /etc/systemd/system/nooklook.service
-
-[Unit]
-Description=NookLook Discord Bot
-After=network.target
-
-[Service]
-Type=simple
-User=your_user
-WorkingDirectory=/path/to/nooklook/acnh-lookup
-Environment=PATH=/path/to/nooklook/acnh-lookup/bot_env/bin
-ExecStart=/path/to/nooklook/acnh-lookup/bot_env/bin/python start_bot.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-
-# Enable and start service
-sudo systemctl enable nooklook
-sudo systemctl start nooklook
-```
-
-### Option 2: Docker Deployment
-```dockerfile
-# Create Dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-RUN python import_all_datasets.py
-
-CMD ["python", "start_bot.py"]
-```
-
-```bash
-# Build and run
-docker build -t nooklook .
-docker run -d --name nooklook-bot --env-file .env nooklook
-```
-
-### Option 3: Heroku Deployment
-```bash
-# Create Procfile
-echo "worker: python start_bot.py" > Procfile
-
-# Deploy to Heroku
-heroku create your-bot-name
-heroku config:set DISCORD_TOKEN=your_token
-git push heroku main
-heroku ps:scale worker=1
 ```
 
 ## Security Best Practices
@@ -235,7 +211,7 @@ systemctl restart nooklook  # or your deployment method
 #### Bot Won't Start
 ```bash
 # Check Python version
-python --version  # Should be 3.11+
+python --version  # Should be 3.12+
 
 # Check dependencies
 pip check
@@ -246,12 +222,18 @@ echo $DISCORD_TOKEN | wc -c  # Should be ~70 characters
 
 #### Database Issues
 ```bash
-# Rebuild database
-rm ./bot/db/nooklook.db
-python import_all_datasets.py
+# Rebuild database if corrupted
+rm ./data/nooklook.db
+python db_tools/run_full_import.py
+
+# Re-add Nookipedia data if configured
+if [ -n "$NOOKIPEDIA_API" ]; then
+    python nookipedia/fetch_urls.py
+    python nookipedia/update_db.py
+fi
 
 # Check database integrity
-sqlite3 ./bot/db/nooklook.db "PRAGMA integrity_check;"
+sqlite3 ./data/nooklook.db "PRAGMA integrity_check;"
 ```
 
 #### Permission Errors
@@ -288,6 +270,8 @@ Before deploying your instance:
 **Technical Setup:**
 - [ ] Bot token configured securely
 - [ ] Database initialized and tested
+- [ ] Nookipedia API configured (optional but recommended)
+- [ ] Enhanced data imported via `nookipedia/update_db.py`
 - [ ] Permissions set correctly
 - [ ] Monitoring/logging configured
 - [ ] Backup procedures established
