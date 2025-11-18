@@ -1,6 +1,8 @@
 # NookLook - Animal Crossing: New Horizons Discord Bot
 
-**NookLook** is a comprehensive Discord bot for Animal Crossing: New Horizons, providing instant access to items, villagers, recipes, artwork, and critters with detailed information and smart search capabilities.
+**NookLook** is a comprehensive Discord bot for Animal Crossing: New Horizons, providing instant access to items, villagers, recipes, artwork, fossils and critters with detailed information and smart search capabilities.
+
+[Install NookLook](https://discord.com/oauth2/authorize?client_id=1439097629404561539)
 
 ## Features
 
@@ -23,13 +25,14 @@
 | `/recipe` | Look up DIY and food recipes |
 | `/artwork` | Find genuine/fake artwork details |
 | `/critter` | Fish, bugs & sea creature info |
+| `/fossil` | Find info on fossils |
 | `/help` | Interactive help with detailed command info |
 | `/info` | Bot statistics and database information |
 
 ## Technical Details
 
 ### Built With
-- **Python 3.11+** with discord.py 2.3+
+- **Python 3.11+** with discord.py 2.6+
 - **SQLite Database** with FTS5 full-text search
 - **Async/Await** architecture for optimal performance
 - **Comprehensive Data Models** with dataclasses and type hints
