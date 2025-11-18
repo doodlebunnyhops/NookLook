@@ -7,6 +7,7 @@ This script reads the JSON files created by fetch_urls.py and updates the databa
 import sqlite3
 import json
 import sys
+import os
 from pathlib import Path
 from typing import List, Dict, Tuple
 import logging
@@ -254,10 +255,10 @@ class NookipediaDBUpdater:
     
     def update_villagers_urls(self, urls_data: List[Dict[str, str]]) -> Tuple[int, int]:
         """
-        Update villagers table with Nookipedia URLs.
+        Update villagers table with Nookipedia URLs and house images.
         
         Args:
-            urls_data: List of dicts with 'name' and 'url' keys
+            urls_data: List of dicts with villager data including NH details
             
         Returns:
             Tuple of (updated_count, total_villagers)
@@ -265,11 +266,11 @@ class NookipediaDBUpdater:
         cursor = self.conn.cursor()
         
         # Get all villagers from database
-        cursor.execute("SELECT id, name FROM villagers")
+        cursor.execute("SELECT id, name, house_image, house_interior_image, photo_image, icon_image FROM villagers")
         db_villagers = cursor.fetchall()
         
-        # Create lookup dict for Nookipedia URLs
-        url_lookup = {self.normalize_name(item['name']): item['url'] for item in urls_data}
+        # Create lookup dict for Nookipedia villager data
+        villager_lookup = {self.normalize_name(item['name']): item for item in urls_data}
         
         updated_count = 0
         total_villagers = len(db_villagers)
@@ -277,14 +278,72 @@ class NookipediaDBUpdater:
         for db_villager in db_villagers:
             normalized_db_name = self.normalize_name(db_villager['name'])
             
-            if normalized_db_name in url_lookup:
-                nookipedia_url = url_lookup[normalized_db_name]
-                cursor.execute(
-                    "UPDATE villagers SET nookipedia_url = ? WHERE id = ?",
-                    (nookipedia_url, db_villager['id'])
-                )
-                updated_count += 1
-                logger.debug(f"Updated villager '{db_villager['name']}' with URL: {nookipedia_url}")
+            if normalized_db_name in villager_lookup:
+                villager_data = villager_lookup[normalized_db_name]
+                
+                # Extract data to update
+                nookipedia_url = villager_data.get('url')
+                house_exterior_url = None
+                house_interior_url = None
+                photo_url = None
+                icon_url = None
+                
+                # Extract images from NH details if available
+                nh_details = villager_data.get('nh_details')
+                if nh_details and isinstance(nh_details, dict):
+                    house_exterior_url = nh_details.get('house_exterior_url')
+                    house_interior_url = nh_details.get('house_interior_url')
+                    photo_url = nh_details.get('image_url')
+                    icon_url = nh_details.get('icon_url')
+                
+                # Prepare update fields and values
+                update_fields = []
+                update_values = []
+                
+                if nookipedia_url:
+                    update_fields.append("nookipedia_url = ?")
+                    update_values.append(nookipedia_url)
+                
+                # Update house_image (exterior) if missing or if we have a new one
+                if house_exterior_url and (not db_villager['house_image'] or db_villager['house_image'] != house_exterior_url):
+                    update_fields.append("house_image = ?")
+                    update_values.append(house_exterior_url)
+                
+                # Update house_interior_image if we have one
+                if house_interior_url and (not db_villager['house_interior_image'] or db_villager['house_interior_image'] != house_interior_url):
+                    update_fields.append("house_interior_image = ?")
+                    update_values.append(house_interior_url)
+                
+                # Always update photo_image with Nookipedia data (overwrite existing for better quality)
+                if photo_url:
+                    update_fields.append("photo_image = ?")
+                    update_values.append(photo_url)
+                
+                # Always update icon_image with Nookipedia data (overwrite existing)
+                if icon_url:
+                    update_fields.append("icon_image = ?")
+                    update_values.append(icon_url)
+                
+                # Execute update if we have fields to update
+                if update_fields:
+                    update_sql = f"UPDATE villagers SET {', '.join(update_fields)} WHERE id = ?"
+                    update_values.append(db_villager['id'])
+                    cursor.execute(update_sql, update_values)
+                    updated_count += 1
+                    
+                    updates_made = []
+                    if nookipedia_url:
+                        updates_made.append("URL")
+                    if house_exterior_url:
+                        updates_made.append("exterior image")
+                    if house_interior_url:
+                        updates_made.append("interior image")
+                    if photo_url:
+                        updates_made.append("photo image")
+                    if icon_url:
+                        updates_made.append("icon image")
+                    
+                    logger.debug(f"Updated villager '{db_villager['name']}' with: {', '.join(updates_made)}")
         
         self.conn.commit()
         return updated_count, total_villagers
@@ -411,9 +470,8 @@ def main():
         full_data = load_urls_from_json("nookipedia_villagers_data.json", str(data_dir))
         if full_data:
             try:
-                # Extract URLs from full data
-                urls_data = [{'name': item['name'], 'url': item['url']} for item in full_data]
-                updated, total = updater.update_villagers_urls(urls_data)
+                # Use full data instead of just URLs for villagers to get house images
+                updated, total = updater.update_villagers_urls(full_data)
                 print(f"Villagers: Updated {updated}/{total} entries")
                 total_updated += updated
             except Exception as e:
@@ -421,6 +479,10 @@ def main():
 
     print(f"\nDatabase update completed!")
     print(f"Total entries updated: {total_updated}")
+    
+    # Note: All villager images (house, photo, icon) are now updated above from JSON data
+    # No need for additional API calls since we have all the data in the JSON files
+    print("\n✅ All villager images updated from JSON data (no API calls needed)")
     
     return 0
 

@@ -287,13 +287,13 @@ class NookipediaClient:
     
     def get_villagers_urls(self) -> List[Dict[str, Any]]:
         """
-        Fetch all villagers with full data.
+        Fetch all villagers with full data, including New Horizons details.
         
         Returns:
-            List of dicts with full villager data
+            List of dicts with full villager data including NH house images
         """
         logger.info("Fetching villagers data...")
-        data = self._make_request('/villagers', {'excludedetails': 'false'})
+        data = self._make_request('/villagers', {'excludedetails': 'false', 'nhdetails': 'true'})
         
         if not data:
             return []
