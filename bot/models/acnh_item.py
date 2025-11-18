@@ -733,7 +733,7 @@ class Villager:
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this villager"""
         embed = discord.Embed(
-            title=f"🔍 🏘️ {self.display_name}",
+            title=f"🏘️ {self.display_name}",
             color=discord.Color.purple()
         )
         

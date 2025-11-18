@@ -119,7 +119,7 @@ class ItemsPaginationView(PaginationView):
             filters.append(f"Price: {self.price_range}")
         
         if filters:
-            embed.add_field(name="🔍 Filters", value=" | ".join(filters), inline=False)
+            embed.add_field(name="Filters", value=" | ".join(filters), inline=False)
         
         # Add items
         if items:
@@ -194,7 +194,7 @@ class CrittersPaginationView(PaginationView):
             filters.append(f"Season: {self.season}")
         
         if filters:
-            embed.add_field(name="🔍 Filters", value=" | ".join(filters), inline=False)
+            embed.add_field(name="Filters", value=" | ".join(filters), inline=False)
         
         # Add critters
         if critters:
@@ -550,7 +550,7 @@ class SearchResultsView(discord.ui.View):
         """Create embed for current search result"""
         if not self.results:
             return discord.Embed(
-                title="🔍 Search Results",
+                title="Search Results",
                 description=f"No results found for '{self.query}'",
                 color=0xe74c3c
             )
@@ -574,7 +574,7 @@ class SearchResultsView(discord.ui.View):
             )
         
         # Add search context to title
-        embed.title = f"🔍 {embed.title}"
+        embed.title = f"{embed.title}"
         
         # Add footer with result navigation
         if len(self.results) > 1:

@@ -877,8 +877,12 @@ class ACNHCommands(commands.Cog):
             recipe_type = "🍳 Food Recipe" if recipe.is_food() else "🛠️ DIY Recipe"
             embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
             
+            # Add Nookipedia button if available
+            nookipedia_url = getattr(recipe, 'nookipedia_url', None)
+            view = get_combined_view(None, nookipedia_url)
+            
             logger.info(f"✅ /recipe command completed successfully for user {user_id} - found: {recipe.name} ({recipe_type})")
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
         except Exception as e:
             logger.error(f"❌ Error in /recipe command for user {user_id}, query '{name}': {e}", exc_info=True)
@@ -938,7 +942,11 @@ class ACNHCommands(commands.Cog):
                 category_text += f" • {artwork.art_category}"
             embed.set_footer(text=category_text)
             
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            # Add Nookipedia button if available
+            nookipedia_url = getattr(artwork, 'nookipedia_url', None)
+            view = get_combined_view(None, nookipedia_url)
+            
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
         except Exception as e:
             logger.error(f"Error in artwork command: {e}")
