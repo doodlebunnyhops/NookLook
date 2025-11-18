@@ -950,4 +950,132 @@ class Artwork:
         """Convert this artwork to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
+@dataclass(slots=True)
+class Fossil:
+    """Represents a fossil"""
+    id: int
+    name: str
+    source_unique_id: Optional[str]
+    image_url: Optional[str]
+    image_url_alt: Optional[str]
+    buy_price: Optional[int]
+    sell_price: Optional[int]
+    fossil_group: Optional[str]
+    description: Optional[str]
+    hha_base_points: Optional[int]
+    color1: Optional[str]
+    color2: Optional[str]
+    size: Optional[str]
+    source: Optional[str]
+    museum: Optional[str]
+    interact: Optional[str]
+    catalog: Optional[str]
+    filename: Optional[str]
+    internal_id: Optional[int]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    nookipedia_url: Optional[str]
+    extra_json: Optional[str]
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Fossil':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            source_unique_id=data.get('source_unique_id'),
+            image_url=data.get('image_url'),
+            image_url_alt=data.get('image_url_alt'),
+            buy_price=data.get('buy_price'),
+            sell_price=data.get('sell_price'),
+            fossil_group=data.get('fossil_group'),
+            description=data.get('description'),
+            hha_base_points=data.get('hha_base_points'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            size=data.get('size'),
+            source=data.get('source'),
+            museum=data.get('museum'),
+            interact=data.get('interact'),
+            catalog=data.get('catalog'),
+            filename=data.get('filename'),
+            internal_id=data.get('internal_id'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            nookipedia_url=data.get('nookipedia_url'),
+            extra_json=data.get('extra_json')
+        )
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this fossil"""
+        embed = discord.Embed(
+            title=f"🦴 Fossil: {self.name}",
+            color=discord.Color.from_rgb(139, 69, 19)  # Brown for fossils
+        )
+        
+        # Basic info
+        info_lines = []
+        if self.sell_price:
+            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+        
+        if self.fossil_group:
+            info_lines.append(f"**Fossil Group:** {self.fossil_group}")
+        
+        if self.size:
+            info_lines.append(f"**Size:** {self.size}")
+        
+        if self.source:
+            info_lines.append(f"**Source:** {self.source}")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add description if available
+        if self.description:
+            embed.add_field(
+                name="📖 Description",
+                value=self.description,
+                inline=False
+            )
+        
+        # Add museum info if available
+        museum_info = []
+        if self.museum:
+            museum_info.append(f"**Museum:** {self.museum}")
+        if self.interact:
+            museum_info.append(f"**Interaction:** {self.interact}")
+        
+        if museum_info:
+            embed.add_field(
+                name="🏛️ Museum Info",
+                value="\n".join(museum_info),
+                inline=True
+            )
+        
+        # Add HHA info if available
+        if self.hha_base_points:
+            embed.add_field(
+                name="🏠 HHA Points",
+                value=f"{self.hha_base_points:,} points",
+                inline=True
+            )
+        
+        # Add item hex if available
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+        
+        # Set image with fallback handling
+        if self.image_url:
+            embed.set_thumbnail(url=self.image_url)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this fossil to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
 # ACNHItem class removed - using new nooklook schema classes instead

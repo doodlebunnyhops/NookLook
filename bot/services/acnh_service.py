@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, List
 from bot.repos.acnh_items_repo import NooklookRepository
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
 import logging
 
 logger = logging.getLogger("bot.acnh_service")
@@ -125,6 +125,26 @@ class NooklookService:
             return await self.repo.get_random_critters(limit)
         except Exception as e:
             logger.error(f"Error getting random critter suggestions: {e}")
+            return []
+    
+    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Fossil]:
+        """Get a specific fossil by ID"""
+        return await self.repo.get_fossil_by_id(fossil_id)
+    
+    async def get_fossil_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get fossil name suggestions for autocomplete"""
+        try:
+            return await self.repo.get_fossil_suggestions(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting fossil suggestions: {e}")
+            return []
+    
+    async def get_random_fossil_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random fossil suggestions for autocomplete when query is too short"""
+        try:
+            return await self.repo.get_random_fossils(limit)
+        except Exception as e:
+            logger.error(f"Error getting random fossil suggestions: {e}")
             return []
     
     async def browse_items(self, category: str = None, color: str = None, 

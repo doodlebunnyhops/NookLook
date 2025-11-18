@@ -440,6 +440,56 @@ async def critter_name_autocomplete(interaction: discord.Interaction, current: s
         logger.error(f"Error in critter autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
 
+async def fossil_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """Autocomplete for fossil names with caching"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Fossil autocomplete called by user {user_id} with query: '{current}'")
+    
+    try:
+        # Use cache with fossil-specific key
+        cache_key = f"fossil_autocomplete:{current.lower()}"
+        cached_results = _autocomplete_cache.get(cache_key)
+        
+        if cached_results is not None:
+            logger.debug(f"Fossil autocomplete cache hit for user {user_id}, query '{current}' - returning {len(cached_results)} results")
+            return cached_results[:25]  # Discord limit
+        
+        # Get service from bot
+        if not hasattr(interaction.client, 'nooklook_service'):
+            logger.warning("Nooklook service not available for fossil autocomplete")
+            return []
+        
+        service = interaction.client.nooklook_service
+        
+        # Search fossils specifically using category filter
+        results = await service.search_all(current, category_filter="fossil")
+        
+        # Create choices with fossil ID for exact lookup
+        choices = []
+        for fossil in results[:25]:  # Discord autocomplete limit
+            choice_name = fossil.name
+            if fossil.fossil_group and fossil.fossil_group != fossil.name:
+                choice_name += f" ({fossil.fossil_group})"
+            
+            # Truncate if too long for Discord
+            if len(choice_name) > 100:
+                choice_name = choice_name[:97] + "..."
+            
+            choices.append(app_commands.Choice(
+                name=choice_name,
+                value=str(fossil.id)
+            ))
+        
+        # Cache the results
+        _autocomplete_cache.set(cache_key, choices)
+        
+        logger.debug(f"Fossil autocomplete for user {user_id}, query '{current}' - found {len(choices)} results")
+        return choices
+        
+    except Exception as e:
+        logger.error(f"Error in fossil autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
+        return []
+
 def get_combined_view(existing_view: Optional[discord.ui.View], nookipedia_url: Optional[str]) -> Optional[discord.ui.View]:
     """Combine an existing view with Nookipedia button if URL is available"""
     nookipedia_view = get_nookipedia_view(nookipedia_url)
@@ -500,6 +550,7 @@ class ACNHCommands(commands.Cog):
     @app_commands.choices(category=[
         app_commands.Choice(name="Items", value="items"),
         app_commands.Choice(name="Critters", value="critters"),
+        app_commands.Choice(name="Fossils", value="fossils"),
         app_commands.Choice(name="Food Recipes", value="food_recipes"),
         app_commands.Choice(name="DIY Recipes", value="diy_recipes"),
         app_commands.Choice(name="Villagers", value="villagers")
@@ -793,7 +844,7 @@ class ACNHCommands(commands.Cog):
                 villager = await self.service.get_villager_by_id(villager_id)
             else:
                 # Search for villager by name
-                search_results = await self.service.search(name, limit=50)
+                search_results = await self.service.search_all(name, category_filter="villagers")
                 villagers = [r for r in search_results if hasattr(r, 'species')]  # Filter for villagers
                 villager = villagers[0] if villagers else None
             
@@ -953,6 +1004,73 @@ class ACNHCommands(commands.Cog):
             embed = discord.Embed(
                 title="❌ Error",
                 description="An error occurred while looking up the artwork.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+
+    @app_commands.command(name="fossil", description="Look up a specific ACNH fossil")
+    @app_commands.describe(name="The fossil name to look up")
+    @app_commands.autocomplete(name=fossil_name_autocomplete)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def fossil_command(self, interaction: discord.Interaction, name: str):
+        """Look up a fossil by name"""
+        user_id = getattr(interaction.user, 'id', 'unknown')
+        ephemeral = not is_dm(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        try:
+            logger.info(f"🔍 /fossil command called by user {user_id} with query: '{name}'")
+            
+            # Convert name to fossil ID if it's numeric (from autocomplete)
+            if name.isdigit():
+                fossil_id = int(name)
+                fossil = await self.service.get_fossil_by_id(fossil_id)
+            else:
+                # Search for fossil by name using search_all with category filter
+                search_results = await self.service.search_all(name, category_filter="fossil")
+                fossil = search_results[0] if search_results else None
+            
+            if not fossil:
+                embed = discord.Embed(
+                    title="❌ Fossil Not Found",
+                    description=f"Sorry, I couldn't find a fossil named **{name}** 🦴\n"
+                               f"Try using `/search {name}` to see if there are similar names.",
+                    color=0xe74c3c
+                )
+                
+                # Add suggestion for fossil groups
+                embed.add_field(
+                    name="💡 Search Tips",
+                    value="• Fossils are grouped into complete skeletons\n"
+                          "• Some fossils are standalone pieces\n"
+                          "• Try `/search` with partial names or fossil group names",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                return
+            
+            # Create the fossil embed
+            embed = fossil.to_discord_embed()
+            embed = await safe_embed_images(embed, 'fossil')
+            
+            # Add fossil info in footer
+            footer_text = f"🦴 Museum Fossil"
+            if fossil.fossil_group:
+                footer_text += f" • {fossil.fossil_group}"
+            embed.set_footer(text=footer_text)
+            
+            # Add Nookipedia button if available
+            nookipedia_url = getattr(fossil, 'nookipedia_url', None)
+            view = get_combined_view(None, nookipedia_url)
+            
+            logger.info(f"✅ /fossil command completed successfully for user {user_id} - found: {fossil.name}")
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            
+        except Exception as e:
+            logger.error(f"❌ Error in /fossil command for user {user_id}, query '{name}': {e}", exc_info=True)
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while looking up the fossil.",
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)

@@ -2,7 +2,7 @@ import pathlib
 import sqlite3
 from typing import Optional, Dict, Any, List, Tuple
 from .database import Database
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
 
 class NooklookRepository:
     """Repository for nooklook database operations"""
@@ -436,10 +436,11 @@ class NooklookRepository:
         
         return Villager.from_dict(result) if result else None
     
-    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Dict[str, Any]]:
-        """Get a fossil by ID (simplified for now)"""
+    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Fossil]:
+        """Get a fossil by ID"""
         query = "SELECT * FROM fossils WHERE id = ?"
-        return await self.db.execute_query_one(query, (fossil_id,))
+        result = await self.db.execute_query_one(query, (fossil_id,))
+        return Fossil.from_dict(result) if result else None
     
     async def get_artwork_by_id(self, artwork_id: int) -> Optional[Artwork]:
         """Get artwork by ID"""
@@ -624,6 +625,54 @@ class NooklookRepository:
         
         return suggestions
     
+    async def get_fossil_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get fossil name suggestions for autocomplete"""
+        # Use FTS5 search with fallback to LIKE search
+        try:
+            # First try FTS5 search on fossils
+            fts_query = """
+                SELECT f.name, f.id, rank
+                FROM search_index si
+                JOIN fossils f ON si.ref_table = 'fossils' AND si.ref_id = f.id
+                WHERE search_index MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """
+            results = await self.db.execute_query(fts_query, (search_term, limit))
+            
+            if results:
+                suggestions = []
+                for row in results:
+                    suggestions.append((row['name'], row['id']))
+                return suggestions
+            
+        except Exception:
+            pass  # Fall back to LIKE search
+        
+        # Fallback LIKE search for fossils
+        like_query = """
+            SELECT name, id FROM fossils 
+            WHERE name LIKE ? 
+            ORDER BY name 
+            LIMIT ?
+        """
+        results = await self.db.execute_query(like_query, (f"%{search_term}%", limit))
+        suggestions = []
+        for row in results:
+            suggestions.append((row['name'], row['id']))
+        return suggestions
+    
+    async def get_random_fossils(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random fossils for autocomplete when query is too short"""
+        query = "SELECT name, id FROM fossils ORDER BY RANDOM() LIMIT ?"
+        results = await self.db.execute_query(query, (limit,))
+        
+        suggestions = []
+        for row in results:
+            suggestions.append((row['name'], row['id']))
+        
+        return suggestions
+    
     async def get_database_stats(self) -> Dict[str, int]:
         """Get database statistics"""
         stats = {}
@@ -647,5 +696,13 @@ class NooklookRepository:
         # Count villagers
         result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM villagers")
         stats['villagers'] = result['count'] if result else 0
+        
+        # Count fossils
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM fossils")
+        stats['fossils'] = result['count'] if result else 0
+        
+        # Count artwork
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM artwork")
+        stats['artwork'] = result['count'] if result else 0
         
         return stats
