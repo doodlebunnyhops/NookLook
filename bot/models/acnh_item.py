@@ -2,6 +2,21 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
+# Import image fallback utilities
+try:
+    from ..utils.image_fallback import safe_set_image, safe_set_thumbnail
+except ImportError:
+    # Fallback if utils aren't available
+    async def safe_set_image(embed, url, content_type='general'):
+        if url:
+            embed.set_image(url=url)
+        return embed
+    
+    async def safe_set_thumbnail(embed, url, content_type='general'):
+        if url:
+            embed.set_thumbnail(url=url)
+        return embed
+
 @dataclass(slots=True)
 class ItemVariant:
     """Represents a color/pattern variant of an item"""
@@ -102,6 +117,7 @@ class Item:
     label_themes: Optional[str]
     filename: Optional[str]
     image_url: Optional[str]
+    nookipedia_url: Optional[str]
     extra_json: Optional[str]
     variants: List[ItemVariant] = field(default_factory=list)
     
@@ -126,6 +142,7 @@ class Item:
             label_themes=data.get('label_themes'),
             filename=data.get('filename'),
             image_url=data.get('image_url'),
+            nookipedia_url=data.get('nookipedia_url'),
             extra_json=data.get('extra_json'),
             variants=[]
         )
@@ -310,10 +327,15 @@ class Item:
                 if hha_info:
                     embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
         
-        # Set image
+        # Set image with fallback handling
         image_url = selected_variant.image_url if selected_variant else self.display_image_url
+        # Note: This will be handled by the calling code since we can't use async here
         if image_url:
             embed.set_thumbnail(url=image_url)
+        
+        # Add Nookipedia link if available
+        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
+            embed.url = self.nookipedia_url
         
         return embed
     
@@ -382,6 +404,7 @@ class Critter:
     icon_url: Optional[str]
     critterpedia_url: Optional[str]
     furniture_url: Optional[str]
+    nookipedia_url: Optional[str]
     source: Optional[str]
     version_added: Optional[str]
     extra_json: Optional[str]
@@ -445,6 +468,7 @@ class Critter:
             icon_url=data.get('icon_url'),
             critterpedia_url=data.get('critterpedia_url'),
             furniture_url=data.get('furniture_url'),
+            nookipedia_url=data.get('nookipedia_url'),
             source=data.get('source'),
             version_added=data.get('version_added'),
             extra_json=data.get('extra_json')
@@ -498,11 +522,15 @@ class Critter:
             
             embed.add_field(name="Catch Info", value="\n".join(catch_info), inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.icon_url:
             embed.set_thumbnail(url=self.icon_url)
         elif self.critterpedia_url:
             embed.set_thumbnail(url=self.critterpedia_url)
+        
+        # Add Nookipedia link if available
+        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
+            embed.url = self.nookipedia_url
         
         return embed
     
@@ -534,6 +562,7 @@ class Recipe:
     ti_full_hex: Optional[str]
     image_url: Optional[str]
     image_url_alt: Optional[str]
+    nookipedia_url: Optional[str]
     extra_json: Optional[str]
     ingredients: List[tuple] = field(default_factory=list)  # List of (ingredient_name, quantity)
     
@@ -560,6 +589,7 @@ class Recipe:
             ti_full_hex=data.get('ti_full_hex'),
             image_url=data.get('image_url'),
             image_url_alt=data.get('image_url_alt'),
+            nookipedia_url=data.get('nookipedia_url'),
             extra_json=data.get('extra_json'),
             ingredients=[]
         )
@@ -619,9 +649,13 @@ class Recipe:
         if self.item_hex:
             embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.image_url:
             embed.set_thumbnail(url=self.image_url)
+        
+        # Add Nookipedia link if available
+        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
+            embed.url = self.nookipedia_url
         
         return embed
     
@@ -663,6 +697,7 @@ class Villager:
     icon_image: Optional[str]
     photo_image: Optional[str]
     house_image: Optional[str]
+    nookipedia_url: Optional[str]
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Villager':
@@ -697,7 +732,8 @@ class Villager:
             source_unique_id=data.get('source_unique_id'),
             icon_image=data.get('icon_image'),
             photo_image=data.get('photo_image'),
-            house_image=data.get('house_image')
+            house_image=data.get('house_image'),
+            nookipedia_url=data.get('nookipedia_url')
         )
     
     @property
@@ -759,9 +795,13 @@ class Villager:
             
             embed.add_field(name="Favorites", value="\n".join(favorites), inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.icon_image:
             embed.set_thumbnail(url=self.icon_image)
+        
+        # Add Nookipedia link if available
+        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
+            embed.url = self.nookipedia_url
         
         return embed
     
@@ -808,6 +848,7 @@ class Artwork:
     ti_secondary: Optional[int]
     ti_customize_str: Optional[str]
     ti_full_hex: Optional[str]
+    nookipedia_url: Optional[str]
     extra_json: Optional[str]
     
     @classmethod
@@ -849,6 +890,7 @@ class Artwork:
             ti_secondary=data.get('ti_secondary'),
             ti_customize_str=data.get('ti_customize_str'),
             ti_full_hex=data.get('ti_full_hex'),
+            nookipedia_url=data.get('nookipedia_url'),
             extra_json=data.get('extra_json')
         )
     
@@ -914,9 +956,13 @@ class Artwork:
         if self.item_hex:
             embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.image_url:
             embed.set_thumbnail(url=self.image_url)
+        
+        # Add Nookipedia link if available
+        if hasattr(self, 'nookipedia_url') and self.nookipedia_url:
+            embed.url = self.nookipedia_url
         
         return embed
     

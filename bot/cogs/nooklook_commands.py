@@ -15,11 +15,38 @@ from bot.ui.pagination import (
     SearchResultsView,
     PaginatedResultView
 )
+from bot.utils.image_fallback import safe_set_image, safe_set_thumbnail
 import asyncio
 from functools import lru_cache
 import time
 
 logger = logging.getLogger(__name__)
+
+async def safe_embed_images(embed: discord.Embed, content_type: str = 'general') -> discord.Embed:
+    """Apply safe image loading to an embed after creation"""
+    from bot.utils.image_fallback import is_valid_url
+    
+    # Check if embed has an image and make it safe
+    if embed.image and embed.image.url:
+        original_url = embed.image.url
+        if is_valid_url(original_url):
+            embed = await safe_set_image(embed, original_url, content_type)
+        else:
+            # Remove invalid image URL to prevent Discord API error
+            embed.set_image(url=discord.Embed.Empty)
+            logger.warning(f"Removed invalid image URL from embed: {original_url}")
+    
+    # Check if embed has a thumbnail and make it safe
+    if embed.thumbnail and embed.thumbnail.url:
+        original_url = embed.thumbnail.url
+        if is_valid_url(original_url):
+            embed = await safe_set_thumbnail(embed, original_url, content_type)
+        else:
+            # Remove invalid thumbnail URL to prevent Discord API error
+            embed.set_thumbnail(url=discord.Embed.Empty)
+            logger.warning(f"Removed invalid thumbnail URL from embed: {original_url}")
+        
+    return embed
 
 class AutocompleteCache:
     """Efficient cache for autocomplete results with smart optimizations"""
@@ -682,11 +709,13 @@ class ACNHCommands(commands.Cog):
                 if hasattr(result, 'variants') and result.variants:
                     # Multiple variants - show selector
                     embed = result.to_discord_embed()
+                    embed = await safe_embed_images(embed, 'item')
                     view = VariantSelectView(result, interaction.user)
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
                 else:
                     # Single item - show directly
                     embed = result.to_discord_embed()
+                    embed = await safe_embed_images(embed, 'item')
                     await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
@@ -750,6 +779,7 @@ class ACNHCommands(commands.Cog):
             
             # Create the main villager embed with extra details button
             embed = villager.to_discord_embed()
+            embed = await safe_embed_images(embed, 'villager')
             
             # Create a view with buttons for additional details
             view = VillagerDetailsView(villager, interaction.user, self.service)
@@ -809,6 +839,7 @@ class ACNHCommands(commands.Cog):
             
             # Create the recipe embed
             embed = recipe.to_discord_embed()
+            embed = await safe_embed_images(embed, 'recipe')
             
             # Add recipe type info in footer
             recipe_type = "🍳 Food Recipe" if recipe.is_food() else "🛠️ DIY Recipe"
@@ -866,6 +897,7 @@ class ACNHCommands(commands.Cog):
             
             # Create the artwork embed
             embed = artwork.to_discord_embed()
+            embed = await safe_embed_images(embed, 'artwork')
             
             # Add artwork category info in footer
             authenticity = "Genuine" if artwork.genuine else "Fake"
@@ -930,6 +962,7 @@ class ACNHCommands(commands.Cog):
             
             # Create the critter embed
             embed = critter.to_discord_embed()
+            embed = await safe_embed_images(embed, 'critter')
             
             # Add critter type info in footer
             critter_type = {
@@ -958,65 +991,289 @@ class ACNHCommands(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @app_commands.command(name="cache-stats", description="Show autocomplete cache statistics (debug)")
+    @app_commands.command(name="service-status", description="Check image service status (Cloudflare, CDNs, etc.)")
     @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
-    async def cache_stats(self, interaction: discord.Interaction):
-        """Show cache performance statistics"""
+    async def service_status(self, interaction: discord.Interaction):
+        """Check the status of image services"""
         ephemeral = True  # Always ephemeral for debug info
         await interaction.response.defer(ephemeral=ephemeral)
         
         try:
-            stats = _autocomplete_cache.get_cache_stats()
+            from bot.utils.image_fallback import get_service_status_summary, get_service_monitoring_config
+            
+            status_summary = get_service_status_summary()
+            config = get_service_monitoring_config()
             
             embed = discord.Embed(
-                title="📊 Autocomplete Cache Statistics",
-                color=0x3498db
+                title="Image Service Status",
+                color=discord.Color.green()
             )
             
-            # Basic stats
+            # Show monitoring status
+            monitoring_status = "Active" if config['background_task_running'] else "Stopped"
             embed.add_field(
-                name="📈 Performance",
-                value=f"**Size:** {stats['cache_size']}/{stats['max_size']} ({stats['utilization']})\n"
-                      f"**Total Hits:** {stats['total_hits']:,}\n"
-                      f"**Hit Rate:** {stats['hit_rate']}",
+                name="Background Monitoring",
+                value=f"{monitoring_status} (every {config['check_interval_minutes']} minutes)",
                 inline=True
             )
             
-            # Popular queries
-            if stats['popular_queries']:
-                popular = "\n".join([
-                    f"• `{key}`: {hits} hits" 
-                    for key, hits in stats['popular_queries'][:5]
-                ])
+            # Show monitored URLs
+            # if config['monitor_urls']:
+            #     urls_text = "\n".join([f"• `{url.split('/')[-1]}`" for url in config['monitor_urls'][:3]])
+            #     embed.add_field(
+            #         name="Sample URLs Monitored", 
+            #         value=urls_text,
+            #         inline=True
+            #     )
+            
+            # Show active mocks
+            if config.get('manual_overrides'):
+                mock_count = len(config['manual_overrides'])
+                mock_text = f"{mock_count} service{'s' if mock_count != 1 else ''} mocked"
                 embed.add_field(
-                    name="🔥 Popular Queries",
-                    value=popular,
+                    name="Testing Overrides",
+                    value=mock_text,
                     inline=True
                 )
             
-            # Query patterns
-            if stats['query_patterns']:
-                patterns = "\n".join([
-                    f"• **{pattern}**: {count:,} queries"
-                    for pattern, count in list(stats['query_patterns'].items())[:5]
-                ])
+            if not status_summary:
                 embed.add_field(
-                    name="📋 Query Patterns",
-                    value=patterns,
+                    name="Current Status",
+                    value="*No checks completed yet - monitoring will begin shortly*",
                     inline=False
                 )
+                embed.color = discord.Color.orange()
+            else:
+                # Show status of each service
+                status_lines = []
+                all_good = True
+                
+                for domain, info in status_summary.items():
+                    is_available = info.get('available', True)
+                    reason = info.get('reason', 'No issues detected')
+                    
+                    if is_available:
+                        status_lines.append(f"✅ **{domain}**: Healthy")
+                    else:
+                        status_lines.append(f"❌ **{domain}**: {reason}")
+                        all_good = False
+                
+                embed.add_field(
+                    name="Service Health",
+                    value="\n".join(status_lines) if status_lines else "*No services checked*",
+                    inline=False
+                )
+                embed.color = discord.Color.green() if all_good else discord.Color.red()
+                
+                if not all_good:
+                    embed.add_field(
+                        name="User Impact", 
+                        value="Users will see helpful messages when image service issues are detected.",
+                        inline=False
+                    )
             
-            embed.set_footer(text="Cache helps reduce database load and improve response times")
+            embed.set_footer(text="Automatic monitoring helps detect image service outages before users report them")
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             
         except Exception as e:
-            logger.error(f"Error in cache_stats command: {e}", exc_info=True)
+            logger.error(f"Error in service_status command: {e}", exc_info=True)
             embed = discord.Embed(
                 title="❌ Error",
-                description="An error occurred while fetching cache statistics.",
+                description="An error occurred while checking service status.",
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    # @app_commands.command(name="cache-stats", description="Show autocomplete cache statistics (debug)")
+
+    # @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
+    # async def cache_stats(self, interaction: discord.Interaction):
+    #     """Show cache performance statistics"""
+    #     ephemeral = True  # Always ephemeral for debug info
+    #     await interaction.response.defer(ephemeral=ephemeral)
+        
+    #     try:
+    #         stats = _autocomplete_cache.get_cache_stats()
+            
+    #         embed = discord.Embed(
+    #             title="Autocomplete Cache Statistics",
+    #             color=0x3498db
+    #         )
+            
+    #         # Basic stats
+    #         embed.add_field(
+    #             name="Performance",
+    #             value=f"**Size:** {stats['cache_size']}/{stats['max_size']} ({stats['utilization']})\n"
+    #                   f"**Total Hits:** {stats['total_hits']:,}\n"
+    #                   f"**Hit Rate:** {stats['hit_rate']}",
+    #             inline=True
+    #         )
+            
+    #         # Popular queries
+    #         if stats['popular_queries']:
+    #             popular = "\n".join([
+    #                 f"• `{key}`: {hits} hits" 
+    #                 for key, hits in stats['popular_queries'][:5]
+    #             ])
+    #             embed.add_field(
+    #                 name="Popular Queries",
+    #                 value=popular,
+    #                 inline=True
+    #             )
+            
+    #         # Query patterns
+    #         if stats['query_patterns']:
+    #             patterns = "\n".join([
+    #                 f"• **{pattern}**: {count:,} queries"
+    #                 for pattern, count in list(stats['query_patterns'].items())[:5]
+    #             ])
+    #             embed.add_field(
+    #                 name="Query Patterns",
+    #                 value=patterns,
+    #                 inline=False
+    #             )
+            
+    #         embed.set_footer(text="Cache helps reduce database load and improve response times")
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in cache_stats command: {e}", exc_info=True)
+    #         embed = discord.Embed(
+    #             title="❌ Error",
+    #             description="An error occurred while fetching cache statistics.",
+    #             color=0xe74c3c
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    # @app_commands.command(name="mock-cdn", description="Mock CDN service status for testing (admin only)")
+    # @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
+    # @app_commands.describe(
+    #     action="Action to perform",
+    #     domain="Domain to mock (e.g., 'dodo.ac', 'cdn.discordapp.com')",
+    #     reason="Optional reason for the status change"
+    # )
+    # @app_commands.choices(action=[
+    #     app_commands.Choice(name="Mock Service Down", value="down"),
+    #     app_commands.Choice(name="Mock Service Up", value="up"),
+    #     app_commands.Choice(name="Clear Mock for Domain", value="clear"),
+    #     app_commands.Choice(name="Clear All Mocks", value="clear_all"),
+    #     app_commands.Choice(name="Show Active Mocks", value="show")
+    # ])
+    # async def mock_cdn(self, interaction: discord.Interaction, action: str, domain: str = None, reason: str = None):
+    #     """Mock CDN service status for testing purposes"""
+    #     ephemeral = True
+    #     await interaction.response.defer(ephemeral=ephemeral)
+        
+    #     # Basic permission check
+    #     if not (interaction.user.guild_permissions.administrator if interaction.guild else True):
+    #         embed = discord.Embed(
+    #             title="❌ Permission Denied",
+    #             description="This command requires administrator permissions.",
+    #             color=discord.Color.red()
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #         return
+        
+    #     try:
+    #         from bot.utils.image_fallback import (
+    #             mock_service_down, mock_service_up, clear_service_mock, 
+    #             clear_all_service_mocks, get_active_mocks
+    #         )
+            
+    #         if action == "show":
+    #             # Show current mocks
+    #             mocks = get_active_mocks()
+    #             embed = discord.Embed(
+    #                 title="🔧 Active CDN Service Mocks",
+    #                 color=discord.Color.blue()
+    #             )
+                
+    #             if not mocks:
+    #                 embed.description = "No active service mocks. All services using real status."
+    #             else:
+    #                 mock_lines = []
+    #                 for domain, info in mocks.items():
+    #                     status = "🔴 Down" if not info['available'] else "🟢 Up"
+    #                     timestamp = info['timestamp'].strftime("%H:%M:%S")
+    #                     mock_lines.append(f"{status} **{domain}** - {info['reason']} *(set {timestamp})*")
+                    
+    #                 embed.description = "\n".join(mock_lines)
+                
+    #             embed.add_field(
+    #                 name="💡 Testing Tips",
+    #                 value="• Use `/lookup bell` to test warning messages\n"
+    #                       "• Mock `dodo.ac` to test Nookipedia images\n"
+    #                       "• Mock `cdn.discordapp.com` to test Discord CDN",
+    #                 inline=False
+    #             )
+                
+    #             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #             return
+            
+    #         elif action == "clear_all":
+    #             clear_all_service_mocks()
+    #             embed = discord.Embed(
+    #                 title="✅ All Mocks Cleared",
+    #                 description="All CDN service mocks have been cleared. Services will now use real status.",
+    #                 color=discord.Color.green()
+    #             )
+                
+    #         elif action in ["down", "up", "clear"]:
+    #             if not domain:
+    #                 embed = discord.Embed(
+    #                     title="❌ Domain Required",
+    #                     description="Please specify a domain to mock (e.g., 'dodo.ac' or 'cdn.discordapp.com')",
+    #                     color=discord.Color.red()
+    #                 )
+    #                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #                 return
+                
+    #             if action == "down":
+    #                 mock_service_down(domain, reason or f"Test outage for {domain}")
+    #                 embed = discord.Embed(
+    #                     title="🔴 Service Mocked as Down",
+    #                     description=f"**Domain:** {domain}\n**Reason:** {reason or f'Test outage for {domain}'}",
+    #                     color=discord.Color.red()
+    #                 )
+    #                 embed.add_field(
+    #                     name="Testing", 
+    #                     value="Try `/lookup bell` or `/villager isabelle` to see warning messages!",
+    #                     inline=False
+    #                 )
+                    
+    #             elif action == "up":
+    #                 mock_service_up(domain, reason or f"Test recovery for {domain}")
+    #                 embed = discord.Embed(
+    #                     title="🟢 Service Mocked as Up",
+    #                     description=f"**Domain:** {domain}\n**Reason:** {reason or f'Test recovery for {domain}'}",
+    #                     color=discord.Color.green()
+    #                 )
+                    
+    #             elif action == "clear":
+    #                 clear_service_mock(domain)
+    #                 embed = discord.Embed(
+    #                     title="Mock Cleared",
+    #                     description=f"Cleared mock status for **{domain}**. Service will now use real status.",
+    #                     color=discord.Color.blue()
+    #                 )
+            
+    #         embed.add_field(
+    #             name="Note",
+    #             value="Mocks override real service checks and persist until cleared or bot restart.",
+    #             inline=False
+    #         )
+            
+    #         logger.info(f"CDN mock action '{action}' performed by {interaction.user.display_name}" + (f" on {domain}" if domain else ""))
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in mock_cdn command: {e}", exc_info=True)
+    #         embed = discord.Embed(
+    #             title="❌ Error",
+    #             description="An error occurred while managing CDN mocks.",
+    #             color=discord.Color.red()
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
 class VillagerDetailsView(discord.ui.View):
     """View for showing additional villager details with navigation"""
