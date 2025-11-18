@@ -112,7 +112,7 @@ python db_tools/run_full_import.py
 
 # STEP 2: Add Nookipedia data for enhanced experience (optional)
 # (requires NOOKIPEDIA_API in .env - configured above)
-python nookipedia/update_db.py
+python nookipedia/sync_urls.py
 
 # Verify database setup
 python -c "
