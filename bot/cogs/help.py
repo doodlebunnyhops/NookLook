@@ -13,32 +13,32 @@ class HelpDropdown(discord.ui.Select):
     def __init__(self):
         options = [
             discord.SelectOption(
-                label="🔍 Search Command",
+                label="Search Command",
                 description="Search across all ACNH content with filters",
                 value="search"
             ),
             discord.SelectOption(
-                label="🏠 Lookup Command", 
+                label="Lookup Command", 
                 description="Look up specific items with variants",
                 value="lookup"
             ),
             discord.SelectOption(
-                label="👥 Villager Command",
+                label="Villager Command",
                 description="Find villager details and preferences", 
                 value="villager"
             ),
             discord.SelectOption(
-                label="🍳 Recipe Command",
+                label="Recipe Command",
                 description="Look up DIY and food recipes",
                 value="recipe"
             ),
             discord.SelectOption(
-                label="🎨 Artwork Command", 
+                label="Artwork Command", 
                 description="Find genuine and fake artwork",
                 value="artwork"
             ),
             discord.SelectOption(
-                label="🐛 Critter Command",
+                label="Critter Command",
                 description="Fish, bugs, and sea creature info",
                 value="critter"
             )
@@ -59,7 +59,7 @@ class HelpDropdown(discord.ui.Select):
         embed = discord.Embed(color=discord.Color.green())
         
         if command == "search":
-            embed.title = "🔍 Search Command"
+            embed.title = "Search Command"
             embed.description = "**Usage:** `/search <query> [category]`\n\nSearch across all ACNH content using advanced text search. Supports partial matching and category filtering."
             embed.add_field(
                 name="Categories",
@@ -73,7 +73,7 @@ class HelpDropdown(discord.ui.Select):
             )
             
         elif command == "lookup":
-            embed.title = "🏠 Lookup Command"
+            embed.title = "Lookup Command"
             embed.description = "**Usage:** `/lookup <item>`\n\nLook up specific items with autocomplete suggestions. Shows variants, prices, and customization options."
             embed.add_field(
                 name="Discoverable Item Types",
@@ -92,7 +92,7 @@ class HelpDropdown(discord.ui.Select):
             )
             
         elif command == "villager":
-            embed.title = "👥 Villager Command" 
+            embed.title = "Villager Command" 
             embed.description = "**Usage:** `/villager <name>`\n\nFind detailed information about any ACNH villager including personality, preferences, and house details."
             embed.add_field(
                 name="What You'll See",
@@ -106,11 +106,11 @@ class HelpDropdown(discord.ui.Select):
             )
             
         elif command == "recipe":
-            embed.title = "🍳 Recipe Command"
+            embed.title = "Recipe Command"
             embed.description = "**Usage:** `/recipe <name>`\n\nLook up DIY crafting recipes and cooking recipes with ingredients, sources, and categories."
             embed.add_field(
                 name="Recipe Types", 
-                value="• **Food Recipes** 🍳 - Savory dishes and sweet treats\n• **DIY Recipes** 🛠️ - Furniture, tools, decorations\n• Ingredients list and quantities\n• Source information (where to get)",
+                value="• **Food Recipes** - Savory dishes and sweet treats\n• **DIY Recipes** - Furniture, tools, decorations\n• Ingredients list and quantities\n• Source information (where to get)",
                 inline=False
             )
             embed.add_field(
@@ -120,7 +120,7 @@ class HelpDropdown(discord.ui.Select):
             )
             
         elif command == "artwork":
-            embed.title = "🎨 Artwork Command"
+            embed.title = "Artwork Command"
             embed.description = "**Usage:** `/artwork <name>`\n\nLook up artwork pieces available from Redd, including both genuine and fake versions with authentication details." 
             embed.add_field(
                 name="What You'll See",
@@ -134,7 +134,7 @@ class HelpDropdown(discord.ui.Select):
             )
             
         elif command == "critter":
-            embed.title = "🐛 Critter Command"
+            embed.title = "Critter Command"
             embed.description = "**Usage:** `/critter <name>`\n\nLook up fish, bugs, and sea creatures with seasonal availability, locations, and catching information."
             embed.add_field(
                 name="What You'll See",
@@ -165,13 +165,13 @@ class HelpDetailView(discord.ui.View):
         super().__init__(timeout=300)
         self.add_item(HelpDropdown())
     
-    @discord.ui.button(label="📋 Back to Main Help", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label="Back to Main Help", style=discord.ButtonStyle.secondary, row=1)
     async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Return to the main help menu"""
         ephemeral = not is_dm(interaction)
         
         embed = discord.Embed(
-            title="🏝️ NookLook - Help",
+            title="NookLook - Help",
             description="Animal Crossing: New Horizons database bot with items, villagers, recipes, artwork, and critters.",
             color=discord.Color.green()
         )
@@ -198,12 +198,13 @@ class HelpDetailView(discord.ui.View):
             name="Credits & Support",
             value=(
                 "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
+                "**Sites:** [Nookipedia](https://nookipedia.com) to link back to items\n"
                 "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"
             ),
             inline=False
         )
         
-        embed.set_footer(text="💡 Select a command below for examples and details")
+        embed.set_footer(text="Select a command below for examples and details")
         embed.set_thumbnail(url="https://dodo.ac/np/images/thumb/1/13/Maple_Leaf_NH_Inv_Icon.png/60px-Maple_Leaf_NH_Inv_Icon.png")
         
         # Create view with dropdown for detailed help
@@ -234,7 +235,7 @@ class Help(commands.Cog):
         
         # Main Commands
         embed.add_field(
-            name="📋 Commands",
+            name="Commands",
             value=(
                 "`/search` • `/lookup` • `/villager` • `/recipe`\n"
                 "`/artwork` • `/critter` • `/help` • `/info`"
@@ -244,7 +245,7 @@ class Help(commands.Cog):
         
         # Quick Start
         embed.add_field(
-            name="🚀 Get Started",
+            name="Get Started",
             value="Try `/lookup` and start typing for suggestions!\n",
             inline=False
         ) 
@@ -254,12 +255,13 @@ class Help(commands.Cog):
             name="Credits & Support",
             value=(
                 "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
+                "**Sites:** [Nookipedia](https://nookipedia.com) to link back to items\n"
                 "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"
             ),
             inline=False
         )
         
-        embed.set_footer(text="💡 Select a command below for examples and details")
+        embed.set_footer(text="Select a command below for examples and details")
         embed.set_thumbnail(url="https://dodo.ac/np/images/thumb/1/13/Maple_Leaf_NH_Inv_Icon.png/60px-Maple_Leaf_NH_Inv_Icon.png")
         
         # Create view with dropdown for detailed help
@@ -328,6 +330,7 @@ class Help(commands.Cog):
             name="Credits & Support",
             value=(
                 "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
+                "**Sites:** [Nookipedia](https://nookipedia.com) to link back to items\n"
                 "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"
             ),
             inline=False
