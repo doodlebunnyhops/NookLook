@@ -399,7 +399,8 @@ CREATE TABLE villagers (
     
     icon_image          TEXT,
     photo_image         TEXT,
-    house_image         TEXT,
+    house_image         TEXT,            -- House exterior image URL
+    house_interior_image TEXT,           -- House interior image URL
     nookipedia_url      TEXT             -- URL to Nookipedia page for this villager
 );
 

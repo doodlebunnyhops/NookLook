@@ -1524,22 +1524,94 @@ class VillagerDetailsView(discord.ui.View):
                 color=discord.Color.blue()
             )
             
-            house_info = []
+            # Add wallpaper as its own field
             if self.villager.wallpaper:
-                house_info.append(f"**Wallpaper:** {self.villager.wallpaper}")
-            if self.villager.flooring:
-                house_info.append(f"**Flooring:** {self.villager.flooring}")
-            if self.villager.furniture_name_list:
-                house_info.append(f"**Furniture:** {self.villager.furniture_name_list}")
+                embed.add_field(
+                    name="Wallpaper",
+                    value=self.villager.wallpaper.title(),
+                    inline=True
+                )
             
-            if house_info:
-                embed.description = "\n".join(house_info)
-            else:
+            # Add flooring as its own field
+            if self.villager.flooring:
+                embed.add_field(
+                    name="Flooring", 
+                    value=self.villager.flooring.title(),
+                    inline=True
+                )
+            
+            # Add music as its own field (if available)
+            if hasattr(self.villager, 'favorite_song') and self.villager.favorite_song:
+                embed.add_field(
+                    name="Music",
+                    value=self.villager.favorite_song,
+                    inline=True
+                )
+            
+            # Format furniture list nicely
+            if self.villager.furniture_name_list:
+                # Split furniture items and format them
+                furniture_items = [item.strip().lower() for item in self.villager.furniture_name_list.split(';') if item.strip()]
+                
+                if furniture_items:
+                    # Group similar items and format nicely
+                    formatted_furniture = []
+                    item_counts = {}
+                    
+                    # Count occurrences of each item (case-insensitive)
+                    for item in furniture_items:
+                        # Normalize the item name for counting
+                        normalized_item = item.strip().lower()
+                        item_counts[normalized_item] = item_counts.get(normalized_item, 0) + 1
+                    
+                    # Format with counts, sorted alphabetically
+                    for item, count in sorted(item_counts.items()):
+                        if count > 1:
+                            formatted_furniture.append(f"• {item.title()} ×{count}")
+                        else:
+                            formatted_furniture.append(f"• {item.title()}")
+                    
+                    # Split furniture into manageable chunks (max 8 items per field)
+                    chunk_size = 6
+                    furniture_chunks = [formatted_furniture[i:i + chunk_size] for i in range(0, len(formatted_furniture), chunk_size)]
+                    
+                    embed.add_field(
+                        name="Furniture",
+                        value="",  # Placeholder, actual fields added below",
+                        inline=False
+                    )
+
+                    # Add furniture fields (max 2 columns per row, chunk size 6)
+                    for i, chunk in enumerate(furniture_chunks):
+                        chunk_text = "\n".join(chunk)
+                        
+                        if len(furniture_chunks) == 1:
+                            # Single field if small list
+                            inline_field = False
+                        else:
+                            # Two columns for multiple chunks (max 2 columns per row)
+                            inline_field = True
+                        
+                        embed.add_field(
+                            name="",  # No field names since "Furniture" is already added above
+                            value=chunk_text,
+                            inline=inline_field
+                        )
+                        
+                        # Force new row after every 2 inline fields by adding empty non-inline field
+                        if inline_field and (i + 1) % 2 == 0 and (i + 1) < len(furniture_chunks):
+                            embed.add_field(name="", value="", inline=False)
+            
+            # Set description if no house details
+            if not any([self.villager.wallpaper, self.villager.flooring, self.villager.furniture_name_list]):
                 embed.description = "No house details available."
             
-            # Set house image if available
+            # Set house images if available
+            if hasattr(self.villager, 'house_interior_image') and self.villager.house_interior_image:
+                embed.set_image(url=self.villager.house_interior_image)
+            
             if self.villager.house_image:
-                embed.set_image(url=self.villager.house_image)
+                embed.set_thumbnail(url=self.villager.house_image)
                 
         elif view_type == "clothing":
             embed = discord.Embed(
@@ -1559,12 +1631,22 @@ class VillagerDetailsView(discord.ui.View):
                 embed.description = "\n".join(clothing_info)
             else:
                 embed.description = "No clothing details available."
+            
+            # Set villager images for clothing view
+            if hasattr(self.villager, 'photo_image') and self.villager.photo_image:
+                embed.set_image(url=self.villager.photo_image)
+            
+            if hasattr(self.villager, 'icon_image') and self.villager.icon_image:
+                embed.set_thumbnail(url=self.villager.icon_image)
                 
         elif view_type == "other":
             embed = discord.Embed(
                 title=f"🔧 {self.villager.name}'s Other Details",
                 color=discord.Color.orange()
             )
+
+            if hasattr(self.villager, 'icon_image') and self.villager.icon_image:
+                embed.set_thumbnail(url=self.villager.icon_image)
             
             other_info = []
             if self.villager.diy_workbench:

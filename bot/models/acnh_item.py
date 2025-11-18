@@ -685,6 +685,7 @@ class Villager:
     icon_image: Optional[str]
     photo_image: Optional[str]
     house_image: Optional[str]
+    house_interior_image: Optional[str]
     nookipedia_url: Optional[str]
     
     @classmethod
@@ -721,6 +722,7 @@ class Villager:
             icon_image=data.get('icon_image'),
             photo_image=data.get('photo_image'),
             house_image=data.get('house_image'),
+            house_interior_image=data.get('house_interior_image'),
             nookipedia_url=data.get('nookipedia_url')
         )
     
