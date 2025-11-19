@@ -553,6 +553,8 @@ class ACNHCommands(commands.Cog):
         app_commands.Choice(name="Fossils", value="fossils"),
         app_commands.Choice(name="Food Recipes", value="food_recipes"),
         app_commands.Choice(name="DIY Recipes", value="diy_recipes"),
+        app_commands.Choice(name="Ceiling Decor", value="ceiling-decor"),
+        app_commands.Choice(name="Wall Mounted", value="wall-mounted"),
         app_commands.Choice(name="Villagers", value="villagers")
     ])
     async def search(self, interaction: discord.Interaction, 
@@ -573,24 +575,35 @@ class ACNHCommands(commands.Cog):
                 "critters": "critter",     # Discord "critters" -> DB "critter"  
                 "food_recipes": "recipe",  # Discord "food_recipes" -> DB "recipe"
                 "diy_recipes": "recipe",   # Discord "diy_recipes" -> DB "recipe"
-                "villagers": "villager",    # Discord "villagers" -> DB "villager"
+                "villagers": "villager",   # Discord "villagers" -> DB "villager"
                 "artwork": "artwork",      # Discord "artwork" -> DB "artwork"
-                "fossils": "fossil"       # Discord "fossils" -> DB "fossil"
+                "fossils": "fossil",       # Discord "fossils" -> DB "fossil"
+                "ceiling-decor": "item",   # Discord "ceiling-decor" -> DB "item" (subcategory)
+                "wall-mounted": "item"     # Discord "wall-mounted" -> DB "item" (subcategory)
             }
             
             # Convert category to database format
             db_category = category_mapping.get(category) if category else None
             
-            # For recipe subcategories, we need special handling
+            # Handle subcategories for different content types
             recipe_subtype = None
+            item_subcategory = None
+            
+            # Recipe subcategories
             if category == "food_recipes":
                 recipe_subtype = "food"
             elif category == "diy_recipes":
                 recipe_subtype = "diy"
             
-            logger.debug(f"Search: executing search_all with query='{query}', category_filter='{db_category}', recipe_subtype='{recipe_subtype}' (Discord: '{category}')")
+            # Item subcategories
+            elif category == "ceiling-decor":
+                item_subcategory = "ceiling-decor"
+            elif category == "wall-mounted":
+                item_subcategory = "wall-mounted"
             
-            results = await self.service.search_all(query, category_filter=db_category, recipe_subtype=recipe_subtype)
+            logger.debug(f"Search: executing search_all with query='{query}', category_filter='{db_category}', recipe_subtype='{recipe_subtype}', item_subcategory='{item_subcategory}' (Discord: '{category}')")
+            
+            results = await self.service.search_all(query, category_filter=db_category, recipe_subtype=recipe_subtype, item_subcategory=item_subcategory)
             logger.debug(f"Search: found {len(results) if results else 0} results with category filter")
             
             if not results:

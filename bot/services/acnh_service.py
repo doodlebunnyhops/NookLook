@@ -21,7 +21,7 @@ class NooklookService:
         # But we can add any cleanup logic here if needed in the future
         logger.info("Database connections use auto-closing context managers - no manual cleanup needed")
     
-    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None) -> List[Any]:
+    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None, item_subcategory: str = None) -> List[Any]:
         """Search across all content types using FTS5 with prefix matching"""
         try:
             search_results = await self.repo.search_fts_autocomplete(query, category_filter, limit=50)
@@ -37,6 +37,11 @@ class NooklookService:
                             continue  # Skip non-food recipes when looking for food
                         elif recipe_subtype == "diy" and obj.is_food():
                             continue  # Skip food recipes when looking for DIY
+                    
+                    # Filter items by subcategory if specified
+                    if item_subcategory and hasattr(obj, 'category'):
+                        if obj.category != item_subcategory:
+                            continue  # Skip items that don't match the subcategory
                     
                     resolved_items.append(obj)
             
