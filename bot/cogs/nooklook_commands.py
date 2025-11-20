@@ -1122,9 +1122,9 @@ class ACNHCommands(commands.Cog):
                 # Add suggestion for different critter types
                 embed.add_field(
                     name="💡 Search Tips",
-                    value="• 🐟 Fish: Found in rivers, ponds, and the sea\n"
-                          "• 🦋 Bugs: Found around flowers, trees, and rocks\n"
-                          "• 🌊 Sea Creatures: Found while diving in the ocean\n"
+                    value="• Fish: Found in rivers, ponds, and the sea\n"
+                          "• Bugs: Found around flowers, trees, and rocks\n"
+                          "• Sea Creatures: Found while diving in the ocean\n"
                           "• Try `/search` with partial names or locations",
                     inline=False
                 )
@@ -1137,9 +1137,9 @@ class ACNHCommands(commands.Cog):
             
             # Add critter type info in footer
             critter_type = {
-                'fish': '🐟 Fish',
-                'insect': '🦋 Bug', 
-                'sea': '🌊 Sea Creature'
+                'fish': 'Fish',
+                'insect': 'Bug', 
+                'sea': 'Sea Creature'
             }.get(critter.kind, critter.kind.title())
             
             footer_text = f"{critter_type}"
@@ -1888,9 +1888,9 @@ class CritterAvailabilityView(discord.ui.View):
         
         # Add critter type info in footer
         critter_type = {
-            'fish': '🐟 Fish',
-            'insect': '🦋 Bug', 
-            'sea': '🌊 Sea Creature'
+            'fish': 'Fish',
+            'insect': 'Bug', 
+            'sea': 'Sea Creature'
         }.get(self.critter.kind, self.critter.kind.title())
         
         footer_text = f"{critter_type}"

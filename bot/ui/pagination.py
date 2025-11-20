@@ -181,7 +181,7 @@ class CrittersPaginationView(PaginationView):
         pagination = data['pagination']
         
         embed = discord.Embed(
-            title="🐛🐟 Critters Browser",
+            title="Critters Browser",
             color=0x2ecc71,
             description=f"Page {pagination['current_page'] + 1} of {pagination['total_pages']}"
         )
@@ -214,12 +214,12 @@ class CrittersPaginationView(PaginationView):
                 critters_text.append(f"`{page_num:2d}.` {icon} **{critter.name}** - {price_text}\n     📍 {location}")
             
             embed.add_field(
-                name=f"🦋 Critters ({pagination['total_items']} total)",
+                name=f"Critters ({pagination['total_items']} total)",
                 value="\n".join(critters_text),
                 inline=False
             )
         else:
-            embed.add_field(name="🦋 Critters", value="No critters found.", inline=False)
+            embed.add_field(name="Critters", value="No critters found.", inline=False)
         
         return embed
     

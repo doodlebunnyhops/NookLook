@@ -474,15 +474,15 @@ class Critter:
     def type_display(self) -> str:
         """Get user-friendly type display"""
         return {
-            'fish': '🐟 Fish',
-            'insect': '🦋 Bug',
-            'sea': '🌊 Sea Creature'
+            'fish': 'Fish',
+            'insect': 'Bug',
+            'sea': 'Sea Creature'
         }.get(self.kind, self.kind.title())
     
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this critter"""
         embed = discord.Embed(
-            title=f"{self.type_display}: {self.name}",
+            title=f"{self.name}",
             color=discord.Color.blue()
         )
         
@@ -885,15 +885,15 @@ class Artwork:
         # Choose color and emoji based on authenticity
         if self.genuine:
             color = discord.Color.from_rgb(52, 152, 219)  # Blue for genuine
-            emoji = "🎨"
+            # emoji = "🎨"
             authenticity = "Genuine"
         else:
             color = discord.Color.from_rgb(231, 76, 60)  # Red for fake
-            emoji = "🎭"
+            # emoji = "🎭"
             authenticity = "Fake"
         
         embed = discord.Embed(
-            title=f"{emoji} {self.name} ({authenticity})",
+            title=f"{self.name} ({authenticity})",
             color=color
         )
         
@@ -925,7 +925,7 @@ class Artwork:
                 real_info.append(f"**Artist:** {self.artist}")
             
             embed.add_field(
-                name="📚 Real Artwork Info",
+                name="Real Artwork Info",
                 value="\n".join(real_info),
                 inline=False
             )
@@ -933,7 +933,7 @@ class Artwork:
         # Add description if available
         if self.description:
             embed.add_field(
-                name="📖 Description",
+                name="Description",
                 value=self.description,
                 inline=False
             )
@@ -1016,7 +1016,7 @@ class Fossil:
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this fossil"""
         embed = discord.Embed(
-            title=f"Fossil: {self.name}",
+            title=f"{self.name}",
             color=discord.Color.from_rgb(139, 69, 19)  # Brown for fossils
         )
         
@@ -1039,7 +1039,7 @@ class Fossil:
         # Add description if available
         if self.description:
             embed.add_field(
-                name="📖 Description",
+                name="Description",
                 value=self.description,
                 inline=False
             )
