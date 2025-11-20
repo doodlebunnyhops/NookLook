@@ -1777,9 +1777,9 @@ class ACNHDatasetImporter:
     def _get_image_url_columns(self, row: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
         """Dynamically determine which columns contain image URLs for this dataset"""
         # Priority order for main image URL
-        main_image_candidates = ['Image', 'Inventory Image', 'Closet Image', 'Icon Image', 'Photo Image']
+        main_image_candidates = ['Storage Image', 'Image', 'Inventory Image', 'Icon Image', 'Photo Image','Album Image']
         # Priority order for alternate image URL  
-        alt_image_candidates = ['Storage Image', 'High-Res Texture', 'Critterpedia Image', 'Furniture Image']
+        alt_image_candidates = [ 'High-Res Texture', 'Critterpedia Image', 'Furniture Image', 'Closet Image','Framed Image']
         
         # Use _get_value which handles IMAGE formula extraction
         main_url = self._get_value(row, main_image_candidates)
