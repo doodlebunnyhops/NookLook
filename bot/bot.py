@@ -94,9 +94,9 @@ class ACNHBot(commands.Bot):
                     self.logger.info("Bot will automatically stay up-to-date with Google Sheets data")
                 
                 # Start CDN monitoring task
-                if not self.cdn_monitoring_task.is_running():
-                    self.cdn_monitoring_task.start()
-                    self.logger.info("Started CDN service monitoring task (15-minute intervals)")
+                # if not self.cdn_monitoring_task.is_running():
+                #     self.cdn_monitoring_task.start()
+                #     self.logger.info("Started CDN service monitoring task (15-minute intervals)")
                     
                 self.logger.info("Bot is ready!")
         except Exception as e:
@@ -186,20 +186,20 @@ class ACNHBot(commands.Bot):
         await self.wait_until_ready()
         self.logger.info("Bot ready, periodic data checks will begin")
     
-    @tasks.loop(minutes=15)
-    async def cdn_monitoring_task(self):
-        """Monitor CDN service health every 15 minutes"""
-        try:
-            from bot.utils.image_fallback import _image_service_status
-            await _image_service_status.check_all_monitored_services()
-        except Exception as e:
-            self.logger.error(f"Error in CDN monitoring: {e}")
+    # @tasks.loop(minutes=15)
+    # async def cdn_monitoring_task(self):
+    #     """Monitor CDN service health every 15 minutes"""
+    #     try:
+    #         from bot.utils.image_fallback import _image_service_status
+    #         await _image_service_status.check_all_monitored_services()
+    #     except Exception as e:
+    #         self.logger.error(f"Error in CDN monitoring: {e}")
     
-    @cdn_monitoring_task.before_loop
-    async def before_cdn_monitoring(self):
-        """Wait for bot to be ready before starting CDN monitoring"""
-        await self.wait_until_ready()
-        self.logger.info("Bot ready, CDN monitoring will begin")
+    # @cdn_monitoring_task.before_loop
+    # async def before_cdn_monitoring(self):
+    #     """Wait for bot to be ready before starting CDN monitoring"""
+    #     await self.wait_until_ready()
+    #     self.logger.info("Bot ready, CDN monitoring will begin")
 
     async def _create_database_backup(self):
         """Create a timestamped backup of the current database before updating"""
@@ -271,10 +271,10 @@ class ACNHBot(commands.Bot):
             self.periodic_data_check.cancel()
             self.logger.info("Stopped periodic data check task")
         
-        # Stop CDN monitoring task
-        if self.cdn_monitoring_task.is_running():
-            self.cdn_monitoring_task.cancel()
-            self.logger.info("Stopped CDN monitoring task")
+        # # Stop CDN monitoring task
+        # if self.cdn_monitoring_task.is_running():
+        #     self.cdn_monitoring_task.cancel()
+        #     self.logger.info("Stopped CDN monitoring task")
         
         # The ACNH service uses context managers for DB connections, so no cleanup needed
         self.logger.info("ACNH service uses auto-closing connections")
