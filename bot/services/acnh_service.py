@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, List
 from bot.repos.acnh_items_repo import NooklookRepository
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
 import logging
 
 logger = logging.getLogger("bot.acnh_service")
@@ -21,7 +21,7 @@ class NooklookService:
         # But we can add any cleanup logic here if needed in the future
         logger.info("Database connections use auto-closing context managers - no manual cleanup needed")
     
-    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None) -> List[Any]:
+    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None, item_subcategory: str = None) -> List[Any]:
         """Search across all content types using FTS5 with prefix matching"""
         try:
             search_results = await self.repo.search_fts_autocomplete(query, category_filter, limit=50)
@@ -37,6 +37,11 @@ class NooklookService:
                             continue  # Skip non-food recipes when looking for food
                         elif recipe_subtype == "diy" and obj.is_food():
                             continue  # Skip food recipes when looking for DIY
+                    
+                    # Filter items by subcategory if specified
+                    if item_subcategory and hasattr(obj, 'category'):
+                        if obj.category != item_subcategory:
+                            continue  # Skip items that don't match the subcategory
                     
                     resolved_items.append(obj)
             
@@ -125,6 +130,26 @@ class NooklookService:
             return await self.repo.get_random_critters(limit)
         except Exception as e:
             logger.error(f"Error getting random critter suggestions: {e}")
+            return []
+    
+    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Fossil]:
+        """Get a specific fossil by ID"""
+        return await self.repo.get_fossil_by_id(fossil_id)
+    
+    async def get_fossil_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get fossil name suggestions for autocomplete"""
+        try:
+            return await self.repo.get_fossil_suggestions(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting fossil suggestions: {e}")
+            return []
+    
+    async def get_random_fossil_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random fossil suggestions for autocomplete when query is too short"""
+        try:
+            return await self.repo.get_random_fossils(limit)
+        except Exception as e:
+            logger.error(f"Error getting random fossil suggestions: {e}")
             return []
     
     async def browse_items(self, category: str = None, color: str = None, 

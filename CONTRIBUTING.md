@@ -104,8 +104,8 @@ What actually happened
 
 **Environment:**
 - Bot Version: 
-- Python Version:
-- Discord.py Version:
+- Python Version: (3.12+ required)
+- Discord.py Version: (2.6+ required)
 - Operating System:
 
 **Additional Context:**

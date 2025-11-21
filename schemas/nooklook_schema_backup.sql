@@ -9,6 +9,9 @@ CREATE TABLE items (
     name                TEXT NOT NULL,              -- In-game name
     category            TEXT NOT NULL,              -- 'misc', 'tools', 'tops', 'bottoms', 'dress-up', etc.
 
+    -- Unique identifier from source Google Sheets
+    source_unique_id    TEXT UNIQUE,                -- "Unique Entry ID" from sheets - true unique identifier
+    
     -- Group identity across variants (Internal ID for misc/tools, ClothGroup ID for clothing, etc.)
     internal_group_id   INTEGER,                    -- Same for all variants of an item group
 
@@ -36,6 +39,7 @@ CREATE TABLE items (
 CREATE INDEX idx_items_name ON items(name);
 CREATE INDEX idx_items_category ON items(category);
 CREATE INDEX idx_items_internal_group ON items(internal_group_id);
+CREATE INDEX idx_items_source_unique_id ON items(source_unique_id);
 
 
 -- =========================================================
@@ -46,6 +50,9 @@ CREATE TABLE item_variants (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id                 INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
 
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets for variants
+    
     -- From "Variant ID" column (# or #_#) when present
     variant_id_raw          TEXT,          -- e.g. '3', '0_4', or NULL
 
@@ -92,6 +99,7 @@ CREATE TABLE item_variants (
 CREATE INDEX idx_item_variants_item ON item_variants(item_id);
 CREATE INDEX idx_item_variants_internal_id ON item_variants(internal_id);
 CREATE INDEX idx_item_variants_variant_raw ON item_variants(variant_id_raw);
+CREATE INDEX idx_item_variants_source_unique_id ON item_variants(source_unique_id);
 
 
 -- =========================================================
@@ -101,8 +109,12 @@ CREATE INDEX idx_item_variants_variant_raw ON item_variants(variant_id_raw);
 CREATE TABLE recipes (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id    TEXT UNIQUE,       -- "Unique Entry ID" from sheets
+    
     internal_id         INTEGER,           -- From Recipes CSV, if present
-    product_item_id     INTEGER,           -- FK to items.id for the crafted item (nullable if you can’t map it)
+    product_item_id     INTEGER,           -- FK to items.id for the crafted item (nullable if you can't map it)
     category            TEXT,             -- E.g. 'Furniture', 'Wall-mounted', 'Food', etc.
     source              TEXT,             -- Where you get the recipe
     source_notes        TEXT,             -- Extra notes
@@ -111,6 +123,14 @@ CREATE TABLE recipes (
     sell_price          INTEGER,
     hha_base            INTEGER,
     version_added       TEXT,
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex            TEXT,             -- 4-char hex (e.g. '0E06')
+    ti_primary          INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary        INTEGER,          -- NULL for 1D items (recipes are typically 1D)
+    ti_customize_str    TEXT,             -- E.g. '0' for most recipes
+    ti_full_hex         TEXT,             -- 16-char TI drop hex
+    
     image_url           TEXT,             -- Recipe card image or icon URL
     image_url_alt       TEXT,             -- Alternate image URL if applicable
     extra_json          TEXT,             -- For future specialty fields
@@ -119,6 +139,7 @@ CREATE TABLE recipes (
 
 CREATE INDEX idx_recipes_name ON recipes(name);
 CREATE INDEX idx_recipes_category ON recipes(category);
+CREATE INDEX idx_recipes_source_unique_id ON recipes(source_unique_id);
 
 
 -- Ingredients for recipes
@@ -144,24 +165,28 @@ DROP TABLE IF EXISTS critters;
 CREATE TABLE critters (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
-    kind                    TEXT NOT NULL,    -- 'insect', 'fish', 'sea'
-
-    -- ACNH identity
+    kind                    TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
     internal_id             INTEGER,
-    unique_entry_id         TEXT,
-
-    -- Common museum-ish fields
     sell_price              INTEGER,
-    location                TEXT,             -- 'River', 'Sea', 'On trees', etc.
-    shadow_size             TEXT,             -- For fish/sea; NULL for insects
-    movement_speed          TEXT,             -- For sea creatures
-    catch_difficulty        TEXT,             -- For fish; optional for others
-    vision                  TEXT,             -- For fish; optional for others
-
-    total_catches_to_unlock TEXT,             -- from CSV; keep as text for now
-    spawn_rates             TEXT,             -- raw spawn rate string
-
-    -- Availability by hemisphere (you can also normalize later if you want)
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
+    ti_primary              INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary            INTEGER,          -- NULL for 1D items (critters are typically 1D)
+    ti_customize_str        TEXT,             -- E.g. '0' for most critters
+    ti_full_hex             TEXT,             -- 16-char TI drop hex
+    
+    location                TEXT,
+    shadow_size             TEXT,
+    movement_speed          TEXT,
+    catch_difficulty        TEXT,
+    vision                  TEXT,
+    total_catches_to_unlock TEXT,
+    spawn_rates             TEXT,
     nh_jan                  TEXT,
     nh_feb                  TEXT,
     nh_mar                  TEXT,
@@ -174,7 +199,6 @@ CREATE TABLE critters (
     nh_oct                  TEXT,
     nh_nov                  TEXT,
     nh_dec                  TEXT,
-
     sh_jan                  TEXT,
     sh_feb                  TEXT,
     sh_mar                  TEXT,
@@ -187,28 +211,20 @@ CREATE TABLE critters (
     sh_oct                  TEXT,
     sh_nov                  TEXT,
     sh_dec                  TEXT,
-
-    time_of_day             TEXT,             -- e.g. 'All day', '4pm–9am'
-    weather                 TEXT,             -- e.g. 'Rain only'
+    time_of_day             TEXT,
+    weather                 TEXT,
     rarity                  TEXT,
-
-    -- Description & flavor
     description             TEXT,
     catch_phrase            TEXT,
-
-    -- HHA & appearance
     hha_base_points         INTEGER,
     hha_category            TEXT,
     color1                  TEXT,
     color2                  TEXT,
     size                    TEXT,
     surface                 TEXT,
-
-    -- Images urls
-    icon_url           TEXT,
-    critterpedia_url   TEXT,
-    furniture_url      TEXT,
-
+    icon_url                TEXT,
+    critterpedia_url        TEXT,
+    furniture_url           TEXT,
     source                  TEXT,
     version_added           TEXT,
     extra_json              TEXT
@@ -217,6 +233,7 @@ CREATE TABLE critters (
 CREATE INDEX idx_critters_name ON critters(name);
 CREATE INDEX idx_critters_kind ON critters(kind);
 CREATE INDEX idx_critters_internal_id ON critters(internal_id);
+CREATE INDEX idx_critters_source_unique_id ON critters(source_unique_id);
 
 
 -- =========================================================
@@ -228,33 +245,40 @@ DROP TABLE IF EXISTS fossils;
 CREATE TABLE fossils (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
-
-    image_url               TEXT,          -- 'Image' URL
-    image_url_alt           TEXT,          -- Alternate image URL if applicable (e.g. for patterns)
-
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
+    image_url               TEXT,
+    image_url_alt           TEXT,
     buy_price               INTEGER,
     sell_price              INTEGER,
-    fossil_group            TEXT,          -- Fossil Group (e.g. 'T-rex', 'Brontosaurus')
+    fossil_group            TEXT,
     description             TEXT,
-
     hha_base_points         INTEGER,
     color1                  TEXT,
     color2                  TEXT,
     size                    TEXT,
-    source                  TEXT,          -- Usually 'Dig Spot' etc.
-    museum                  TEXT,          -- Museum info from CSV
+    source                  TEXT,
+    museum                  TEXT,
     interact                TEXT,
     catalog                 TEXT,
-
-    filename                TEXT,          -- Base filename from CSV
+    filename                TEXT,
     internal_id             INTEGER,
-    unique_entry_id         TEXT,
-
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
+    ti_primary              INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary            INTEGER,          -- NULL for 1D items (fossils are typically 1D)
+    ti_customize_str        TEXT,             -- E.g. '0' for most fossils
+    ti_full_hex             TEXT,             -- 16-char TI drop hex
+    
     extra_json              TEXT
 );
 
 CREATE INDEX idx_fossils_name ON fossils(name);
 CREATE INDEX idx_fossils_internal_id ON fossils(internal_id);
+CREATE INDEX idx_fossils_source_unique_id ON fossils(source_unique_id);
 
 
 -- =========================================================
@@ -265,71 +289,67 @@ DROP TABLE IF EXISTS artwork;
 
 CREATE TABLE artwork (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-    name                    TEXT NOT NULL,       -- In-game art name
-
-    image_url               TEXT,               -- 'Image' URL
-    image_url_alt           TEXT,               -- Alternate image URL if applicable (e.g. for patterns)
-    genuine                 INTEGER,            -- 1 if genuine, 0 if always fake, etc. (you can decide mapping)
-    art_category            TEXT,               -- 'Painting', 'Statue', etc.
-
+    name                    TEXT NOT NULL,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id        TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
+    image_url               TEXT,
+    image_url_alt           TEXT,
+    genuine                 INTEGER,
+    art_category            TEXT,
     buy_price               INTEGER,
     sell_price              INTEGER,
     color1                  TEXT,
     color2                  TEXT,
     size                    TEXT,
-
     real_artwork_title      TEXT,
     artist                  TEXT,
     description             TEXT,
-
     source                  TEXT,
     source_notes            TEXT,
-
     hha_base_points         INTEGER,
     hha_concept1            TEXT,
     hha_concept2            TEXT,
     hha_series              TEXT,
     hha_set                 TEXT,
-
     interact                TEXT,
     tag                     TEXT,
     speaker_type            TEXT,
     lighting_type           TEXT,
     catalog                 TEXT,
-
     version_added           TEXT,
-    unlocked                TEXT,              -- 'Yes'/'No' or similar
-
-    filename                TEXT,              -- Base filename
+    unlocked                TEXT,
+    filename                TEXT,
     internal_id             INTEGER,
-    unique_entry_id         TEXT,
-
+    
+    -- TI-related fields (calculated from internal_id)
+    item_hex                TEXT,             -- 4-char hex (e.g. '02E3')
+    ti_primary              INTEGER,          -- For TI customize commands (default 0)
+    ti_secondary            INTEGER,          -- NULL for 1D items (artwork is typically 1D)
+    ti_customize_str        TEXT,             -- E.g. '0' for most artwork
+    ti_full_hex             TEXT,             -- 16-char TI drop hex
+    
     extra_json              TEXT
 );
 
 CREATE INDEX idx_artwork_name ON artwork(name);
 CREATE INDEX idx_artwork_internal_id ON artwork(internal_id);
+CREATE INDEX idx_artwork_source_unique_id ON artwork(source_unique_id);
 
 
 -- =========================================================
 -- MUSEUM_INDEX: unified view of "things you can donate"
 -- =========================================================
--- This is optional but VERY handy for your bot:
--- lets you say "this is a museum thing" and then jump to the
--- appropriate table/record without remembering where it lives.
 
 DROP TABLE IF EXISTS museum_index;
 
 CREATE TABLE museum_index (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    name            TEXT NOT NULL,      -- Display name
-    wing            TEXT NOT NULL,      -- 'bugs', 'fish', 'sea', 'fossils', 'art'
-    ref_table       TEXT NOT NULL,      -- 'critters', 'fossils', 'artwork'
-    ref_id          INTEGER NOT NULL,   -- PK in that table
-
-    -- Optional: you can also store short description or emoji here
-    blathers_blurb  TEXT
+    name            TEXT NOT NULL,
+    wing            TEXT NOT NULL,
+    ref_table       TEXT NOT NULL,
+    ref_id          INTEGER NOT NULL
 );
 
 CREATE INDEX idx_museum_index_name ON museum_index(name);
@@ -343,58 +363,54 @@ CREATE INDEX idx_museum_index_wing ON museum_index(wing);
 CREATE TABLE villagers (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
-    internal_id         INTEGER,          -- From Villagers CSV
-
     species             TEXT,
-    personality         TEXT,
     gender              TEXT,
-    birthday            TEXT,             -- Could be 'DD-MM' or 'Month Day' as text
+    personality         TEXT,
+    subtype             TEXT,
     hobby               TEXT,
+    birthday            TEXT,
     catchphrase         TEXT,
     favorite_song       TEXT,
-
+    favorite_saying     TEXT,
     style1              TEXT,
     style2              TEXT,
-    colors              TEXT,             -- e.g. comma-separated or JSON
-    house_exterior      TEXT,
-    house_interior      TEXT,
-
-    image_url           TEXT,             -- Portrait image URL
+    color1              TEXT,
+    color2              TEXT,
+    default_clothing    TEXT,
+    default_umbrella    TEXT,
+    wallpaper           TEXT,
+    flooring            TEXT,
+    furniture_list      TEXT,
+    furniture_name_list TEXT,
+    diy_workbench       TEXT,
+    kitchen_equipment   TEXT,
     version_added       TEXT,
-    extra_json          TEXT
+    name_color          TEXT,
+    bubble_color        TEXT,
+    filename            TEXT,
+    
+    -- Unique identifier from source Google Sheets
+    source_unique_id    TEXT UNIQUE,   -- "Unique Entry ID" from sheets
+    
+    icon_image          TEXT,
+    photo_image         TEXT,
+    house_image         TEXT
 );
 
 CREATE INDEX idx_villagers_name ON villagers(name);
 CREATE INDEX idx_villagers_species ON villagers(species);
 CREATE INDEX idx_villagers_personality ON villagers(personality);
+CREATE INDEX idx_villagers_source_unique_id ON villagers(source_unique_id);
 
 
 -- =========================================================
 -- SEARCH INDEX (FTS5): unified name search
 -- =========================================================
--- This lets you do a single /search that finds items, recipes,
--- villagers, critters, etc., then jump to the right table by ref.
-
--- NOTE: Requires SQLite compiled with FTS5.
--- If you ever hit issues, you can comment this out.
 
 CREATE VIRTUAL TABLE search_index USING fts5(
     name,               -- Display name as shown in-game
-    category,           -- High-level: 'item', 'recipe', 'villager', 'critter'
-    subcategory,        -- E.g. 'misc', 'tops', 'insect', 'fish', 'sea', 'food', etc.
-    ref_table,          -- 'items', 'recipes', 'villagers', 'critters'
-    ref_id,             -- The primary key of the referenced table (stored as TEXT here)
-    tokenize = "unicode61"
+    category,           -- 'item', 'recipe', 'villager', 'critter', etc.
+    subcategory,        -- More specific type within category
+    ref_table,          -- Which table this refers to
+    ref_id              -- The id in that table
 );
-
--- Suggested pattern for populating search_index (pseudocode):
--- INSERT INTO search_index (name, category, subcategory, ref_table, ref_id)
--- VALUES ('Tea table', 'item', 'misc', 'items', <items.id>);
---
--- INSERT INTO search_index (name, category, subcategory, ref_table, ref_id)
--- VALUES ('Cherry pie', 'recipe', 'food', 'recipes', <recipes.id>);
---
--- Then you can query:
--- SELECT name, category, subcategory, ref_table, ref_id
--- FROM search_index
--- WHERE search_index MATCH 'tea';

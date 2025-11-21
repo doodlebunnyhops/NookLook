@@ -2,6 +2,21 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
+# Import image fallback utilities
+# try:
+#     from ..utils.image_fallback import safe_set_image, safe_set_thumbnail
+# except ImportError:
+#     # Fallback if utils aren't available
+#     async def safe_set_image(embed, url, content_type='general'):
+#         if url:
+#             embed.set_image(url=url)
+#         return embed
+    
+#     async def safe_set_thumbnail(embed, url, content_type='general'):
+#         if url:
+#             embed.set_thumbnail(url=url)
+#         return embed
+
 @dataclass(slots=True)
 class ItemVariant:
     """Represents a color/pattern variant of an item"""
@@ -102,6 +117,7 @@ class Item:
     label_themes: Optional[str]
     filename: Optional[str]
     image_url: Optional[str]
+    nookipedia_url: Optional[str]
     extra_json: Optional[str]
     variants: List[ItemVariant] = field(default_factory=list)
     
@@ -126,6 +142,7 @@ class Item:
             label_themes=data.get('label_themes'),
             filename=data.get('filename'),
             image_url=data.get('image_url'),
+            nookipedia_url=data.get('nookipedia_url'),
             extra_json=data.get('extra_json'),
             variants=[]
         )
@@ -202,11 +219,7 @@ class Item:
         selected_variant = variant or self.primary_variant
         
         # Build title
-        if is_variant_view and variant:
-            # Use emoji prefix for variant view
-            title = f"🏠 {self.name}"
-        else:
-            # Clean title for base item view
+        if self.name:
             title = self.name
         
         embed = discord.Embed(
@@ -217,12 +230,7 @@ class Item:
         # Add basic info
         info_lines = []
         
-        if is_variant_view and variant:
-            # Variant view format with emoji sections
-            info_lines.append("💰 Item Details")
-            info_lines.append(f"Category: {self.category}")
-        else:
-            # Base item view format - simple
+        if self.category:
             info_lines.append(f"Category: {self.category}")
         
         if self.sell_price:
@@ -239,7 +247,7 @@ class Item:
         if is_variant_view and variant:
             # Variant view format - cleaner with emoji sections
             variant_info = []
-            variant_info.append("🎨 Variant Details")
+            variant_info.append("Details")
             
             # Show variant name
             default_parts = []
@@ -281,7 +289,7 @@ class Item:
                     variant_info.append(f"Item Hex: {selected_variant.item_hex}")
                 
                 if variant_info:
-                    embed.add_field(name="Variant Details", value="\n".join(variant_info), inline=False)
+                    embed.add_field(name="Details", value="\n".join(variant_info), inline=False)
             
             # Add variant count if multiple (base view only)
             if self.has_variants:
@@ -310,11 +318,23 @@ class Item:
                 if hha_info:
                     embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
         
-        # Set image
-        image_url = selected_variant.image_url if selected_variant else self.display_image_url
-        if image_url:
-            embed.set_thumbnail(url=image_url)
-        
+        # Set image with fallback handling
+        thumbnail_image_url = selected_variant.image_url_alt if selected_variant else self.display_image_url
+        set_image_url = selected_variant.image_url if selected_variant else self.display_image_url
+        # Note: This will be handled by the calling code since we can't use async here
+        if thumbnail_image_url:
+            embed.set_thumbnail(url=thumbnail_image_url)
+        elif set_image_url:
+            embed.set_thumbnail(url=set_image_url)
+
+        #if embed.thumbnail.url != set_image_url:
+
+        # if not embed.thumbnail or embed.thumbnail.url != set_image_url:
+        #     embed.set_thumbnail(url=set_image_url)
+
+        # if set_image_url and set_image_url != thumbnail_image_url:
+        #     embed.set_image(url=set_image_url)
+
         return embed
     
     def to_embed(self) -> discord.Embed:
@@ -382,6 +402,7 @@ class Critter:
     icon_url: Optional[str]
     critterpedia_url: Optional[str]
     furniture_url: Optional[str]
+    nookipedia_url: Optional[str]
     source: Optional[str]
     version_added: Optional[str]
     extra_json: Optional[str]
@@ -445,6 +466,7 @@ class Critter:
             icon_url=data.get('icon_url'),
             critterpedia_url=data.get('critterpedia_url'),
             furniture_url=data.get('furniture_url'),
+            nookipedia_url=data.get('nookipedia_url'),
             source=data.get('source'),
             version_added=data.get('version_added'),
             extra_json=data.get('extra_json')
@@ -454,15 +476,15 @@ class Critter:
     def type_display(self) -> str:
         """Get user-friendly type display"""
         return {
-            'fish': '🐟 Fish',
-            'insect': '🦋 Bug',
-            'sea': '🌊 Sea Creature'
+            'fish': 'Fish',
+            'insect': 'Bug',
+            'sea': 'Sea Creature'
         }.get(self.kind, self.kind.title())
     
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this critter"""
         embed = discord.Embed(
-            title=f"{self.type_display}: {self.name}",
+            title=f"{self.name}",
             color=discord.Color.blue()
         )
         
@@ -498,7 +520,7 @@ class Critter:
             
             embed.add_field(name="Catch Info", value="\n".join(catch_info), inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.icon_url:
             embed.set_thumbnail(url=self.icon_url)
         elif self.critterpedia_url:
@@ -534,6 +556,7 @@ class Recipe:
     ti_full_hex: Optional[str]
     image_url: Optional[str]
     image_url_alt: Optional[str]
+    nookipedia_url: Optional[str]
     extra_json: Optional[str]
     ingredients: List[tuple] = field(default_factory=list)  # List of (ingredient_name, quantity)
     
@@ -560,6 +583,7 @@ class Recipe:
             ti_full_hex=data.get('ti_full_hex'),
             image_url=data.get('image_url'),
             image_url_alt=data.get('image_url_alt'),
+            nookipedia_url=data.get('nookipedia_url'),
             extra_json=data.get('extra_json'),
             ingredients=[]
         )
@@ -583,12 +607,17 @@ class Recipe:
             recipe_type = "DIY Recipe"
         
         embed = discord.Embed(
-            title=f"{emoji} {recipe_type}: {self.name}",
+            title=f"{self.name}",
             color=color
         )
+        embed.set_footer(text=f"{emoji} {recipe_type} • {self.category or 'Unknown Category'}")
         
         # Basic info
         info_lines = []
+
+        if recipe_type:
+            info_lines.append(f"**Type:** {recipe_type}")
+
         if self.category:
             info_lines.append(f"**Category:** {self.category}")
         
@@ -610,7 +639,7 @@ class Recipe:
                 ingredient_lines.append(f"• {quantity}x {ingredient_name}")
             
             embed.add_field(
-                name="📦 Ingredients", 
+                name="Ingredients", 
                 value="\n".join(ingredient_lines), 
                 inline=False
             )
@@ -619,7 +648,7 @@ class Recipe:
         if self.item_hex:
             embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.image_url:
             embed.set_thumbnail(url=self.image_url)
         
@@ -663,6 +692,8 @@ class Villager:
     icon_image: Optional[str]
     photo_image: Optional[str]
     house_image: Optional[str]
+    house_interior_image: Optional[str]
+    nookipedia_url: Optional[str]
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Villager':
@@ -697,7 +728,9 @@ class Villager:
             source_unique_id=data.get('source_unique_id'),
             icon_image=data.get('icon_image'),
             photo_image=data.get('photo_image'),
-            house_image=data.get('house_image')
+            house_image=data.get('house_image'),
+            house_interior_image=data.get('house_interior_image'),
+            nookipedia_url=data.get('nookipedia_url')
         )
     
     @property
@@ -709,7 +742,7 @@ class Villager:
     def to_discord_embed(self) -> discord.Embed:
         """Create Discord embed for this villager"""
         embed = discord.Embed(
-            title=f"🔍 🏘️ {self.display_name}",
+            title=f"🏘️ {self.display_name}",
             color=discord.Color.purple()
         )
         
@@ -759,7 +792,7 @@ class Villager:
             
             embed.add_field(name="Favorites", value="\n".join(favorites), inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.icon_image:
             embed.set_thumbnail(url=self.icon_image)
         
@@ -808,6 +841,7 @@ class Artwork:
     ti_secondary: Optional[int]
     ti_customize_str: Optional[str]
     ti_full_hex: Optional[str]
+    nookipedia_url: Optional[str]
     extra_json: Optional[str]
     
     @classmethod
@@ -849,6 +883,7 @@ class Artwork:
             ti_secondary=data.get('ti_secondary'),
             ti_customize_str=data.get('ti_customize_str'),
             ti_full_hex=data.get('ti_full_hex'),
+            nookipedia_url=data.get('nookipedia_url'),
             extra_json=data.get('extra_json')
         )
     
@@ -857,15 +892,15 @@ class Artwork:
         # Choose color and emoji based on authenticity
         if self.genuine:
             color = discord.Color.from_rgb(52, 152, 219)  # Blue for genuine
-            emoji = "🎨"
+            # emoji = "🎨"
             authenticity = "Genuine"
         else:
             color = discord.Color.from_rgb(231, 76, 60)  # Red for fake
-            emoji = "🎭"
+            # emoji = "🎭"
             authenticity = "Fake"
         
         embed = discord.Embed(
-            title=f"{emoji} {self.name} ({authenticity})",
+            title=f"{self.name} ({authenticity})",
             color=color
         )
         
@@ -897,24 +932,24 @@ class Artwork:
                 real_info.append(f"**Artist:** {self.artist}")
             
             embed.add_field(
-                name="📚 Real Artwork Info",
+                name="Real Artwork Info",
                 value="\n".join(real_info),
                 inline=False
             )
         
         # Add description if available
-        if self.description:
-            embed.add_field(
-                name="📖 Description",
-                value=self.description,
-                inline=False
-            )
+        # if self.description:
+        #     embed.add_field(
+        #         name="Description",
+        #         value=self.description,
+        #         inline=False
+        #     )
         
         # Add item hex if available (no TI codes as requested)
         if self.item_hex:
             embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
         
-        # Set image
+        # Set image with fallback handling
         if self.image_url:
             embed.set_thumbnail(url=self.image_url)
         
@@ -922,6 +957,134 @@ class Artwork:
     
     def to_embed(self) -> discord.Embed:
         """Convert this artwork to a Discord embed (compatibility method)"""
+        return self.to_discord_embed()
+
+@dataclass(slots=True)
+class Fossil:
+    """Represents a fossil"""
+    id: int
+    name: str
+    source_unique_id: Optional[str]
+    image_url: Optional[str]
+    image_url_alt: Optional[str]
+    buy_price: Optional[int]
+    sell_price: Optional[int]
+    fossil_group: Optional[str]
+    description: Optional[str]
+    hha_base_points: Optional[int]
+    color1: Optional[str]
+    color2: Optional[str]
+    size: Optional[str]
+    source: Optional[str]
+    museum: Optional[str]
+    interact: Optional[str]
+    catalog: Optional[str]
+    filename: Optional[str]
+    internal_id: Optional[int]
+    item_hex: Optional[str]
+    ti_primary: Optional[int]
+    ti_secondary: Optional[int]
+    ti_customize_str: Optional[str]
+    ti_full_hex: Optional[str]
+    nookipedia_url: Optional[str]
+    extra_json: Optional[str]
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Fossil':
+        return cls(
+            id=data['id'],
+            name=data['name'],
+            source_unique_id=data.get('source_unique_id'),
+            image_url=data.get('image_url'),
+            image_url_alt=data.get('image_url_alt'),
+            buy_price=data.get('buy_price'),
+            sell_price=data.get('sell_price'),
+            fossil_group=data.get('fossil_group'),
+            description=data.get('description'),
+            hha_base_points=data.get('hha_base_points'),
+            color1=data.get('color1'),
+            color2=data.get('color2'),
+            size=data.get('size'),
+            source=data.get('source'),
+            museum=data.get('museum'),
+            interact=data.get('interact'),
+            catalog=data.get('catalog'),
+            filename=data.get('filename'),
+            internal_id=data.get('internal_id'),
+            item_hex=data.get('item_hex'),
+            ti_primary=data.get('ti_primary'),
+            ti_secondary=data.get('ti_secondary'),
+            ti_customize_str=data.get('ti_customize_str'),
+            ti_full_hex=data.get('ti_full_hex'),
+            nookipedia_url=data.get('nookipedia_url'),
+            extra_json=data.get('extra_json')
+        )
+    
+    def to_discord_embed(self) -> discord.Embed:
+        """Create Discord embed for this fossil"""
+        embed = discord.Embed(
+            title=f"{self.name}",
+            color=discord.Color.from_rgb(139, 69, 19)  # Brown for fossils
+        )
+        
+        # Basic info
+        info_lines = []
+        if self.sell_price:
+            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+        
+        if self.fossil_group:
+            info_lines.append(f"**Fossil Group:** {self.fossil_group}")
+        
+        if self.size:
+            info_lines.append(f"**Size:** {self.size}")
+        
+        if self.source:
+            info_lines.append(f"**Source:** {self.source}")
+        
+        embed.description = "\n".join(info_lines)
+        
+        # Add description if available
+        # if self.description:
+        #     embed.add_field(
+        #         name="Description",
+        #         value=self.description,
+        #         inline=False
+        #     )
+        
+        # Add museum info if available
+        museum_info = []
+        if self.museum:
+            museum_info.append(f"**Museum:** {self.museum}")
+        if self.interact:
+            museum_info.append(f"**Interaction:** {self.interact}")
+        
+        if museum_info:
+            embed.add_field(
+                name="🏛️ Museum Info",
+                value="\n".join(museum_info),
+                inline=True
+            )
+        
+        # Add HHA info if available
+        if self.hha_base_points:
+            embed.add_field(
+                name="🏠 HHA Points",
+                value=f"{self.hha_base_points:,} points",
+                inline=True
+            )
+        
+        # Add item hex if available
+        if self.item_hex:
+            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+        
+        # Set image with fallback handling
+        if self.image_url:
+            embed.set_thumbnail(url=self.image_url)
+        
+        return embed
+    
+    def to_embed(self) -> discord.Embed:
+        """Convert this fossil to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
 
 # ACNHItem class removed - using new nooklook schema classes instead

@@ -11,6 +11,7 @@
 - **Villager Info** - Detailed villager profiles including house details, preferences, and equipment
 - **Recipe Database** - Both DIY crafting and cooking recipes with ingredients and sources
 - **Artwork Guide** - Genuine vs fake artwork detection with visual comparisons
+- **Fossil Guide** - Complete fossil catalog with museum donation info
 - **Critter Tracker** - Fish, bugs, and sea creatures with seasonal availability
 - **Interactive UI** - Dropdowns, buttons, and navigation for enhanced user experience
 - **Fast Performance** - Optimized database queries with intelligent caching
@@ -25,14 +26,14 @@
 | `/recipe` | Look up DIY and food recipes |
 | `/artwork` | Find genuine/fake artwork details |
 | `/critter` | Fish, bugs & sea creature info |
-| `/fossil` | Find info on fossils |
+| `/fossil` | Look up fossils and paleontology info |
 | `/help` | Interactive help with detailed command info |
 | `/info` | Bot statistics and database information |
 
 ## Technical Details
 
 ### Built With
-- **Python 3.11+** with discord.py 2.6+
+- **Python 3.12+** with discord.py 2.6+
 - **SQLite Database** with FTS5 full-text search
 - **Async/Await** architecture for optimal performance
 - **Comprehensive Data Models** with dataclasses and type hints
@@ -42,6 +43,7 @@
 - **Villagers** - All 400+ villagers with detailed house and preference data
 - **Recipes** - DIY crafting and cooking recipes with ingredients
 - **Artwork** - Paintings and statues with authenticity details
+- **Fossils** - Complete paleontology collection with details
 - **Critters** - Fish, bugs, sea creatures with seasonal data
 - **Search Index** - FTS5 unified search across all content types
 
@@ -64,6 +66,7 @@ NookLook uses comprehensive data from the [ACNH Sheets Discord](https://discord.
 - **400+** villagers with complete details
 - **600+** recipes (DIY + cooking)
 - **40+** artwork pieces
+- **70+** fossils for museum collection
 - **240+** critters with seasonal data
 
 **Image Sources:**
@@ -134,7 +137,7 @@ This automatically imports the latest data from the [ACNH Sheets Discord](https:
 
 ## Requirements
 
-- Python 3.11 or higher
+- Python 3.12 or higher
 - Discord Bot Token
 - SQLite (included with Python)
 - See `requirements.txt` for Python dependencies
@@ -179,7 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 This project is licensed under the **MIT License** with attribution requirements:
 
 ```
-Copyright (c) 2024 doodlebunnyhops
+Copyright (c) 2025 doodlebunnyhops
 Licensed under MIT License - see LICENSE file for details
 Attribution required for all derivative works
 ```
