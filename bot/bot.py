@@ -96,6 +96,9 @@ class ACNHBot(commands.Bot):
         self.logger.info(f"{self.user} has connected to Discord!")
         self.logger.info(f"Bot is in {len(self.guilds)} guilds")
         
+        # Check and onboard existing guilds that may not have settings
+        await self._onboard_existing_guilds()
+        
         # Sync commands now that we know our guild status
         try:
             # if len(self.guilds) == 0:
@@ -169,6 +172,40 @@ class ACNHBot(commands.Bot):
                     self.logger.warning(f"Failed to clean up guild settings for {guild.name}")
         except Exception as e:
             self.logger.error(f"Error cleaning up guild settings for {guild.name}: {e}")
+
+    async def _onboard_existing_guilds(self):
+        """Check and onboard existing guilds that may not have settings in the database"""
+        if not hasattr(self, 'server_repo'):
+            self.logger.warning("ServerRepository not available for guild onboarding")
+            return
+            
+        self.logger.info("Checking existing guilds for missing database settings...")
+        onboarded_count = 0
+        
+        for guild in self.guilds:
+            try:
+                # Check if settings already exist
+                existing_settings = await self.server_repo.get_guild_settings_if_exists(guild.id)
+                if existing_settings is None:
+                    # This guild needs to be onboarded
+                    self.logger.info(f"Onboarding existing guild: {guild.name} (ID: {guild.id})")
+                    
+                    # Create default settings (this will use default False for public responses)
+                    settings = await self.server_repo.get_guild_settings(guild.id)
+                    onboarded_count += 1
+                    
+                    self.logger.info(f"Created guild settings for existing guild {guild.name} with public responses (default)")
+                else:
+                    self.logger.debug(f"Guild {guild.name} already has settings in database")
+                    
+            except Exception as e:
+                self.logger.error(f"Error onboarding guild {guild.name}: {e}")
+                continue
+        
+        if onboarded_count > 0:
+            self.logger.info(f"Successfully onboarded {onboarded_count} existing guild(s) to database")
+        else:
+            self.logger.info("All existing guilds already have database settings")
 
     @tasks.loop(hours=6)  # Check every 6 hours (reasonable frequency for sheet updates)
     async def periodic_data_check(self):
