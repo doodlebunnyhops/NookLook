@@ -532,7 +532,7 @@ class SimpleRefreshView(discord.ui.View):
     """Simple view with just a refresh images button for static content"""
     
     def __init__(self, content_type: str = "content"):
-        super().__init__(timeout=10)
+        super().__init__(timeout=15)
         self.content_type = content_type
         self.message = None
         self.last_refresh_time = 0  # Track last refresh to prevent spam
@@ -1551,7 +1551,7 @@ class VillagerDetailsView(discord.ui.View):
     """View for showing additional villager details with navigation"""
     
     def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main"):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.villager = villager
         self.interaction_user = interaction_user
         self.service = service
@@ -1895,7 +1895,7 @@ class CritterAvailabilityView(discord.ui.View):
     """View for showing critter availability with hemisphere and month selection"""
     
     def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.critter = critter
         self.interaction_user = interaction_user
         self.current_hemisphere = "NH"  # Default to Northern Hemisphere

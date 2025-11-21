@@ -8,7 +8,7 @@ class NookipediaView(discord.ui.View):
     """A view with a button linking to Nookipedia"""
     
     def __init__(self, nookipedia_url: str):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.nookipedia_url = nookipedia_url
         
         # Create the Nookipedia link button

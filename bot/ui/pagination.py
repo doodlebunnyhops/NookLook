@@ -13,7 +13,7 @@ class PaginationView(discord.ui.View):
     
     def __init__(self, bot: commands.Bot, interaction_user: discord.Member, 
                  data: Dict[str, Any], format_func: Callable):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.bot = bot
         self.interaction_user = interaction_user
         self.data = data
@@ -245,7 +245,7 @@ class VariantSelectView(discord.ui.View):
     """View for selecting variants of an item"""
     
     def __init__(self, item: Item, interaction_user: discord.Member):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.item = item
         self.interaction_user = interaction_user
         self.selected_variant = item.variants[0] if item.variants else None
@@ -537,7 +537,7 @@ class SearchResultsView(discord.ui.View):
     """View for displaying search results across multiple content types"""
     
     def __init__(self, results: List[Any], query: str, interaction_user: discord.Member):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.results = results
         self.query = query
         self.interaction_user = interaction_user
@@ -674,7 +674,7 @@ class PaginatedResultView(discord.ui.View):
     """View for displaying paginated list of results (like search results)"""
     
     def __init__(self, results: List[Any], embed_title: str = "Results", per_page: int = 10):
-        super().__init__(timeout=10)  # 2 minute timeout
+        super().__init__(timeout=120)  # 2 minute timeout
         self.results = results
         self.embed_title = embed_title
         self.per_page = per_page

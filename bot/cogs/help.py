@@ -41,6 +41,16 @@ class HelpDropdown(discord.ui.Select):
                 label="Critter Command",
                 description="Fish, bugs, and sea creature info",
                 value="critter"
+            ),
+            discord.SelectOption(
+                label="Server Settings",
+                description="Guild management and configuration",
+                value="server"
+            ),
+            discord.SelectOption(
+                label="Bot Installation Types",
+                description="Guild vs User install differences",
+                value="installation"
             )
         ]
         
@@ -146,17 +156,67 @@ class HelpDropdown(discord.ui.Select):
                 value="`/critter anchovy` - Look up anchovy fish\n`/critter monarch butterfly` - Look up butterfly info",
                 inline=False
             )
+            
+        elif command == "server":
+            embed.title = "Server Settings Commands"
+            embed.description = "**Usage:** `/server <subcommand>`\n\nManage server-specific bot configuration. **Admin/Owner only** and requires **Guild Installation**."
+            embed.add_field(
+                name="Available Commands",
+                value="• `/server settings` - View current server configuration\n• `/server hide_responses <true/false>` - Configure response visibility",
+                inline=False
+            )
+            embed.add_field(
+                name="Response Visibility",
+                value="• **Hidden (true)** - Only command user sees bot responses (ephemeral)\n• **Visible (false)** - Everyone in channel sees bot responses\n• **Default:** Hidden for safety when bot joins new servers",
+                inline=False
+            )
+            embed.add_field(
+                name="Requirements",
+                value="• Server Administrator or Owner permissions\n• Bot must be **Guild Installed** (not User Installed)\n• Only works in server channels, not DMs",
+                inline=False
+            )
+            
+        elif command == "installation":
+            embed.title = "Bot Installation Types"
+            embed.description = "Understanding the difference between Guild and User installations and how they affect bot functionality."
+            embed.add_field(
+                name="Guild Installation (Recommended)",
+                value="• Bot is installed **to the server** by admins\n• All server members can use commands\n• Server settings and configuration available\n• Admins can control response visibility\n• Bot appears in server member list",
+                inline=False
+            )
+            embed.add_field(
+                name="User Installation",
+                value="• Bot is installed **to your account** personally\n• You can use the bot **anywhere** - any server, DMs, group chats\n• **In Guilds:** Only you see responses (ephemeral) unless guild has it installed with public settings\n• **In DMs/Groups:** Responses always visible to everyone in the conversation\n• No server settings or configuration available\n• Bot doesn't appear in server member lists",
+                inline=False
+            )
+            embed.add_field(
+                name="How to Check Installation Type",
+                value="• Try `/server settings` - if it works, it's Guild Installed\n• If you get \"Bot Not Installed\" error, it's User Installed\n• User installations can't access server management features",
+                inline=False
+            )
+            embed.add_field(
+                name="Switching Installation Types",
+                value="• Remove bot and re-add with proper permissions\n• Guild admins should install for full functionality\n• User installs are good for personal use only",
+                inline=False
+            )
         
         # Create new view with the dropdown for continued navigation
-        view = HelpDetailView()
+        view = HelpDetailView(interaction_user=interaction.user)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+        # Store message reference for timeout handling
+        view.message = await interaction.original_response()
 
 class HelpView(discord.ui.View):
     """View containing the help dropdown"""
     
-    def __init__(self):
-        super().__init__(timeout=10)  # 2 minute timeout
+    def __init__(self, interaction_user: discord.Member = None):
+        super().__init__(timeout=120)  # 2 minute timeout
+        self.interaction_user = interaction_user
         self.add_item(HelpDropdown())
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Ensure only the original command user can interact with this view"""
+        return self.interaction_user is None or interaction.user.id == self.interaction_user.id
     
     async def on_timeout(self):
         """Disable interactive items when view times out after 2 minutes, but keep link buttons enabled"""
@@ -168,13 +228,26 @@ class HelpView(discord.ui.View):
                     item.disabled = True
             elif isinstance(item, discord.ui.Select):
                 item.disabled = True
+        
+        # Try to update the message to show disabled state
+        try:
+            if hasattr(self, 'message') and self.message:
+                await self.message.edit(view=self)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            # Message was deleted or we don't have permission to edit
+            pass
 
 class HelpDetailView(discord.ui.View):
     """View for detailed command help with navigation options"""
     
-    def __init__(self):
-        super().__init__(timeout=10)  # 2 minute timeout
+    def __init__(self, interaction_user: discord.Member = None):
+        super().__init__(timeout=120)  # 2 minute timeout
+        self.interaction_user = interaction_user
         self.add_item(HelpDropdown())
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Ensure only the original command user can interact with this view"""
+        return self.interaction_user is None or interaction.user.id == self.interaction_user.id
     
     async def on_timeout(self):
         """Disable interactive items when view times out after 2 minutes, but keep link buttons enabled"""
@@ -186,6 +259,14 @@ class HelpDetailView(discord.ui.View):
                     item.disabled = True
             elif isinstance(item, discord.ui.Select):
                 item.disabled = True
+        
+        # Try to update the message to show disabled state
+        try:
+            if hasattr(self, 'message') and self.message:
+                await self.message.edit(view=self)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            # Message was deleted or we don't have permission to edit
+            pass
     
     @discord.ui.button(label="Back to Main Help", style=discord.ButtonStyle.secondary, row=1)
     async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -200,11 +281,17 @@ class HelpDetailView(discord.ui.View):
         
         # Main Commands
         embed.add_field(
-            name="Commands",
+            name="Lookup Commands",
             value=(
                 "`/search` • `/lookup` • `/villager` • `/recipe`\n"
                 "`/artwork` • `/critter` • `/help` • `/info`"
             ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Server Management (Admin Only)",
+            value="`/server settings` • `/server hide_responses`",
             inline=False
         )
         
@@ -230,9 +317,11 @@ class HelpDetailView(discord.ui.View):
         embed.set_thumbnail(url="https://dodo.ac/np/images/thumb/1/13/Maple_Leaf_NH_Inv_Icon.png/60px-Maple_Leaf_NH_Inv_Icon.png")
         
         # Create view with dropdown for detailed help
-        view = HelpView()
+        view = HelpView(interaction_user=interaction.user)
         
         await interaction.response.edit_message(embed=embed, view=view)
+        # Store message reference for timeout handling
+        view.message = await interaction.original_response()
 
 class Help(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -257,11 +346,17 @@ class Help(commands.Cog):
         
         # Main Commands
         embed.add_field(
-            name="Commands",
+            name="Lookup Commands",
             value=(
                 "`/search` • `/lookup` • `/villager` • `/recipe`\n"
                 "`/artwork` • `/critter` • `/help` • `/info`"
             ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Server Management (Admin Only)",
+            value="`/server settings` • `/server hide_responses`",
             inline=False
         )
         
@@ -287,9 +382,10 @@ class Help(commands.Cog):
         embed.set_thumbnail(url="https://dodo.ac/np/images/thumb/1/13/Maple_Leaf_NH_Inv_Icon.png/60px-Maple_Leaf_NH_Inv_Icon.png")
         
         # Create view with dropdown for detailed help
-        view = HelpView()
+        view = HelpView(interaction_user=interaction.user)
         
-        await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+        message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+        view.message = message
 
     @app_commands.command(name="info", description="Show bot information and statistics")
     @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)
