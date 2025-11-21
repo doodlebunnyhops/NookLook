@@ -27,6 +27,7 @@ class NooklookRepository:
     async def init_database(self):
         """Initialize the database connection"""
         # Database should already exist from import_all_datasets.py
+        # TODO ...make this init schema and update db if not exists..
         pass
     
     async def search_fts(self, query: str, category_filter: str = None, limit: int = 50) -> List[Dict[str, Any]]:

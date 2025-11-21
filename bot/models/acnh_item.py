@@ -3,19 +3,19 @@ from typing import List, Optional, Dict, Any
 import discord
 
 # Import image fallback utilities
-try:
-    from ..utils.image_fallback import safe_set_image, safe_set_thumbnail
-except ImportError:
-    # Fallback if utils aren't available
-    async def safe_set_image(embed, url, content_type='general'):
-        if url:
-            embed.set_image(url=url)
-        return embed
+# try:
+#     from ..utils.image_fallback import safe_set_image, safe_set_thumbnail
+# except ImportError:
+#     # Fallback if utils aren't available
+#     async def safe_set_image(embed, url, content_type='general'):
+#         if url:
+#             embed.set_image(url=url)
+#         return embed
     
-    async def safe_set_thumbnail(embed, url, content_type='general'):
-        if url:
-            embed.set_thumbnail(url=url)
-        return embed
+#     async def safe_set_thumbnail(embed, url, content_type='general'):
+#         if url:
+#             embed.set_thumbnail(url=url)
+#         return embed
 
 @dataclass(slots=True)
 class ItemVariant:
@@ -219,11 +219,7 @@ class Item:
         selected_variant = variant or self.primary_variant
         
         # Build title
-        if is_variant_view and variant:
-            # Use emoji prefix for variant view
-            title = f"🏠 {self.name}"
-        else:
-            # Clean title for base item view
+        if self.name:
             title = self.name
         
         embed = discord.Embed(
@@ -234,12 +230,7 @@ class Item:
         # Add basic info
         info_lines = []
         
-        if is_variant_view and variant:
-            # Variant view format with emoji sections
-            info_lines.append("💰 Item Details")
-            info_lines.append(f"Category: {self.category}")
-        else:
-            # Base item view format - simple
+        if self.category:
             info_lines.append(f"Category: {self.category}")
         
         if self.sell_price:
@@ -256,7 +247,7 @@ class Item:
         if is_variant_view and variant:
             # Variant view format - cleaner with emoji sections
             variant_info = []
-            variant_info.append("🎨 Variant Details")
+            variant_info.append("Details")
             
             # Show variant name
             default_parts = []
@@ -298,7 +289,7 @@ class Item:
                     variant_info.append(f"Item Hex: {selected_variant.item_hex}")
                 
                 if variant_info:
-                    embed.add_field(name="Variant Details", value="\n".join(variant_info), inline=False)
+                    embed.add_field(name="Details", value="\n".join(variant_info), inline=False)
             
             # Add variant count if multiple (base view only)
             if self.has_variants:
@@ -328,11 +319,22 @@ class Item:
                     embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
         
         # Set image with fallback handling
-        image_url = selected_variant.image_url if selected_variant else self.display_image_url
+        thumbnail_image_url = selected_variant.image_url_alt if selected_variant else self.display_image_url
+        set_image_url = selected_variant.image_url if selected_variant else self.display_image_url
         # Note: This will be handled by the calling code since we can't use async here
-        if image_url:
-            embed.set_thumbnail(url=image_url)
-        
+        if thumbnail_image_url:
+            embed.set_thumbnail(url=thumbnail_image_url)
+        elif set_image_url:
+            embed.set_thumbnail(url=set_image_url)
+
+        #if embed.thumbnail.url != set_image_url:
+
+        # if not embed.thumbnail or embed.thumbnail.url != set_image_url:
+        #     embed.set_thumbnail(url=set_image_url)
+
+        # if set_image_url and set_image_url != thumbnail_image_url:
+        #     embed.set_image(url=set_image_url)
+
         return embed
     
     def to_embed(self) -> discord.Embed:
@@ -605,12 +607,17 @@ class Recipe:
             recipe_type = "DIY Recipe"
         
         embed = discord.Embed(
-            title=f"{emoji} {recipe_type}: {self.name}",
+            title=f"{self.name}",
             color=color
         )
+        embed.set_footer(text=f"{emoji} {recipe_type} • {self.category or 'Unknown Category'}")
         
         # Basic info
         info_lines = []
+
+        if recipe_type:
+            info_lines.append(f"**Type:** {recipe_type}")
+
         if self.category:
             info_lines.append(f"**Category:** {self.category}")
         
@@ -632,7 +639,7 @@ class Recipe:
                 ingredient_lines.append(f"• {quantity}x {ingredient_name}")
             
             embed.add_field(
-                name="📦 Ingredients", 
+                name="Ingredients", 
                 value="\n".join(ingredient_lines), 
                 inline=False
             )
@@ -931,12 +938,12 @@ class Artwork:
             )
         
         # Add description if available
-        if self.description:
-            embed.add_field(
-                name="Description",
-                value=self.description,
-                inline=False
-            )
+        # if self.description:
+        #     embed.add_field(
+        #         name="Description",
+        #         value=self.description,
+        #         inline=False
+        #     )
         
         # Add item hex if available (no TI codes as requested)
         if self.item_hex:
@@ -1037,12 +1044,12 @@ class Fossil:
         embed.description = "\n".join(info_lines)
         
         # Add description if available
-        if self.description:
-            embed.add_field(
-                name="Description",
-                value=self.description,
-                inline=False
-            )
+        # if self.description:
+        #     embed.add_field(
+        #         name="Description",
+        #         value=self.description,
+        #         inline=False
+        #     )
         
         # Add museum info if available
         museum_info = []

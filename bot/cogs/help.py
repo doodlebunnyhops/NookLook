@@ -155,15 +155,37 @@ class HelpView(discord.ui.View):
     """View containing the help dropdown"""
     
     def __init__(self):
-        super().__init__(timeout=300)
+        super().__init__(timeout=10)  # 2 minute timeout
         self.add_item(HelpDropdown())
+    
+    async def on_timeout(self):
+        """Disable interactive items when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
+                item.disabled = True
 
 class HelpDetailView(discord.ui.View):
     """View for detailed command help with navigation options"""
     
     def __init__(self):
-        super().__init__(timeout=300)
+        super().__init__(timeout=10)  # 2 minute timeout
         self.add_item(HelpDropdown())
+    
+    async def on_timeout(self):
+        """Disable interactive items when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
+                item.disabled = True
     
     @discord.ui.button(label="Back to Main Help", style=discord.ButtonStyle.secondary, row=1)
     async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):

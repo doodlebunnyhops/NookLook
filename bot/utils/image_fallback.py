@@ -295,33 +295,33 @@ def add_service_notice_to_embed(embed: discord.Embed, service_notice: Optional[s
             
     return embed
 
-async def safe_set_image(embed: discord.Embed, image_url: Optional[str], content_type: str = 'general') -> discord.Embed:
-    """Safely set an embed image with fallback handling"""
-    safe_url, notice = get_safe_image_url(image_url, bypass_cache=False)
+# async def safe_set_image(embed: discord.Embed, image_url: Optional[str], content_type: str = 'general') -> discord.Embed:
+#     """Safely set an embed image with fallback handling"""
+#     safe_url, notice = get_safe_image_url(image_url, bypass_cache=False)
     
-    if safe_url and is_valid_url(safe_url):
-        embed.set_image(url=safe_url)
-    elif safe_url:
-        logger.warning(f"Invalid URL format for image: {safe_url}")
+#     if safe_url and is_valid_url(safe_url):
+#         embed.set_image(url=safe_url)
+#     elif safe_url:
+#         logger.warning(f"Invalid URL format for image: {safe_url}")
         
-    if notice:
-        embed = add_service_notice_to_embed(embed, notice)
+#     if notice:
+#         embed = add_service_notice_to_embed(embed, notice)
         
-    return embed
+#     return embed
 
-async def safe_set_thumbnail(embed: discord.Embed, image_url: Optional[str], content_type: str = 'general') -> discord.Embed:
-    """Safely set an embed thumbnail with fallback handling"""
-    safe_url, notice = get_safe_image_url(image_url, bypass_cache=False)
+# async def safe_set_thumbnail(embed: discord.Embed, image_url: Optional[str], content_type: str = 'general') -> discord.Embed:
+#     """Safely set an embed thumbnail with fallback handling"""
+#     safe_url, notice = get_safe_image_url(image_url, bypass_cache=False)
     
-    if safe_url and is_valid_url(safe_url):
-        embed.set_thumbnail(url=safe_url)
-    elif safe_url:
-        logger.warning(f"Invalid URL format for thumbnail: {safe_url}")
+#     if safe_url and is_valid_url(safe_url):
+#         embed.set_thumbnail(url=safe_url)
+#     elif safe_url:
+#         logger.warning(f"Invalid URL format for thumbnail: {safe_url}")
         
-    if notice:
-        embed = add_service_notice_to_embed(embed, notice)
+#     if notice:
+#         embed = add_service_notice_to_embed(embed, notice)
         
-    return embed
+#     return embed
 
 def get_service_status_summary() -> Dict[str, dict]:
     """Get current status of all monitored services"""

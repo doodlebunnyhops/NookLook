@@ -4,7 +4,7 @@ PRAGMA foreign_keys = ON;
 -- ITEMS: base objects (furniture, clothing, tools, misc...)
 -- =========================================================
 
-CREATE TABLE items (
+CREATE TABLE IF NOT EXISTS items (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,              -- In-game name
     category            TEXT NOT NULL,              -- 'misc', 'tools', 'tops', 'bottoms', 'dress-up', etc.
@@ -37,17 +37,16 @@ CREATE TABLE items (
     extra_json          TEXT
 );
 
-CREATE INDEX idx_items_name ON items(name);
-CREATE INDEX idx_items_category ON items(category);
-CREATE INDEX idx_items_internal_group ON items(internal_group_id);
-CREATE INDEX idx_items_source_unique_id ON items(source_unique_id);
-
+CREATE INDEX IF NOT EXISTS idx_items_name ON items(name);
+CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
+CREATE INDEX IF NOT EXISTS idx_items_internal_group ON items(internal_group_id);
+CREATE INDEX IF NOT EXISTS idx_items_source_unique_id ON items(source_unique_id);
 
 -- =========================================================
 -- ITEM_VARIANTS: per-color/pattern variants and TI info
 -- =========================================================
 
-CREATE TABLE item_variants (
+CREATE TABLE IF NOT EXISTS item_variants (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id                 INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
 
@@ -97,17 +96,16 @@ CREATE TABLE item_variants (
     image_url_alt           TEXT                         -- Alternate image URL if item has multiple images
 );
 
-CREATE INDEX idx_item_variants_item ON item_variants(item_id);
-CREATE INDEX idx_item_variants_internal_id ON item_variants(internal_id);
-CREATE INDEX idx_item_variants_variant_raw ON item_variants(variant_id_raw);
-CREATE INDEX idx_item_variants_source_unique_id ON item_variants(source_unique_id);
-
+CREATE INDEX IF NOT EXISTS idx_item_variants_item ON item_variants(item_id);
+CREATE INDEX IF NOT EXISTS idx_item_variants_internal_id ON item_variants(internal_id);
+CREATE INDEX IF NOT EXISTS idx_item_variants_variant_raw ON item_variants(variant_id_raw);
+CREATE INDEX IF NOT EXISTS idx_item_variants_source_unique_id ON item_variants(source_unique_id);
 
 -- =========================================================
 -- RECIPES: DIY / cooking recipes
 -- =========================================================
 
-CREATE TABLE recipes (
+CREATE TABLE IF NOT EXISTS recipes (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
     
@@ -139,13 +137,13 @@ CREATE TABLE recipes (
     FOREIGN KEY (product_item_id) REFERENCES items(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_recipes_name ON recipes(name);
-CREATE INDEX idx_recipes_category ON recipes(category);
-CREATE INDEX idx_recipes_source_unique_id ON recipes(source_unique_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_name ON recipes(name);
+CREATE INDEX IF NOT EXISTS idx_recipes_category ON recipes(category);
+CREATE INDEX IF NOT EXISTS idx_recipes_source_unique_id ON recipes(source_unique_id);
 
 
 -- Ingredients for recipes
-CREATE TABLE recipe_ingredients (
+CREATE TABLE IF NOT EXISTS recipe_ingredients (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     recipe_id           INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
     item_id             INTEGER,          -- FK to items.id if you can map the ingredient to an item
@@ -154,17 +152,15 @@ CREATE TABLE recipe_ingredients (
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_recipe_ingredients_recipe ON recipe_ingredients(recipe_id);
-CREATE INDEX idx_recipe_ingredients_item ON recipe_ingredients(item_id);
+CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_recipe ON recipe_ingredients(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_item ON recipe_ingredients(item_id);
 
 
 -- =========================================================
 -- CRITTERS: insects, fish, sea creatures (museum wing: bugs/fish/sea)
 -- =========================================================
 
-DROP TABLE IF EXISTS critters;
-
-CREATE TABLE critters (
+CREATE TABLE IF NOT EXISTS critters (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
     kind                    TEXT NOT NULL,
@@ -233,19 +229,16 @@ CREATE TABLE critters (
     extra_json              TEXT
 );
 
-CREATE INDEX idx_critters_name ON critters(name);
-CREATE INDEX idx_critters_kind ON critters(kind);
-CREATE INDEX idx_critters_internal_id ON critters(internal_id);
-CREATE INDEX idx_critters_source_unique_id ON critters(source_unique_id);
-
+CREATE INDEX IF NOT EXISTS idx_critters_name ON critters(name);
+CREATE INDEX IF NOT EXISTS idx_critters_kind ON critters(kind);
+CREATE INDEX IF NOT EXISTS idx_critters_internal_id ON critters(internal_id);
+CREATE INDEX IF NOT EXISTS idx_critters_source_unique_id ON critters(source_unique_id);
 
 -- =========================================================
 -- FOSSILS (museum wing: fossils)
 -- =========================================================
 
-DROP TABLE IF EXISTS fossils;
-
-CREATE TABLE fossils (
+CREATE TABLE IF NOT EXISTS fossils (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
     
@@ -280,18 +273,16 @@ CREATE TABLE fossils (
     extra_json              TEXT
 );
 
-CREATE INDEX idx_fossils_name ON fossils(name);
-CREATE INDEX idx_fossils_internal_id ON fossils(internal_id);
-CREATE INDEX idx_fossils_source_unique_id ON fossils(source_unique_id);
+CREATE INDEX IF NOT EXISTS idx_fossils_name ON fossils(name);
+CREATE INDEX IF NOT EXISTS idx_fossils_internal_id ON fossils(internal_id);
+CREATE INDEX IF NOT EXISTS idx_fossils_source_unique_id ON fossils(source_unique_id);
 
 
 -- =========================================================
 -- ARTWORK (museum wing: art)
 -- =========================================================
 
-DROP TABLE IF EXISTS artwork;
-
-CREATE TABLE artwork (
+CREATE TABLE IF NOT EXISTS artwork (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     name                    TEXT NOT NULL,
     
@@ -338,18 +329,16 @@ CREATE TABLE artwork (
     extra_json              TEXT
 );
 
-CREATE INDEX idx_artwork_name ON artwork(name);
-CREATE INDEX idx_artwork_internal_id ON artwork(internal_id);
-CREATE INDEX idx_artwork_source_unique_id ON artwork(source_unique_id);
+CREATE INDEX IF NOT EXISTS idx_artwork_name ON artwork(name);
+CREATE INDEX IF NOT EXISTS idx_artwork_internal_id ON artwork(internal_id);
+CREATE INDEX IF NOT EXISTS idx_artwork_source_unique_id ON artwork(source_unique_id);
 
 
 -- =========================================================
 -- MUSEUM_INDEX: unified view of "things you can donate"
 -- =========================================================
 
-DROP TABLE IF EXISTS museum_index;
-
-CREATE TABLE museum_index (
+CREATE TABLE IF NOT EXISTS museum_index (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     name            TEXT NOT NULL,
     wing            TEXT NOT NULL,
@@ -357,15 +346,15 @@ CREATE TABLE museum_index (
     ref_id          INTEGER NOT NULL
 );
 
-CREATE INDEX idx_museum_index_name ON museum_index(name);
-CREATE INDEX idx_museum_index_wing ON museum_index(wing);
+CREATE INDEX IF NOT EXISTS idx_museum_index_name ON museum_index(name);
+CREATE INDEX IF NOT EXISTS idx_museum_index_wing ON museum_index(wing);
 
 
 -- =========================================================
 -- VILLAGERS
 -- =========================================================
 
-CREATE TABLE villagers (
+CREATE TABLE IF NOT EXISTS villagers (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL,
     species             TEXT,
@@ -404,17 +393,39 @@ CREATE TABLE villagers (
     nookipedia_url      TEXT             -- URL to Nookipedia page for this villager
 );
 
-CREATE INDEX idx_villagers_name ON villagers(name);
-CREATE INDEX idx_villagers_species ON villagers(species);
-CREATE INDEX idx_villagers_personality ON villagers(personality);
-CREATE INDEX idx_villagers_source_unique_id ON villagers(source_unique_id);
+CREATE INDEX IF NOT EXISTS idx_villagers_name ON villagers(name);
+CREATE INDEX IF NOT EXISTS idx_villagers_species ON villagers(species);
+CREATE INDEX IF NOT EXISTS idx_villagers_personality ON villagers(personality);
+CREATE INDEX IF NOT EXISTS idx_villagers_source_unique_id ON villagers(source_unique_id);
+
+-- =========================================================
+-- GUILD_SETTINGS: per-guild configuration settings
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS guild_settings (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id            TEXT NOT NULL UNIQUE,       -- Discord guild/server ID
+    ephemeral_responses BOOLEAN NOT NULL DEFAULT FALSE, -- Whether bot responses are ephemeral by default
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_guild_settings_guild_id ON guild_settings(guild_id);
+
+-- Trigger to update the updated_at timestamp when guild settings are modified
+CREATE TRIGGER IF NOT EXISTS update_guild_settings_timestamp 
+    AFTER UPDATE ON guild_settings
+    FOR EACH ROW
+BEGIN
+    UPDATE guild_settings SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;
 
 
 -- =========================================================
 -- SEARCH INDEX (FTS5): unified name search
 -- =========================================================
 
-CREATE VIRTUAL TABLE search_index USING fts5(
+CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
     name,               -- Display name as shown in-game
     category,           -- 'item', 'recipe', 'villager', 'critter', etc.
     subcategory,        -- More specific type within category

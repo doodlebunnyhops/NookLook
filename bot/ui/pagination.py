@@ -13,7 +13,7 @@ class PaginationView(discord.ui.View):
     
     def __init__(self, bot: commands.Bot, interaction_user: discord.Member, 
                  data: Dict[str, Any], format_func: Callable):
-        super().__init__(timeout=300)  # 5 minute timeout
+        super().__init__(timeout=10)  # 2 minute timeout
         self.bot = bot
         self.interaction_user = interaction_user
         self.data = data
@@ -141,7 +141,7 @@ class ItemsPaginationView(PaginationView):
                 inline=False
             )
         else:
-            embed.add_field(name="📦 Items", value="No items found.", inline=False)
+            embed.add_field(name="Items", value="No items found.", inline=False)
         
         return embed
     
@@ -245,16 +245,20 @@ class VariantSelectView(discord.ui.View):
     """View for selecting variants of an item"""
     
     def __init__(self, item: Item, interaction_user: discord.Member):
-        super().__init__(timeout=300)
+        super().__init__(timeout=10)  # 2 minute timeout
         self.item = item
         self.interaction_user = interaction_user
         self.selected_variant = item.variants[0] if item.variants else None
         self.initial_variant = self.selected_variant  # Track the initial/default variant
         self.user_selected_different_variant = False  # Track if user selected a DIFFERENT variant
+        self.message = None  # Will be set after the message is sent
         
         # Add variant selector if item has multiple variants
         if len(item.variants) > 1:
             self.add_variant_selector()
+        
+        # Add refresh images button
+        self.add_item(RefreshImagesButton())
     
     def add_variant_selector(self):
         """Add dropdown for variant selection - handles up to 25 variants per dropdown"""
@@ -363,13 +367,9 @@ class VariantSelectView(discord.ui.View):
         
         # Only show variant view if user selected a DIFFERENT variant than the initial one
         is_variant_view = self.user_selected_different_variant
-        return self.item.to_discord_embed(variant, is_variant_view=is_variant_view)
+        embed = self.item.to_discord_embed(variant, is_variant_view=is_variant_view)
         
-        # Add image if available
-        if variant.image_url:
-            embed.set_image(url=variant.image_url)
-        elif self.item.image_url:
-            embed.set_image(url=self.item.image_url)
+
         
         # Add footer with variant count in ACNH style
         if len(self.item.variants) > 1:
@@ -380,10 +380,35 @@ class VariantSelectView(discord.ui.View):
         return embed
     
     async def on_timeout(self):
-        """Disable all items when view times out"""
+        """Disable interactive items when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons
         for item in self.children:
-            if isinstance(item, (discord.ui.Button, discord.ui.Select)):
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
                 item.disabled = True
+        
+        # Update the message with current state preserved and timeout message
+        if self.message:
+            try:
+                # Create embed with current selected variant preserved
+                embed = self.create_embed()
+                
+                # Add timeout message to footer
+                if embed.footer and embed.footer.text:
+                    embed.set_footer(text=f"{embed.footer.text} | 💤 Use the command again to interact with buttons")
+                else:
+                    embed.set_footer(text="💤 Buttons have expired - use the command again to interact")
+                
+                # Edit the message with current variant state and disabled view
+                await self.message.edit(embed=embed, view=self)
+            except Exception as e:
+                # Log the error but don't crash
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to update variant message on timeout: {e}")
 
 class VariantSelect(discord.ui.Select):
     """Dropdown for selecting item variants"""
@@ -512,11 +537,12 @@ class SearchResultsView(discord.ui.View):
     """View for displaying search results across multiple content types"""
     
     def __init__(self, results: List[Any], query: str, interaction_user: discord.Member):
-        super().__init__(timeout=300)
+        super().__init__(timeout=10)  # 2 minute timeout
         self.results = results
         self.query = query
         self.interaction_user = interaction_user
         self.current_index = 0
+        self.message = None  # Will be set after the message is sent
         
         # Add navigation buttons if there are multiple results
         if len(results) > 1:
@@ -613,22 +639,48 @@ class SearchResultsView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
     
     async def on_timeout(self):
-        """Disable all buttons when view times out"""
+        """Disable interactive buttons when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons
         for item in self.children:
-            if isinstance(item, (discord.ui.Button, discord.ui.Select)):
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
                 item.disabled = True
+        
+        # Try to update the message to show disabled buttons
+        if self.message:
+            try:
+                # Generate the embed for the current search result (maintain user's current position)
+                embed = self.create_embed()
+                
+                # Update footer to show timeout with user-friendly message
+                if embed.footer and embed.footer.text:
+                    embed.set_footer(text=f"{embed.footer.text} | 💤 Use the command again to interact with buttons")
+                else:
+                    embed.set_footer(text="💤 Buttons have expired - use the command again to interact")
+                
+                # Edit the message with disabled view, keeping the current result
+                await self.message.edit(embed=embed, view=self)
+            except Exception as e:
+                # Log the error but don't crash
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to update search results message on timeout: {e}")
 
 
 class PaginatedResultView(discord.ui.View):
     """View for displaying paginated list of results (like search results)"""
     
     def __init__(self, results: List[Any], embed_title: str = "Results", per_page: int = 10):
-        super().__init__(timeout=300)
+        super().__init__(timeout=10)  # 2 minute timeout
         self.results = results
         self.embed_title = embed_title
         self.per_page = per_page
         self.current_page = 0
         self.total_pages = max(1, (len(results) + per_page - 1) // per_page)
+        self.message = None  # Will be set after the message is sent
         
         self._update_buttons()
     
@@ -727,7 +779,104 @@ class PaginatedResultView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
     
     async def on_timeout(self):
-        """Disable all buttons when view times out"""
+        """Disable interactive buttons when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons
         for item in self.children:
-            if isinstance(item, (discord.ui.Button, discord.ui.Select)):
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
                 item.disabled = True
+        
+        # Try to update the message to show disabled buttons
+        if self.message:
+            try:
+                # Get the current embed and add timeout footer
+                embed = self.create_page_embed()
+                # Update footer with user-friendly message
+                if embed.footer and embed.footer.text:
+                    embed.set_footer(text=f"{embed.footer.text} | 💤 Use the command again to interact with buttons")
+                else:
+                    embed.set_footer(text="💤 Buttons have expired - use the command again to interact")
+                
+                # Edit the message with disabled view
+                await self.message.edit(embed=embed, view=self)
+            except Exception as e:
+                # Log the error but don't crash
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to update paginated results message on timeout: {e}")
+
+class RefreshImagesButton(discord.ui.Button):
+    """Button to refresh images in case Discord CDN fails to load them"""
+    
+    def __init__(self):
+        super().__init__(
+            label="🔄 Refresh Images",
+            style=discord.ButtonStyle.secondary,
+            custom_id="refresh_images"
+        )
+        self.last_refresh_time = 0  # Track last refresh to prevent spam
+    
+    async def callback(self, interaction: discord.Interaction):
+        """Refresh the current view by regenerating the embed to force Discord to re-fetch images"""
+        try:
+            # Check cooldown (3 seconds minimum between refreshes)
+            import time
+            current_time = time.time()
+            if current_time - self.last_refresh_time < 10:
+                remaining = int(10 - (current_time - self.last_refresh_time))
+                await interaction.response.send_message(f"Please wait {remaining} more second(s) before refreshing again.", ephemeral=True)
+                return
+            
+            # Update last refresh time
+            self.last_refresh_time = current_time
+            
+            # Get the current view - this should work for all our view types
+            view = self.view
+            
+            # Check if this view has a create_embed method (VariantSelectView, SearchResultsView, etc.)
+            if hasattr(view, 'create_embed'):
+                embed = view.create_embed()
+            else:
+                # For other views, just refresh the current embed
+                embed = interaction.message.embeds[0] if interaction.message.embeds else None
+                if not embed:
+                    await interaction.response.send_message("❌ No embed to refresh", ephemeral=True)
+                    return
+            
+            # Add a subtle indicator that images were refreshed
+            if embed.footer and embed.footer.text:
+                # Temporarily add refresh indicator, but don't permanently modify footer
+                footer_text = embed.footer.text
+                if "🔄 Images refreshed" not in footer_text:
+                    embed.set_footer(text=f"{footer_text} | 🔄 Images refreshed")
+            else:
+                embed.set_footer(text="🔄 Images refreshed")
+            
+            # Edit the message with the refreshed embed to force Discord to re-fetch images
+            await interaction.response.edit_message(embed=embed, view=view)
+            
+            # After a short delay, restore the original footer text
+            import asyncio
+            await asyncio.sleep(2)  # Wait 2 seconds
+            
+            # Restore original footer if the view still has create_embed
+            if hasattr(view, 'create_embed'):
+                original_embed = view.create_embed()
+                try:
+                    # Only update if the message still exists and the view is still active
+                    if view.message:
+                        await view.message.edit(embed=original_embed, view=view)
+                except:
+                    pass  # Ignore errors if message was deleted or interaction expired
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error refreshing images: {e}")
+            try:
+                await interaction.response.send_message("❌ Failed to refresh images", ephemeral=True)
+            except:
+                pass  # Ignore if we can't send the error message
