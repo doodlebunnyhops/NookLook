@@ -17,10 +17,6 @@ class ACNHBot(commands.Bot):
         intents.message_content = False
         intents.presences = False
         intents.members = False
-        if os.getenv("TOP_GG_TOKEN"):
-            # Initialize Top.gg client for bot listing and stats
-            #auto posting every 1.3 hours
-            self.topgg_client = topgg.DBLClient(bot=self, token=os.getenv("TOP_GG_TOKEN"),autopost=True, post_shard_count=False,autopost_interval=4680)
         
         super().__init__(
             command_prefix='!',
@@ -31,6 +27,9 @@ class ACNHBot(commands.Bot):
         self.logger = logging.getLogger("bot")
         self.acnh_service = NooklookService()
         self._shutdown_gracefully = False
+        
+        # Top.gg client (initialized in setup_hook)
+        self.topgg_client = None
         
         # Data update tracking  
         self.dataset_importer = None
@@ -43,6 +42,12 @@ class ACNHBot(commands.Bot):
         """Called when the bot is starting up"""
         self.logger.info("Starting bot setup hook...")
         try:
+            # Initialize Top.gg client for bot listing and stats
+            if os.getenv("TOP_GG_TOKEN"):
+                # Auto posting every 1.3 hours
+                self.topgg_client = topgg.DBLClient(bot=self, token=os.getenv("TOP_GG_TOKEN"),autopost=True, post_shard_count=False,autopost_interval=4680)
+                self.logger.info("Top.gg client initialized with autopost enabled")
+            
             # Initialize the database
             await self.acnh_service.init_database()
             self.logger.info("ACNH database initialized successfully")
