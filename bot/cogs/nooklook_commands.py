@@ -356,7 +356,6 @@ async def recipe_name_autocomplete(interaction: discord.Interaction, current: st
             if cached_result:
                 logger.debug(f"Recipe autocomplete: returning {len(cached_result)} cached random results")
                 return cached_result
-            logger.info("Recipe autocomplete: generating fresh random suggestions (1min cache)")
             suggestions = await service.get_random_recipe_suggestions(25)
         else:
             logger.debug(f"Recipe autocomplete: searching database for '{current}'")
@@ -406,7 +405,6 @@ async def artwork_name_autocomplete(interaction: discord.Interaction, current: s
             if cached_result:
                 logger.debug(f"Artwork autocomplete: returning {len(cached_result)} cached random results")
                 return cached_result
-            logger.info("Artwork autocomplete: generating fresh random suggestions (1min cache)")
             suggestions = await service.get_random_artwork_suggestions(25)
         else:
             logger.debug(f"Artwork autocomplete: searching database for '{current}'")
@@ -457,7 +455,6 @@ async def critter_name_autocomplete(interaction: discord.Interaction, current: s
             if cached_result:
                 logger.debug(f"Critter autocomplete: returning {len(cached_result)} cached random results")
                 return cached_result
-            logger.info("Critter autocomplete: generating fresh random suggestions (1min cache)")
             suggestions = await service.get_random_critter_suggestions(25)
         else:
             logger.debug(f"Critter autocomplete: searching database for '{current}'")
@@ -688,7 +685,7 @@ class ACNHCommands(commands.Cog):
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         category_str = f" in {category}" if category else ""
-        logger.info(f"🔍 /search command used by {interaction.user.display_name} ({user_id}) in {guild_name or 'Unknown Guild'} - query: '{query}'{category_str}")
+        logger.info(f"search command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tquery: '{query}'{category_str}")
         
         try:
             # Map Discord choice values to database category values
@@ -774,7 +771,7 @@ class ACNHCommands(commands.Cog):
                     embed.title = f"🔍 {embed.title}"
                     embed.set_footer(text=f"Search result for '{query}'")
                     category_info = f" in {category}" if category else ""
-                    logger.info(f"✅ /search command completed for user {user_id} - found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
+                    logger.info(f"Search found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
                     
                     # Add Nookipedia button if available
                     nookipedia_url = getattr(result, 'nookipedia_url', None)
@@ -786,7 +783,7 @@ class ACNHCommands(commands.Cog):
                 view = SearchResultsView(results, query, interaction.user)
                 embed = view.create_embed()
                 category_info = f" in {category}" if category else ""
-                logger.info(f"✅ /search command completed for user {user_id} - found {len(results)} results for '{query}'{category_info}")
+                logger.info(f"Search found {len(results)} results for '{query}'{category_info}")
                 
                 # Send the message and store it in the view for timeout handling
                 message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
@@ -843,7 +840,7 @@ class ACNHCommands(commands.Cog):
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"🔍 /lookup command used by {interaction.user.display_name} ({user_id}) in {guild_name or 'Unknown Guild'} - searching for: '{item}'")
+        logger.info(f"lookup command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{item}'")
         
         try:
             # Check if item is an ID (from autocomplete) or name (typed manually)
@@ -864,12 +861,14 @@ class ACNHCommands(commands.Cog):
                     description=f"No items found matching '{item}'",
                     color=0xe74c3c
                 )
+                logger.info(f"Lookup: no results found for '{item}'")
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
             # If exactly one result, show detailed view with variant selector
             if len(results) == 1:
                 result = results[0]
+                logger.info(f"Lookup: found 1 result for '{result.name if hasattr(result, 'name') else item}'")
                 if hasattr(result, 'variants') and result.variants:
                     # Multiple variants - show selector
                     embed = result.to_discord_embed()
@@ -932,7 +931,7 @@ class ACNHCommands(commands.Cog):
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"👥 /villager command used by {interaction.user.display_name} ({user_id}) in {guild_name or 'Unknown Guild'} - searching for: '{name}'")
+        logger.info(f"villager command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
             # Convert name to villager ID if it's numeric (from autocomplete)
@@ -990,7 +989,7 @@ class ACNHCommands(commands.Cog):
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"🍳 /recipe command used by {interaction.user.display_name} ({user_id}) in {guild_name or 'Unknown Guild'} - searching for: '{name}'")
+        logger.info(f"recipe command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
             # Convert name to recipe ID if it's numeric (from autocomplete)
@@ -1033,7 +1032,7 @@ class ACNHCommands(commands.Cog):
             nookipedia_url = getattr(recipe, 'nookipedia_url', None)
             view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="recipe")
             
-            logger.info(f"✅ /recipe command completed successfully for user {user_id} - found: {recipe.name} ({recipe_type})")
+            logger.info(f"recipe command completed successfully for user {user_id} - found: {recipe.name} ({recipe_type})")
             message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             if view:
                 view.message = message
@@ -1124,7 +1123,7 @@ class ACNHCommands(commands.Cog):
         await interaction.response.defer(ephemeral=ephemeral)
         
         try:
-            logger.info(f"🔍 /fossil command called by user {user_id} with query: '{name}'")
+            logger.info(f"fossil command used by:\n\t{interaction.user.display_name} ({user_id})\n\tsearching for: '{name}'")
             
             # Convert name to fossil ID if it's numeric (from autocomplete)
             if name.isdigit():
@@ -1168,7 +1167,7 @@ class ACNHCommands(commands.Cog):
             nookipedia_url = getattr(fossil, 'nookipedia_url', None)
             view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="fossil")
             
-            logger.info(f"✅ /fossil command completed successfully for user {user_id} - found: {fossil.name}")
+            logger.info(f"found fossil: {fossil.name}")
             message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             if view:
                 view.message = message
@@ -1193,7 +1192,7 @@ class ACNHCommands(commands.Cog):
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"🔍 /critter command used by {interaction.user.display_name} ({user_id}) in {guild_name or 'Unknown Guild'} - searching for: '{name}'")
+        logger.info(f"critter command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
             # Convert name to critter ID if it's numeric (from autocomplete)
@@ -1246,7 +1245,7 @@ class ACNHCommands(commands.Cog):
             nookipedia_url = getattr(critter, 'nookipedia_url', None)
             view = get_combined_view(availability_view, nookipedia_url)
             
-            logger.info(f"✅ /critter command completed successfully for user {user_id} - found: {critter.name}")
+            logger.info(f"found critter: {critter.name}")
             
             # Send the message and store it in the view for timeout handling
             message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
@@ -2242,7 +2241,6 @@ class CritterAvailabilityView(discord.ui.View):
             return
             
         # Stop the current view's timeout since we're replacing it
-        logger.info(f"Stopping CritterAvailabilityView: id={id(self)}, show_availability={self.show_availability}")
         self.stop()
         
         # Create new view with availability controls

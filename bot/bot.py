@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from .settings import DISCORD_API_SECRET, GUILDS_ID
 from .services.acnh_service import NooklookService
 from db_tools.import_all_datasets import ACNHDatasetImporter
+import topgg
 
 class ACNHBot(commands.Bot):
     def __init__(self):
@@ -16,6 +17,10 @@ class ACNHBot(commands.Bot):
         intents.message_content = False
         intents.presences = False
         intents.members = False
+        if os.getenv("TOP_GG_TOKEN"):
+            # Initialize Top.gg client for bot listing and stats
+            #auto posting every 1.3 hours
+            self.topgg_client = topgg.DBLClient(bot=self, token=os.getenv("TOP_GG_TOKEN"),autopost=True, post_shard_count=False,autopost_interval=4680)
         
         super().__init__(
             command_prefix='!',
@@ -101,15 +106,6 @@ class ACNHBot(commands.Bot):
         
         # Sync commands now that we know our guild status
         try:
-            # if len(self.guilds) == 0:
-            #     self.logger.warning("Bot is not in any guilds! Invite the bot to a server to use commands.")
-            #     self.logger.info("Create an invite link at: https://discord.com/developers/applications/")
-            # else:
-            #     # We're in at least one guild, sync commands to all guilds
-            #     # Sync globally to ensure commands appear in all current and future guilds
-            #     await self.tree.sync()
-            #     self.logger.info(f"Synced commands globally to all {len(self.guilds)} guilds")
-                
             # Start periodic data update checks
             if self.dataset_importer:
                 self.periodic_data_check.start()
@@ -192,8 +188,9 @@ class ACNHBot(commands.Bot):
                     
                     # Create default settings (this will use default False for public responses)
                     settings = await self.server_repo.get_guild_settings(guild.id)
-                    onboarded_count += 1
-                    
+                    if settings:
+                        onboarded_count += 1
+
                     self.logger.info(f"Created guild settings for existing guild {guild.name} with public responses (default)")
                 else:
                     self.logger.debug(f"Guild {guild.name} already has settings in database")
@@ -275,6 +272,7 @@ class ACNHBot(commands.Bot):
         await self.wait_until_ready()
         self.logger.info("Bot ready, periodic data checks will begin")
     
+
     # @tasks.loop(minutes=15)
     # async def cdn_monitoring_task(self):
     #     """Monitor CDN service health every 15 minutes"""
