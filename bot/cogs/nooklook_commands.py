@@ -953,6 +953,7 @@ class ACNHCommands(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
+            logger.info(f"found villager: {villager.name} ({villager.species})")
             
             # Create the main villager embed with extra details button
             embed = villager.to_discord_embed()
@@ -1032,7 +1033,7 @@ class ACNHCommands(commands.Cog):
             nookipedia_url = getattr(recipe, 'nookipedia_url', None)
             view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="recipe")
             
-            logger.info(f"recipe command completed successfully for user {user_id} - found: {recipe.name} ({recipe_type})")
+            logger.info(f"found recipe: {recipe.name} ({recipe_type})")
             message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             if view:
                 view.message = message
@@ -1054,6 +1055,7 @@ class ACNHCommands(commands.Cog):
         """Look up artwork details"""
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        logger.info(f"artwork command used by:\n\t{interaction.user.display_name} ({interaction.user.id})\n\tsearching for: '{name}'")
         
         try:
             # Convert name to artwork ID if it's numeric (from autocomplete)
@@ -1083,6 +1085,7 @@ class ACNHCommands(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
+            logger.info(f"found artwork: {artwork.name}")
             
             # Create the artwork embed
             embed = artwork.to_discord_embed()
