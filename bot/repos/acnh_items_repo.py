@@ -2,7 +2,10 @@ import pathlib
 import sqlite3
 from typing import Optional, Dict, Any, List, Tuple
 from .database import Database
-from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork
+from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
+
+# Clothing categories where each variant is a separate item row
+CLOTHING_CATEGORIES = {'accessories', 'bags', 'bottoms', 'dress-up', 'headwear', 'shoes', 'socks', 'tops', 'umbrellas'}
 
 class NooklookRepository:
     """Repository for nooklook database operations"""
@@ -27,6 +30,7 @@ class NooklookRepository:
     async def init_database(self):
         """Initialize the database connection"""
         # Database should already exist from import_all_datasets.py
+        # TODO ...make this init schema and update db if not exists..
         pass
     
     async def search_fts(self, query: str, category_filter: str = None, limit: int = 50) -> List[Dict[str, Any]]:
@@ -162,7 +166,17 @@ class NooklookRepository:
         item = Item.from_dict(item_data)
         
         if load_variants:
-            item.variants = await self.get_item_variants(item_id)
+            # Check if this is a clothing category
+            if item.category in CLOTHING_CATEGORIES:
+                # For clothing, get all items with the same name and merge their variants
+                clothing_items = await self.get_clothing_variants_by_name(item.name, item.category)
+                # Merge all variants from all clothing items
+                item.variants = []
+                for clothing_item in clothing_items:
+                    item.variants.extend(clothing_item.variants)
+            else:
+                # For non-clothing items, load normal variants from item_variants table
+                item.variants = await self.get_item_variants(item_id)
         
         return item
     
@@ -211,6 +225,35 @@ class NooklookRepository:
         results = await self.db.execute_query(query, (item_id,))
         
         return [ItemVariant.from_dict(row) for row in results]
+    
+    async def get_clothing_variants_by_name(self, name: str, category: str) -> List[Item]:
+        """
+        Get all clothing items with the same name with their variants loaded from item_variants table.
+        Only works for clothing categories where each variant is a separate item row.
+        """
+        if category not in CLOTHING_CATEGORIES:
+            return []
+        
+        query = """
+            SELECT * FROM items 
+            WHERE name = ? AND category = ?
+            ORDER BY filename, id
+        """
+        results = await self.db.execute_query(query, (name, category))
+        
+        # Load each item with its variant from item_variants table
+        items = []
+        for row in results:
+            item = Item.from_dict(row)
+            # Each clothing item has exactly one variant in item_variants
+            item.variants = await self.get_item_variants(item.id)
+            items.append(item)
+        
+        return items
+    
+    async def is_clothing_category(self, category: str) -> bool:
+        """Check if a category is a clothing category"""
+        return category in CLOTHING_CATEGORIES
     
     async def browse_items(self, category: str = None, color: str = None, 
                           price_range: str = None, offset: int = 0, limit: int = 10) -> Tuple[List[Item], int]:
@@ -436,10 +479,11 @@ class NooklookRepository:
         
         return Villager.from_dict(result) if result else None
     
-    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Dict[str, Any]]:
-        """Get a fossil by ID (simplified for now)"""
+    async def get_fossil_by_id(self, fossil_id: int) -> Optional[Fossil]:
+        """Get a fossil by ID"""
         query = "SELECT * FROM fossils WHERE id = ?"
-        return await self.db.execute_query_one(query, (fossil_id,))
+        result = await self.db.execute_query_one(query, (fossil_id,))
+        return Fossil.from_dict(result) if result else None
     
     async def get_artwork_by_id(self, artwork_id: int) -> Optional[Artwork]:
         """Get artwork by ID"""
@@ -624,6 +668,54 @@ class NooklookRepository:
         
         return suggestions
     
+    async def get_fossil_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
+        """Get fossil name suggestions for autocomplete"""
+        # Use FTS5 search with fallback to LIKE search
+        try:
+            # First try FTS5 search on fossils
+            fts_query = """
+                SELECT f.name, f.id, rank
+                FROM search_index si
+                JOIN fossils f ON si.ref_table = 'fossils' AND si.ref_id = f.id
+                WHERE search_index MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """
+            results = await self.db.execute_query(fts_query, (search_term, limit))
+            
+            if results:
+                suggestions = []
+                for row in results:
+                    suggestions.append((row['name'], row['id']))
+                return suggestions
+            
+        except Exception:
+            pass  # Fall back to LIKE search
+        
+        # Fallback LIKE search for fossils
+        like_query = """
+            SELECT name, id FROM fossils 
+            WHERE name LIKE ? 
+            ORDER BY name 
+            LIMIT ?
+        """
+        results = await self.db.execute_query(like_query, (f"%{search_term}%", limit))
+        suggestions = []
+        for row in results:
+            suggestions.append((row['name'], row['id']))
+        return suggestions
+    
+    async def get_random_fossils(self, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random fossils for autocomplete when query is too short"""
+        query = "SELECT name, id FROM fossils ORDER BY RANDOM() LIMIT ?"
+        results = await self.db.execute_query(query, (limit,))
+        
+        suggestions = []
+        for row in results:
+            suggestions.append((row['name'], row['id']))
+        
+        return suggestions
+    
     async def get_database_stats(self) -> Dict[str, int]:
         """Get database statistics"""
         stats = {}
@@ -647,5 +739,13 @@ class NooklookRepository:
         # Count villagers
         result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM villagers")
         stats['villagers'] = result['count'] if result else 0
+        
+        # Count fossils
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM fossils")
+        stats['fossils'] = result['count'] if result else 0
+        
+        # Count artwork
+        result = await self.db.execute_query_one("SELECT COUNT(*) as count FROM artwork")
+        stats['artwork'] = result['count'] if result else 0
         
         return stats

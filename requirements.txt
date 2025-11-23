@@ -3,3 +3,4 @@ python-dotenv==1.0.1
 aiohttp>=3.8.0
 aiosqlite>=0.17.0
 requests>=2.25.0
+topggpy>=1.4.0

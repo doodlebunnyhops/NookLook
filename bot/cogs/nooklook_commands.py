@@ -15,11 +15,39 @@ from bot.ui.pagination import (
     SearchResultsView,
     PaginatedResultView
 )
+from bot.ui.nookipedia_view import get_nookipedia_view
+# from bot.utils.image_fallback import safe_set_image, safe_set_thumbnail
 import asyncio
 from functools import lru_cache
 import time
 
 logger = logging.getLogger(__name__)
+
+# async def safe_embed_images(embed: discord.Embed, content_type: str = 'general') -> discord.Embed:
+#     """Not actually for safe checking, but helps cdn load times to discord to prevent images not loading."""
+#     from bot.utils.image_fallback import is_valid_url
+    
+#     # Check if embed has an image and make it safe
+#     if embed.image and embed.image.url:
+#         original_url = embed.image.url
+#         if is_valid_url(original_url):
+#             embed = await safe_set_image(embed, original_url, content_type)
+#         else:
+#             # Remove invalid image URL to prevent Discord API error
+#             embed.set_image(url=discord.Embed.Empty)
+#             logger.warning(f"Removed invalid image URL from embed: {original_url}")
+    
+#     # Check if embed has a thumbnail and make it safe
+#     if embed.thumbnail and embed.thumbnail.url:
+#         original_url = embed.thumbnail.url
+#         if is_valid_url(original_url):
+#             embed = await safe_set_thumbnail(embed, original_url, content_type)
+#         else:
+#             # Remove invalid thumbnail URL to prevent Discord API error
+#             embed.set_thumbnail(url=discord.Embed.Empty)
+#             logger.warning(f"Removed invalid thumbnail URL from embed: {original_url}")
+        
+#     return embed
 
 class AutocompleteCache:
     """Efficient cache for autocomplete results with smart optimizations"""
@@ -218,6 +246,44 @@ class AutocompleteCache:
 # Global cache instance with 1-minute random TTL for freshness
 _autocomplete_cache = AutocompleteCache(max_size=1000, ttl=300, random_ttl=60)
 
+async def check_guild_ephemeral(interaction: discord.Interaction) -> bool:
+    """Check if the guild has ephemeral responses enabled
+    
+    Logic:
+    - DM (no guild): NOT ephemeral (False) - public responses in DMs
+    - Guild without bot installed: ephemeral (True) - private for safety
+    - Guild with bot installed: use settings
+    - Default/error: ephemeral (True) - safe fallback
+    """
+    # DM - always public responses
+    if interaction.guild is None:
+        return False  # NOT ephemeral - public responses in DMs
+    
+    try:
+        # Access the server repository from the bot instance
+        server_repo = getattr(interaction.client, 'server_repo', None)
+        if not server_repo:
+            # No server repo available - bot not properly installed
+            logger.debug("ServerRepository not available, defaulting to ephemeral responses")
+            return True  # Ephemeral for safety
+        
+        # Check if guild settings exist (don't create if they don't exist)
+        settings = await server_repo.get_guild_settings_if_exists(interaction.guild.id)
+        if settings is None:
+            # No settings exist - bot not properly installed in this guild
+            logger.debug(f"No guild settings found for guild {interaction.guild.id}, defaulting to ephemeral responses")
+            return True  # Ephemeral - bot not installed
+        
+        # Guild has bot installed - use the configured setting
+        ephemeral_setting = settings.get('ephemeral_responses', False)
+        logger.debug(f"Guild {interaction.guild.id} ephemeral setting: {ephemeral_setting}")
+        return ephemeral_setting
+        
+    except Exception as e:
+        logger.error(f"Error checking guild ephemeral setting for guild {interaction.guild.id}: {e}")
+        return True  # Default to ephemeral on error for safety
+    
+
 def is_dm(interaction: discord.Interaction) -> bool:
     """Check if interaction is in a DM or Group DM (both have guild=None)"""
     return interaction.guild is None
@@ -290,7 +356,6 @@ async def recipe_name_autocomplete(interaction: discord.Interaction, current: st
             if cached_result:
                 logger.debug(f"Recipe autocomplete: returning {len(cached_result)} cached random results")
                 return cached_result
-            logger.info("Recipe autocomplete: generating fresh random suggestions (1min cache)")
             suggestions = await service.get_random_recipe_suggestions(25)
         else:
             logger.debug(f"Recipe autocomplete: searching database for '{current}'")
@@ -340,7 +405,6 @@ async def artwork_name_autocomplete(interaction: discord.Interaction, current: s
             if cached_result:
                 logger.debug(f"Artwork autocomplete: returning {len(cached_result)} cached random results")
                 return cached_result
-            logger.info("Artwork autocomplete: generating fresh random suggestions (1min cache)")
             suggestions = await service.get_random_artwork_suggestions(25)
         else:
             logger.debug(f"Artwork autocomplete: searching database for '{current}'")
@@ -391,7 +455,6 @@ async def critter_name_autocomplete(interaction: discord.Interaction, current: s
             if cached_result:
                 logger.debug(f"Critter autocomplete: returning {len(cached_result)} cached random results")
                 return cached_result
-            logger.info("Critter autocomplete: generating fresh random suggestions (1min cache)")
             suggestions = await service.get_random_critter_suggestions(25)
         else:
             logger.debug(f"Critter autocomplete: searching database for '{current}'")
@@ -411,6 +474,156 @@ async def critter_name_autocomplete(interaction: discord.Interaction, current: s
     except Exception as e:
         logger.error(f"Error in critter autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
+
+async def fossil_name_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """Autocomplete for fossil names with caching"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Fossil autocomplete called by user {user_id} with query: '{current}'")
+    
+    try:
+        # Use cache with fossil-specific key
+        cache_key = f"fossil_autocomplete:{current.lower()}"
+        cached_results = _autocomplete_cache.get(cache_key)
+        
+        if cached_results is not None:
+            logger.debug(f"Fossil autocomplete cache hit for user {user_id}, query '{current}' - returning {len(cached_results)} results")
+            return cached_results[:25]  # Discord limit
+        
+        # Get service from bot
+        if not hasattr(interaction.client, 'nooklook_service'):
+            logger.warning("Nooklook service not available for fossil autocomplete")
+            return []
+        
+        service = interaction.client.nooklook_service
+        
+        # Search fossils specifically using category filter
+        results = await service.search_all(current, category_filter="fossil")
+        
+        # Create choices with fossil ID for exact lookup
+        choices = []
+        for fossil in results[:25]:  # Discord autocomplete limit
+            choice_name = fossil.name
+            if fossil.fossil_group and fossil.fossil_group != fossil.name:
+                choice_name += f" ({fossil.fossil_group})"
+            
+            # Truncate if too long for Discord
+            if len(choice_name) > 100:
+                choice_name = choice_name[:97] + "..."
+            
+            choices.append(app_commands.Choice(
+                name=choice_name,
+                value=str(fossil.id)
+            ))
+        
+        # Cache the results
+        _autocomplete_cache.set(cache_key, choices)
+        
+        logger.debug(f"Fossil autocomplete for user {user_id}, query '{current}' - found {len(choices)} results")
+        return choices
+        
+    except Exception as e:
+        logger.error(f"Error in fossil autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
+        return []
+
+class SimpleRefreshView(discord.ui.View):
+    """Simple view with just a refresh images button for static content"""
+    
+    def __init__(self, content_type: str = "content"):
+        super().__init__(timeout=15)
+        self.content_type = content_type
+        self.message = None
+        self.last_refresh_time = 0  # Track last refresh to prevent spam
+        
+    @discord.ui.button(label="🔄 Refresh Images", style=discord.ButtonStyle.secondary)
+    async def refresh_images(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Refresh images by re-editing the message"""
+        try:
+            # Check cooldown (3 seconds minimum between refreshes)
+            import time
+            current_time = time.time()
+            if current_time - self.last_refresh_time < 10:
+                remaining = int(10 - (current_time - self.last_refresh_time))
+                await interaction.response.send_message(f"Please wait {remaining} more second(s) before refreshing again.", ephemeral=True)
+                return
+            
+            # Update last refresh time
+            self.last_refresh_time = current_time
+            
+            # Get the current embed
+            if not interaction.message.embeds:
+                await interaction.response.send_message("❌ No content to refresh", ephemeral=True)
+                return
+                
+            embed = interaction.message.embeds[0]
+            
+            # Add refresh indicator temporarily
+            original_footer = embed.footer.text if embed.footer else ""
+            if "🔄 Images refreshed" not in original_footer:
+                new_footer = f"{original_footer} | 🔄 Images refreshed" if original_footer else "🔄 Images refreshed"
+                embed.set_footer(text=new_footer)
+            
+            # Edit the message to force Discord to re-fetch images
+            await interaction.response.edit_message(embed=embed, view=self)
+            
+            # After a delay, restore the original footer
+            import asyncio
+            await asyncio.sleep(2)
+            
+            try:
+                if original_footer:
+                    embed.set_footer(text=original_footer)
+                else:
+                    embed.set_footer(text=discord.Embed.Empty)
+                
+                if self.message:
+                    await self.message.edit(embed=embed, view=self)
+            except:
+                pass  # Ignore errors if message was deleted
+                
+        except Exception as e:
+            logger.error(f"Error refreshing {self.content_type} images: {e}")
+            try:
+                await interaction.response.send_message("❌ Failed to refresh images", ephemeral=True)
+            except:
+                pass
+    
+    async def on_timeout(self):
+        """Disable buttons when view times out"""
+        for item in self.children:
+            if isinstance(item, discord.ui.Button) and item.style != discord.ButtonStyle.link:
+                item.disabled = True
+        
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except:
+                pass
+
+def get_combined_view(existing_view: Optional[discord.ui.View], nookipedia_url: Optional[str], add_refresh: bool = False, content_type: str = "content") -> Optional[discord.ui.View]:
+    """Combine an existing view with Nookipedia button if URL is available"""
+    nookipedia_view = get_nookipedia_view(nookipedia_url)
+    
+    # If we need to add refresh but have no existing view, create a simple one
+    if add_refresh and not existing_view:
+        existing_view = SimpleRefreshView(content_type)
+    
+    if existing_view and nookipedia_view:
+        # Add Nookipedia button to existing view
+        for item in nookipedia_view.children:
+            existing_view.add_item(item)
+        return existing_view
+    elif nookipedia_view and not add_refresh:
+        # Only Nookipedia button and no refresh needed
+        return nookipedia_view
+    elif nookipedia_view and add_refresh:
+        # Create view with both nookipedia and refresh
+        refresh_view = SimpleRefreshView(content_type)
+        for item in nookipedia_view.children:
+            refresh_view.add_item(item)
+        return refresh_view
+    else:
+        # Return existing view or None
+        return existing_view
 
 class ACNHCommands(commands.Cog):
     """ACNH lookup commands using nooklook database"""
@@ -456,20 +669,23 @@ class ACNHCommands(commands.Cog):
     @app_commands.choices(category=[
         app_commands.Choice(name="Items", value="items"),
         app_commands.Choice(name="Critters", value="critters"),
+        app_commands.Choice(name="Fossils", value="fossils"),
         app_commands.Choice(name="Food Recipes", value="food_recipes"),
         app_commands.Choice(name="DIY Recipes", value="diy_recipes"),
+        app_commands.Choice(name="Ceiling Decor", value="ceiling-decor"),
+        app_commands.Choice(name="Wall Mounted", value="wall-mounted"),
         app_commands.Choice(name="Villagers", value="villagers")
     ])
     async def search(self, interaction: discord.Interaction, 
                     query: str, category: Optional[str] = None):
         """Search across all ACNH content using FTS5"""
-        ephemeral = interaction.guild is not None
+        ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         category_str = f" in {category}" if category else ""
-        logger.info(f"🔍 /search command used by {interaction.user.display_name} ({user_id}) in {guild_name} - query: '{query}'{category_str}")
+        logger.info(f"search command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tquery: '{query}'{category_str}")
         
         try:
             # Map Discord choice values to database category values
@@ -478,24 +694,35 @@ class ACNHCommands(commands.Cog):
                 "critters": "critter",     # Discord "critters" -> DB "critter"  
                 "food_recipes": "recipe",  # Discord "food_recipes" -> DB "recipe"
                 "diy_recipes": "recipe",   # Discord "diy_recipes" -> DB "recipe"
-                "villagers": "villager",    # Discord "villagers" -> DB "villager"
+                "villagers": "villager",   # Discord "villagers" -> DB "villager"
                 "artwork": "artwork",      # Discord "artwork" -> DB "artwork"
-                "fossils": "fossils"      # Discord "fossils" -> DB "fossil"
+                "fossils": "fossil",       # Discord "fossils" -> DB "fossil"
+                "ceiling-decor": "item",   # Discord "ceiling-decor" -> DB "item" (subcategory)
+                "wall-mounted": "item"     # Discord "wall-mounted" -> DB "item" (subcategory)
             }
             
             # Convert category to database format
             db_category = category_mapping.get(category) if category else None
             
-            # For recipe subcategories, we need special handling
+            # Handle subcategories for different content types
             recipe_subtype = None
+            item_subcategory = None
+            
+            # Recipe subcategories
             if category == "food_recipes":
                 recipe_subtype = "food"
             elif category == "diy_recipes":
                 recipe_subtype = "diy"
             
-            logger.debug(f"Search: executing search_all with query='{query}', category_filter='{db_category}', recipe_subtype='{recipe_subtype}' (Discord: '{category}')")
+            # Item subcategories
+            elif category == "ceiling-decor":
+                item_subcategory = "ceiling-decor"
+            elif category == "wall-mounted":
+                item_subcategory = "wall-mounted"
             
-            results = await self.service.search_all(query, category_filter=db_category, recipe_subtype=recipe_subtype)
+            logger.debug(f"Search: executing search_all with query='{query}', category_filter='{db_category}', recipe_subtype='{recipe_subtype}', item_subcategory='{item_subcategory}' (Discord: '{category}')")
+            
+            results = await self.service.search_all(query, category_filter=db_category, recipe_subtype=recipe_subtype, item_subcategory=item_subcategory)
             logger.debug(f"Search: found {len(results) if results else 0} results with category filter")
             
             if not results:
@@ -524,9 +751,17 @@ class ACNHCommands(commands.Cog):
                 
                 # If it's an item with variants, show variant selector
                 if hasattr(result, 'variants') and len(result.variants) > 1:
-                    view = VariantSelectView(result, interaction.user)
-                    embed = view.create_embed()
-                    await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                    variant_view = VariantSelectView(result, interaction.user)
+                    embed = variant_view.create_embed()
+                    # Add Nookipedia button to variant view
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(variant_view, nookipedia_url)
+                    
+                    # Send the message and store it in the view for timeout handling
+                    message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                    
+                    # Store the message in the variant view for timeout handling
+                    variant_view.message = message
                 else:
                     # Show regular embed
                     embed = result.to_embed() if hasattr(result, 'to_embed') else discord.Embed(
@@ -536,16 +771,25 @@ class ACNHCommands(commands.Cog):
                     embed.title = f"🔍 {embed.title}"
                     embed.set_footer(text=f"Search result for '{query}'")
                     category_info = f" in {category}" if category else ""
-                    logger.info(f"✅ /search command completed for user {user_id} - found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                    logger.info(f"Search found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
+                    
+                    # Add Nookipedia button if available
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(None, nookipedia_url)
+                    await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
             # Multiple results - show navigation view
             else:
                 view = SearchResultsView(results, query, interaction.user)
                 embed = view.create_embed()
                 category_info = f" in {category}" if category else ""
-                logger.info(f"✅ /search command completed for user {user_id} - found {len(results)} results for '{query}'{category_info}")
-                await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                logger.info(f"Search found {len(results)} results for '{query}'{category_info}")
+                
+                # Send the message and store it in the view for timeout handling
+                message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                
+                # Store the message in the search view for timeout handling
+                view.message = message
             
         except Exception as e:
             logger.error(f"Error in search: {e}")
@@ -555,62 +799,6 @@ class ACNHCommands(commands.Cog):
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-    
-    # @app_commands.command(name="database-stats", description="Show database statistics")
-    # async def database_stats(self, interaction: discord.Interaction):
-    #     """Show comprehensive database statistics"""
-    #     ephemeral = not is_dm(interaction)
-    #     await interaction.response.defer(ephemeral=ephemeral)
-        
-    #     try:
-    #         stats = await self.service.get_database_stats()
-            
-    #         embed = discord.Embed(
-    #             title="📊 Database Statistics",
-    #             color=0x3498db
-    #         )
-            
-    #         if stats.get('database_active'):
-    #             # Add individual counts
-    #             stats_text = []
-    #             if 'items' in stats:
-    #                 stats_text.append(f"🏠 Items: {stats['items']:,}")
-    #             if 'critters' in stats:
-    #                 stats_text.append(f"🐛 Critters: {stats['critters']:,}")
-    #             if 'recipes' in stats:
-    #                 stats_text.append(f"🛠️ Recipes: {stats['recipes']:,}")
-    #             if 'villagers' in stats:
-    #                 stats_text.append(f"👥 Villagers: {stats['villagers']:,}")
-                
-    #             embed.add_field(
-    #                 name="📈 Content Counts",
-    #                 value="\n".join(stats_text),
-    #                 inline=False
-    #             )
-                
-    #             embed.add_field(
-    #                 name="📦 Total Content",
-    #                 value=f"{stats.get('total_content', 0):,} items",
-    #                 inline=True
-    #             )
-                
-    #             embed.color = 0x2ecc71
-    #         else:
-    #             embed.description = "Database is not available or empty."
-    #             if 'error' in stats:
-    #                 embed.add_field(name="Error", value=stats['error'], inline=False)
-    #             embed.color = 0xe74c3c
-            
-    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            
-    #     except Exception as e:
-    #         logger.error(f"Error in database_stats: {e}")
-    #         embed = discord.Embed(
-    #             title="❌ Error",
-    #             description="An error occurred while fetching database statistics.",
-    #             color=0xe74c3c
-    #         )
-    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     async def item_name_autocomplete(
         self, interaction: discord.Interaction, current: str
@@ -647,12 +835,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.autocomplete(item=item_name_autocomplete)
     async def lookup(self, interaction: discord.Interaction, item: str):
         """Look up a specific item with autocomplete"""
-        ephemeral = interaction.guild is not None
+        ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"🔍 /lookup command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{item}'")
+        logger.info(f"lookup command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{item}'")
         
         try:
             # Check if item is an ID (from autocomplete) or name (typed manually)
@@ -673,21 +861,38 @@ class ACNHCommands(commands.Cog):
                     description=f"No items found matching '{item}'",
                     color=0xe74c3c
                 )
+                logger.info(f"Lookup: no results found for '{item}'")
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
             # If exactly one result, show detailed view with variant selector
             if len(results) == 1:
                 result = results[0]
+                logger.info(f"Lookup: found 1 result for '{result.name if hasattr(result, 'name') else item}'")
                 if hasattr(result, 'variants') and result.variants:
                     # Multiple variants - show selector
                     embed = result.to_discord_embed()
-                    view = VariantSelectView(result, interaction.user)
-                    await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                    # embed = await safe_embed_images(embed, 'item')
+                    variant_view = VariantSelectView(result, interaction.user)
+                    # Add Nookipedia button to variant view
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(variant_view, nookipedia_url)
+                    
+                    # Send the message and store it in the view for timeout handling
+                    message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                    
+                    # Store the message in the variant view for timeout handling
+                    variant_view.message = message
                 else:
                     # Single item - show directly
                     embed = result.to_discord_embed()
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                    # embed = await safe_embed_images(embed, 'item')
+                    # Add Nookipedia and refresh button if available
+                    nookipedia_url = getattr(result, 'nookipedia_url', None)
+                    view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="item")
+                    message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+                    if view:
+                        view.message = message
                 return
             
             # Multiple results - show search-style list with pagination
@@ -700,7 +905,11 @@ class ACNHCommands(commands.Cog):
             paginated_view = PaginatedResultView(results, embed_title=f"🔍 Lookup Results for '{item}'")
             embed = paginated_view.create_page_embed()
             
-            await interaction.followup.send(embed=embed, view=paginated_view, ephemeral=ephemeral)
+            # Send the message and store it in the view for timeout handling
+            message = await interaction.followup.send(embed=embed, view=paginated_view, ephemeral=ephemeral)
+            
+            # Store the message in the paginated view for timeout handling
+            paginated_view.message = message
             
         except Exception as e:
             logger.error(f"Error in lookup command: {e}")
@@ -717,15 +926,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def villager(self, interaction: discord.Interaction, name: str):
         """Look up villager details"""
-        ephemeral = interaction.guild is not None
+        ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"👥 /villager command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
-        
-        # Check if this is a DM for ephemeral logic
-        ephemeral = not is_dm(interaction)
+        logger.info(f"villager command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
             # Convert name to villager ID if it's numeric (from autocomplete)
@@ -734,7 +940,7 @@ class ACNHCommands(commands.Cog):
                 villager = await self.service.get_villager_by_id(villager_id)
             else:
                 # Search for villager by name
-                search_results = await self.service.search(name, limit=50)
+                search_results = await self.service.search_all(name, category_filter="villagers")
                 villagers = [r for r in search_results if hasattr(r, 'species')]  # Filter for villagers
                 villager = villagers[0] if villagers else None
             
@@ -747,14 +953,22 @@ class ACNHCommands(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
+            logger.info(f"found villager: {villager.name} ({villager.species})")
             
             # Create the main villager embed with extra details button
             embed = villager.to_discord_embed()
+            # embed = await safe_embed_images(embed, 'villager')
             
-            # Create a view with buttons for additional details
-            view = VillagerDetailsView(villager, interaction.user, self.service)
+            # Create a view with buttons for additional details and add Nookipedia button
+            details_view = VillagerDetailsView(villager, interaction.user, self.service)
+            nookipedia_url = getattr(villager, 'nookipedia_url', None)
+            view = get_combined_view(details_view, nookipedia_url)
             
-            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            # Send the message and store it in the view for timeout handling
+            message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            
+            # Store the message in the details view for timeout handling
+            details_view.message = message
             
         except Exception as e:
             logger.error(f"Error in villager command: {e}")
@@ -771,12 +985,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def recipe(self, interaction: discord.Interaction, name: str):
         """Look up recipe details"""
-        ephemeral = interaction.guild is not None
+        ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"🍳 /recipe command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
+        logger.info(f"recipe command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
             # Convert name to recipe ID if it's numeric (from autocomplete)
@@ -809,13 +1023,20 @@ class ACNHCommands(commands.Cog):
             
             # Create the recipe embed
             embed = recipe.to_discord_embed()
+            # embed = await safe_embed_images(embed, 'recipe')
             
             # Add recipe type info in footer
-            recipe_type = "🍳 Food Recipe" if recipe.is_food() else "🛠️ DIY Recipe"
-            embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
+            recipe_type = "Food Recipe" if recipe.is_food() else "DIY Recipe"
+            # embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
             
-            logger.info(f"✅ /recipe command completed successfully for user {user_id} - found: {recipe.name} ({recipe_type})")
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            # Add Nookipedia and refresh button if available
+            nookipedia_url = getattr(recipe, 'nookipedia_url', None)
+            view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="recipe")
+            
+            logger.info(f"found recipe: {recipe.name} ({recipe_type})")
+            message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            if view:
+                view.message = message
             
         except Exception as e:
             logger.error(f"❌ Error in /recipe command for user {user_id}, query '{name}': {e}", exc_info=True)
@@ -832,8 +1053,9 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def artwork(self, interaction: discord.Interaction, name: str):
         """Look up artwork details"""
-        ephemeral = interaction.guild is not None
+        ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        logger.info(f"artwork command used by:\n\t{interaction.user.display_name} ({interaction.user.id})\n\tsearching for: '{name}'")
         
         try:
             # Convert name to artwork ID if it's numeric (from autocomplete)
@@ -863,9 +1085,11 @@ class ACNHCommands(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
+            logger.info(f"found artwork: {artwork.name}")
             
             # Create the artwork embed
             embed = artwork.to_discord_embed()
+            # embed = await safe_embed_images(embed, 'artwork')
             
             # Add artwork category info in footer
             authenticity = "Genuine" if artwork.genuine else "Fake"
@@ -874,13 +1098,88 @@ class ACNHCommands(commands.Cog):
                 category_text += f" • {artwork.art_category}"
             embed.set_footer(text=category_text)
             
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            # Add Nookipedia and refresh button if available
+            nookipedia_url = getattr(artwork, 'nookipedia_url', None)
+            view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="artwork")
+            
+            message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            if view:
+                view.message = message
             
         except Exception as e:
             logger.error(f"Error in artwork command: {e}")
             embed = discord.Embed(
                 title="❌ Error",
                 description="An error occurred while looking up the artwork.",
+                color=0xe74c3c
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+
+    @app_commands.command(name="fossil", description="Look up a specific ACNH fossil")
+    @app_commands.describe(name="The fossil name to look up")
+    @app_commands.autocomplete(name=fossil_name_autocomplete)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def fossil_command(self, interaction: discord.Interaction, name: str):
+        """Look up a fossil by name"""
+        user_id = getattr(interaction.user, 'id', 'unknown')
+        ephemeral = await check_guild_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        
+        try:
+            logger.info(f"fossil command used by:\n\t{interaction.user.display_name} ({user_id})\n\tsearching for: '{name}'")
+            
+            # Convert name to fossil ID if it's numeric (from autocomplete)
+            if name.isdigit():
+                fossil_id = int(name)
+                fossil = await self.service.get_fossil_by_id(fossil_id)
+            else:
+                # Search for fossil by name using search_all with category filter
+                search_results = await self.service.search_all(name, category_filter="fossil")
+                fossil = search_results[0] if search_results else None
+            
+            if not fossil:
+                embed = discord.Embed(
+                    title="❌ Fossil Not Found",
+                    description=f"Sorry, I couldn't find a fossil named **{name}** 🦴\n"
+                               f"Try using `/search {name}` to see if there are similar names.",
+                    color=0xe74c3c
+                )
+                
+                # Add suggestion for fossil groups
+                embed.add_field(
+                    name="💡 Search Tips",
+                    value="• Fossils are grouped into complete skeletons\n"
+                          "• Some fossils are standalone pieces\n"
+                          "• Try `/search` with partial names or fossil group names",
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                return
+            
+            # Create the fossil embed
+            embed = fossil.to_discord_embed()
+            # embed = await safe_embed_images(embed, 'fossil')
+            
+            # Add fossil info in footer
+            footer_text = f"🦴 Museum Fossil"
+            if fossil.fossil_group:
+                footer_text += f" • {fossil.fossil_group}"
+            embed.set_footer(text=footer_text)
+            
+            # Add Nookipedia and refresh button if available
+            nookipedia_url = getattr(fossil, 'nookipedia_url', None)
+            view = get_combined_view(None, nookipedia_url, add_refresh=True, content_type="fossil")
+            
+            logger.info(f"found fossil: {fossil.name}")
+            message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            if view:
+                view.message = message
+            
+        except Exception as e:
+            logger.error(f"❌ Error in /fossil command for user {user_id}, query '{name}': {e}", exc_info=True)
+            embed = discord.Embed(
+                title="❌ Error",
+                description="An error occurred while looking up the fossil.",
                 color=0xe74c3c
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
@@ -891,12 +1190,12 @@ class ACNHCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def critter(self, interaction: discord.Interaction, name: str):
         """Look up critter details"""
-        ephemeral = interaction.guild is not None
+        ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"🔍 /critter command used by {interaction.user.display_name} ({user_id}) in {guild_name} - searching for: '{name}'")
+        logger.info(f"critter command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
             # Convert name to critter ID if it's numeric (from autocomplete)
@@ -919,9 +1218,9 @@ class ACNHCommands(commands.Cog):
                 # Add suggestion for different critter types
                 embed.add_field(
                     name="💡 Search Tips",
-                    value="• 🐟 Fish: Found in rivers, ponds, and the sea\n"
-                          "• 🦋 Bugs: Found around flowers, trees, and rocks\n"
-                          "• 🌊 Sea Creatures: Found while diving in the ocean\n"
+                    value="• Fish: Found in rivers, ponds, and the sea\n"
+                          "• Bugs: Found around flowers, trees, and rocks\n"
+                          "• Sea Creatures: Found while diving in the ocean\n"
                           "• Try `/search` with partial names or locations",
                     inline=False
                 )
@@ -930,12 +1229,13 @@ class ACNHCommands(commands.Cog):
             
             # Create the critter embed
             embed = critter.to_discord_embed()
+            # embed = await safe_embed_images(embed, 'critter')
             
             # Add critter type info in footer
             critter_type = {
-                'fish': '🐟 Fish',
-                'insect': '🦋 Bug', 
-                'sea': '🌊 Sea Creature'
+                'fish': 'Fish',
+                'insect': 'Bug', 
+                'sea': 'Sea Creature'
             }.get(critter.kind, critter.kind.title())
             
             footer_text = f"{critter_type}"
@@ -943,11 +1243,18 @@ class ACNHCommands(commands.Cog):
                 footer_text += f" • {critter.location}"
             embed.set_footer(text=footer_text)
             
-            # Create a view with availability button
-            view = CritterAvailabilityView(critter, interaction.user)
+            # Create a view with availability button and add Nookipedia button
+            availability_view = CritterAvailabilityView(critter, interaction.user)
+            nookipedia_url = getattr(critter, 'nookipedia_url', None)
+            view = get_combined_view(availability_view, nookipedia_url)
             
-            logger.info(f"✅ /critter command completed successfully for user {user_id} - found: {critter.name}")
-            await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            logger.info(f"found critter: {critter.name}")
+            
+            # Send the message and store it in the view for timeout handling
+            message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            
+            # Store the message in the availability view for timeout handling
+            availability_view.message = message
             
         except Exception as e:
             logger.error(f"❌ Error in /critter command for user {user_id}, query '{name}': {e}", exc_info=True)
@@ -958,75 +1265,301 @@ class ACNHCommands(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    @app_commands.command(name="cache-stats", description="Show autocomplete cache statistics (debug)")
-    @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
-    async def cache_stats(self, interaction: discord.Interaction):
-        """Show cache performance statistics"""
-        ephemeral = True  # Always ephemeral for debug info
-        await interaction.response.defer(ephemeral=ephemeral)
+    # @app_commands.command(name="service-status", description="Check image service status (Cloudflare, CDNs, etc.)")
+    # @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
+    # async def service_status(self, interaction: discord.Interaction):
+    #     """Check the status of image services"""
+    #     ephemeral = True  # Always ephemeral for debug info
+    #     await interaction.response.defer(ephemeral=ephemeral)
         
-        try:
-            stats = _autocomplete_cache.get_cache_stats()
+    #     try:
+    #         from bot.utils.image_fallback import get_service_status_summary, get_service_monitoring_config
             
-            embed = discord.Embed(
-                title="📊 Autocomplete Cache Statistics",
-                color=0x3498db
-            )
+    #         status_summary = get_service_status_summary()
+    #         config = get_service_monitoring_config()
             
-            # Basic stats
-            embed.add_field(
-                name="📈 Performance",
-                value=f"**Size:** {stats['cache_size']}/{stats['max_size']} ({stats['utilization']})\n"
-                      f"**Total Hits:** {stats['total_hits']:,}\n"
-                      f"**Hit Rate:** {stats['hit_rate']}",
-                inline=True
-            )
+    #         embed = discord.Embed(
+    #             title="Image Service Status",
+    #             color=discord.Color.green()
+    #         )
             
-            # Popular queries
-            if stats['popular_queries']:
-                popular = "\n".join([
-                    f"• `{key}`: {hits} hits" 
-                    for key, hits in stats['popular_queries'][:5]
-                ])
-                embed.add_field(
-                    name="🔥 Popular Queries",
-                    value=popular,
-                    inline=True
-                )
+    #         # Show monitoring status
+    #         monitoring_status = "Active" if config['background_task_running'] else "Stopped"
+    #         embed.add_field(
+    #             name="Background Monitoring",
+    #             value=f"{monitoring_status} (every {config['check_interval_minutes']} minutes)",
+    #             inline=True
+    #         )
             
-            # Query patterns
-            if stats['query_patterns']:
-                patterns = "\n".join([
-                    f"• **{pattern}**: {count:,} queries"
-                    for pattern, count in list(stats['query_patterns'].items())[:5]
-                ])
-                embed.add_field(
-                    name="📋 Query Patterns",
-                    value=patterns,
-                    inline=False
-                )
+    #         # Show monitored URLs
+    #         # if config['monitor_urls']:
+    #         #     urls_text = "\n".join([f"• `{url.split('/')[-1]}`" for url in config['monitor_urls'][:3]])
+    #         #     embed.add_field(
+    #         #         name="Sample URLs Monitored", 
+    #         #         value=urls_text,
+    #         #         inline=True
+    #         #     )
             
-            embed.set_footer(text="Cache helps reduce database load and improve response times")
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #         # Show active mocks
+    #         if config.get('manual_overrides'):
+    #             mock_count = len(config['manual_overrides'])
+    #             mock_text = f"{mock_count} service{'s' if mock_count != 1 else ''} mocked"
+    #             embed.add_field(
+    #                 name="Testing Overrides",
+    #                 value=mock_text,
+    #                 inline=True
+    #             )
             
-        except Exception as e:
-            logger.error(f"Error in cache_stats command: {e}", exc_info=True)
-            embed = discord.Embed(
-                title="❌ Error",
-                description="An error occurred while fetching cache statistics.",
-                color=0xe74c3c
-            )
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #         if not status_summary:
+    #             embed.add_field(
+    #                 name="Current Status",
+    #                 value="*No checks completed yet - monitoring will begin shortly*",
+    #                 inline=False
+    #             )
+    #             embed.color = discord.Color.orange()
+    #         else:
+    #             # Show status of each service
+    #             status_lines = []
+    #             all_good = True
+                
+    #             for domain, info in status_summary.items():
+    #                 is_available = info.get('available', True)
+    #                 reason = info.get('reason', 'No issues detected')
+                    
+    #                 if is_available:
+    #                     status_lines.append(f"✅ **{domain}**: Healthy")
+    #                 else:
+    #                     status_lines.append(f"❌ **{domain}**: {reason}")
+    #                     all_good = False
+                
+    #             embed.add_field(
+    #                 name="Service Health",
+    #                 value="\n".join(status_lines) if status_lines else "*No services checked*",
+    #                 inline=False
+    #             )
+    #             embed.color = discord.Color.green() if all_good else discord.Color.red()
+                
+    #             if not all_good:
+    #                 embed.add_field(
+    #                     name="User Impact", 
+    #                     value="Users will see helpful messages when image service issues are detected.",
+    #                     inline=False
+    #                 )
+            
+    #         embed.set_footer(text="Automatic monitoring helps detect image service outages before users report them")
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in service_status command: {e}", exc_info=True)
+    #         embed = discord.Embed(
+    #             title="❌ Error",
+    #             description="An error occurred while checking service status.",
+    #             color=0xe74c3c
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    # @app_commands.command(name="cache-stats", description="Show autocomplete cache statistics (debug)")
+
+    # @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
+    # async def cache_stats(self, interaction: discord.Interaction):
+    #     """Show cache performance statistics"""
+    #     ephemeral = True  # Always ephemeral for debug info
+    #     await interaction.response.defer(ephemeral=ephemeral)
+        
+    #     try:
+    #         stats = _autocomplete_cache.get_cache_stats()
+            
+    #         embed = discord.Embed(
+    #             title="Autocomplete Cache Statistics",
+    #             color=0x3498db
+    #         )
+            
+    #         # Basic stats
+    #         embed.add_field(
+    #             name="Performance",
+    #             value=f"**Size:** {stats['cache_size']}/{stats['max_size']} ({stats['utilization']})\n"
+    #                   f"**Total Hits:** {stats['total_hits']:,}\n"
+    #                   f"**Hit Rate:** {stats['hit_rate']}",
+    #             inline=True
+    #         )
+            
+    #         # Popular queries
+    #         if stats['popular_queries']:
+    #             popular = "\n".join([
+    #                 f"• `{key}`: {hits} hits" 
+    #                 for key, hits in stats['popular_queries'][:5]
+    #             ])
+    #             embed.add_field(
+    #                 name="Popular Queries",
+    #                 value=popular,
+    #                 inline=True
+    #             )
+            
+    #         # Query patterns
+    #         if stats['query_patterns']:
+    #             patterns = "\n".join([
+    #                 f"• **{pattern}**: {count:,} queries"
+    #                 for pattern, count in list(stats['query_patterns'].items())[:5]
+    #             ])
+    #             embed.add_field(
+    #                 name="Query Patterns",
+    #                 value=patterns,
+    #                 inline=False
+    #             )
+            
+    #         embed.set_footer(text="Cache helps reduce database load and improve response times")
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in cache_stats command: {e}", exc_info=True)
+    #         embed = discord.Embed(
+    #             title="❌ Error",
+    #             description="An error occurred while fetching cache statistics.",
+    #             color=0xe74c3c
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+    # @app_commands.command(name="mock-cdn", description="Mock CDN service status for testing (admin only)")
+    # @app_commands.allowed_contexts(private_channels=True, guilds=True, dms=True)
+    # @app_commands.describe(
+    #     action="Action to perform",
+    #     domain="Domain to mock (e.g., 'dodo.ac', 'cdn.discordapp.com')",
+    #     reason="Optional reason for the status change"
+    # )
+    # @app_commands.choices(action=[
+    #     app_commands.Choice(name="Mock Service Down", value="down"),
+    #     app_commands.Choice(name="Mock Service Up", value="up"),
+    #     app_commands.Choice(name="Clear Mock for Domain", value="clear"),
+    #     app_commands.Choice(name="Clear All Mocks", value="clear_all"),
+    #     app_commands.Choice(name="Show Active Mocks", value="show")
+    # ])
+    # async def mock_cdn(self, interaction: discord.Interaction, action: str, domain: str = None, reason: str = None):
+    #     """Mock CDN service status for testing purposes"""
+    #     ephemeral = True
+    #     await interaction.response.defer(ephemeral=ephemeral)
+        
+    #     # Basic permission check
+    #     if not (interaction.user.guild_permissions.administrator if interaction.guild else True):
+    #         embed = discord.Embed(
+    #             title="❌ Permission Denied",
+    #             description="This command requires administrator permissions.",
+    #             color=discord.Color.red()
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #         return
+        
+    #     try:
+    #         from bot.utils.image_fallback import (
+    #             mock_service_down, mock_service_up, clear_service_mock, 
+    #             clear_all_service_mocks, get_active_mocks
+    #         )
+            
+    #         if action == "show":
+    #             # Show current mocks
+    #             mocks = get_active_mocks()
+    #             embed = discord.Embed(
+    #                 title="🔧 Active CDN Service Mocks",
+    #                 color=discord.Color.blue()
+    #             )
+                
+    #             if not mocks:
+    #                 embed.description = "No active service mocks. All services using real status."
+    #             else:
+    #                 mock_lines = []
+    #                 for domain, info in mocks.items():
+    #                     status = "🔴 Down" if not info['available'] else "🟢 Up"
+    #                     timestamp = info['timestamp'].strftime("%H:%M:%S")
+    #                     mock_lines.append(f"{status} **{domain}** - {info['reason']} *(set {timestamp})*")
+                    
+    #                 embed.description = "\n".join(mock_lines)
+                
+    #             embed.add_field(
+    #                 name="💡 Testing Tips",
+    #                 value="• Use `/lookup bell` to test warning messages\n"
+    #                       "• Mock `dodo.ac` to test Nookipedia images\n"
+    #                       "• Mock `cdn.discordapp.com` to test Discord CDN",
+    #                 inline=False
+    #             )
+                
+    #             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #             return
+            
+    #         elif action == "clear_all":
+    #             clear_all_service_mocks()
+    #             embed = discord.Embed(
+    #                 title="✅ All Mocks Cleared",
+    #                 description="All CDN service mocks have been cleared. Services will now use real status.",
+    #                 color=discord.Color.green()
+    #             )
+                
+    #         elif action in ["down", "up", "clear"]:
+    #             if not domain:
+    #                 embed = discord.Embed(
+    #                     title="❌ Domain Required",
+    #                     description="Please specify a domain to mock (e.g., 'dodo.ac' or 'cdn.discordapp.com')",
+    #                     color=discord.Color.red()
+    #                 )
+    #                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+    #                 return
+                
+    #             if action == "down":
+    #                 mock_service_down(domain, reason or f"Test outage for {domain}")
+    #                 embed = discord.Embed(
+    #                     title="🔴 Service Mocked as Down",
+    #                     description=f"**Domain:** {domain}\n**Reason:** {reason or f'Test outage for {domain}'}",
+    #                     color=discord.Color.red()
+    #                 )
+    #                 embed.add_field(
+    #                     name="Testing", 
+    #                     value="Try `/lookup bell` or `/villager isabelle` to see warning messages!",
+    #                     inline=False
+    #                 )
+                    
+    #             elif action == "up":
+    #                 mock_service_up(domain, reason or f"Test recovery for {domain}")
+    #                 embed = discord.Embed(
+    #                     title="🟢 Service Mocked as Up",
+    #                     description=f"**Domain:** {domain}\n**Reason:** {reason or f'Test recovery for {domain}'}",
+    #                     color=discord.Color.green()
+    #                 )
+                    
+    #             elif action == "clear":
+    #                 clear_service_mock(domain)
+    #                 embed = discord.Embed(
+    #                     title="Mock Cleared",
+    #                     description=f"Cleared mock status for **{domain}**. Service will now use real status.",
+    #                     color=discord.Color.blue()
+    #                 )
+            
+    #         embed.add_field(
+    #             name="Note",
+    #             value="Mocks override real service checks and persist until cleared or bot restart.",
+    #             inline=False
+    #         )
+            
+    #         logger.info(f"CDN mock action '{action}' performed by {interaction.user.display_name}" + (f" on {domain}" if domain else ""))
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in mock_cdn command: {e}", exc_info=True)
+    #         embed = discord.Embed(
+    #             title="❌ Error",
+    #             description="An error occurred while managing CDN mocks.",
+    #             color=discord.Color.red()
+    #         )
+    #         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
 class VillagerDetailsView(discord.ui.View):
     """View for showing additional villager details with navigation"""
     
     def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main"):
-        super().__init__(timeout=300)
+        super().__init__(timeout=120)  # 2 minute timeout
         self.villager = villager
         self.interaction_user = interaction_user
         self.service = service
         self.current_view = current_view
+        self.message = None  # Will be set after the message is sent
+        self.last_refresh_time = 0  # Track last refresh to prevent spam
     
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Only allow the original user to interact"""
@@ -1107,22 +1640,94 @@ class VillagerDetailsView(discord.ui.View):
                 color=discord.Color.blue()
             )
             
-            house_info = []
+            # Add wallpaper as its own field
             if self.villager.wallpaper:
-                house_info.append(f"**Wallpaper:** {self.villager.wallpaper}")
-            if self.villager.flooring:
-                house_info.append(f"**Flooring:** {self.villager.flooring}")
-            if self.villager.furniture_name_list:
-                house_info.append(f"**Furniture:** {self.villager.furniture_name_list}")
+                embed.add_field(
+                    name="Wallpaper",
+                    value=self.villager.wallpaper.title(),
+                    inline=True
+                )
             
-            if house_info:
-                embed.description = "\n".join(house_info)
-            else:
+            # Add flooring as its own field
+            if self.villager.flooring:
+                embed.add_field(
+                    name="Flooring", 
+                    value=self.villager.flooring.title(),
+                    inline=True
+                )
+            
+            # Add music as its own field (if available)
+            if hasattr(self.villager, 'favorite_song') and self.villager.favorite_song:
+                embed.add_field(
+                    name="Music",
+                    value=self.villager.favorite_song,
+                    inline=True
+                )
+            
+            # Format furniture list nicely
+            if self.villager.furniture_name_list:
+                # Split furniture items and format them
+                furniture_items = [item.strip().lower() for item in self.villager.furniture_name_list.split(';') if item.strip()]
+                
+                if furniture_items:
+                    # Group similar items and format nicely
+                    formatted_furniture = []
+                    item_counts = {}
+                    
+                    # Count occurrences of each item (case-insensitive)
+                    for item in furniture_items:
+                        # Normalize the item name for counting
+                        normalized_item = item.strip().lower()
+                        item_counts[normalized_item] = item_counts.get(normalized_item, 0) + 1
+                    
+                    # Format with counts, sorted alphabetically
+                    for item, count in sorted(item_counts.items()):
+                        if count > 1:
+                            formatted_furniture.append(f"• {item.title()} ×{count}")
+                        else:
+                            formatted_furniture.append(f"• {item.title()}")
+                    
+                    # Split furniture into manageable chunks (max 8 items per field)
+                    chunk_size = 6
+                    furniture_chunks = [formatted_furniture[i:i + chunk_size] for i in range(0, len(formatted_furniture), chunk_size)]
+                    
+                    embed.add_field(
+                        name="Furniture",
+                        value="",  # Placeholder, actual fields added below",
+                        inline=False
+                    )
+
+                    # Add furniture fields (max 2 columns per row, chunk size 6)
+                    for i, chunk in enumerate(furniture_chunks):
+                        chunk_text = "\n".join(chunk)
+                        
+                        if len(furniture_chunks) == 1:
+                            # Single field if small list
+                            inline_field = False
+                        else:
+                            # Two columns for multiple chunks (max 2 columns per row)
+                            inline_field = True
+                        
+                        embed.add_field(
+                            name="",  # No field names since "Furniture" is already added above
+                            value=chunk_text,
+                            inline=inline_field
+                        )
+                        
+                        # Force new row after every 2 inline fields by adding empty non-inline field
+                        if inline_field and (i + 1) % 2 == 0 and (i + 1) < len(furniture_chunks):
+                            embed.add_field(name="", value="", inline=False)
+            
+            # Set description if no house details
+            if not any([self.villager.wallpaper, self.villager.flooring, self.villager.furniture_name_list]):
                 embed.description = "No house details available."
             
-            # Set house image if available
+            # Set house images if available
+            if hasattr(self.villager, 'house_interior_image') and self.villager.house_interior_image:
+                embed.set_image(url=self.villager.house_interior_image)
+            
             if self.villager.house_image:
-                embed.set_image(url=self.villager.house_image)
+                embed.set_thumbnail(url=self.villager.house_image)
                 
         elif view_type == "clothing":
             embed = discord.Embed(
@@ -1142,12 +1747,22 @@ class VillagerDetailsView(discord.ui.View):
                 embed.description = "\n".join(clothing_info)
             else:
                 embed.description = "No clothing details available."
+            
+            # Set villager images for clothing view
+            if hasattr(self.villager, 'photo_image') and self.villager.photo_image:
+                embed.set_image(url=self.villager.photo_image)
+            
+            if hasattr(self.villager, 'icon_image') and self.villager.icon_image:
+                embed.set_thumbnail(url=self.villager.icon_image)
                 
         elif view_type == "other":
             embed = discord.Embed(
                 title=f"🔧 {self.villager.name}'s Other Details",
                 color=discord.Color.orange()
             )
+
+            if hasattr(self.villager, 'icon_image') and self.villager.icon_image:
+                embed.set_thumbnail(url=self.villager.icon_image)
             
             other_info = []
             if self.villager.diy_workbench:
@@ -1198,17 +1813,100 @@ class VillagerDetailsView(discord.ui.View):
         self.current_view = "other"
         embed = await self.get_embed_for_view("other")
         await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="🔄 Refresh Images", style=discord.ButtonStyle.secondary, row=1)
+    async def refresh_images(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Refresh images in case Discord CDN fails to load them"""
+        try:
+            # Check cooldown (3 seconds minimum between refreshes)
+            import time
+            current_time = time.time()
+            if current_time - self.last_refresh_time < 10:
+                remaining = int(10 - (current_time - self.last_refresh_time))
+                await interaction.response.send_message(f"Please wait {remaining} more second(s) before refreshing again.", ephemeral=True)
+                return
+            
+            # Update last refresh time
+            self.last_refresh_time = current_time
+            
+            # Get the current embed for the current view
+            embed = await self.get_embed_for_view(self.current_view)
+            
+            # Add a subtle indicator that images were refreshed
+            if embed.footer and embed.footer.text:
+                footer_text = embed.footer.text
+                if "🔄 Images refreshed" not in footer_text:
+                    embed.set_footer(text=f"{footer_text} | 🔄 Images refreshed")
+            else:
+                embed.set_footer(text="🔄 Images refreshed")
+            
+            # Edit the message with the refreshed embed to force Discord to re-fetch images
+            await interaction.response.edit_message(embed=embed, view=self)
+            
+            # After a short delay, restore the original footer text
+            import asyncio
+            await asyncio.sleep(2)
+            
+            # Restore original footer
+            try:
+                original_embed = await self.get_embed_for_view(self.current_view)
+                if self.message:
+                    await self.message.edit(embed=original_embed, view=self)
+            except:
+                pass  # Ignore errors if message was deleted or interaction expired
+                
+        except Exception as e:
+            logger.error(f"Error refreshing villager images: {e}")
+            try:
+                await interaction.response.send_message("❌ Failed to refresh images", ephemeral=True)
+            except:
+                pass
+    
+    async def on_timeout(self):
+        """Disable interactive buttons when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons (like Nookipedia)
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
+                item.disabled = True
+        
+        # Try to update the message to show disabled buttons
+        if self.message:
+            try:
+                # Generate the embed for the current view (maintain user's last selected view)
+                embed = await self.get_embed_for_view(self.current_view)
+                
+                # Update footer to show timeout with user-friendly message
+                if embed.footer and embed.footer.text:
+                    embed.set_footer(text=f"{embed.footer.text} | 💤 Use the command again to interact with buttons")
+                else:
+                    embed.set_footer(text="💤 Buttons have expired - use the command again to interact")
+                
+                # Edit the message with disabled view, keeping the current view
+                await self.message.edit(embed=embed, view=self)
+            except Exception as e:
+                # Log the error but don't crash
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to update villager message on timeout: {e}")
 
 class CritterAvailabilityView(discord.ui.View):
     """View for showing critter availability with hemisphere and month selection"""
     
     def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False):
-        super().__init__(timeout=300)
+        super().__init__(timeout=120)  # 2 minute timeout
         self.critter = critter
         self.interaction_user = interaction_user
         self.current_hemisphere = "NH"  # Default to Northern Hemisphere
         self.current_month = "jan"  # Default to January
         self.show_availability = show_availability
+        self.message = None  # Will be set after the message is sent
+        self.last_refresh_time = 0  # Track last refresh to prevent spam
+        
+
         
         # Add appropriate buttons based on mode
         if show_availability:
@@ -1227,6 +1925,9 @@ class CritterAvailabilityView(discord.ui.View):
             title=f"🗓️ {self.critter.name} Availability",
             color=discord.Color.green()
         )
+
+        if self.critter.icon_url:
+            embed.set_thumbnail(url=self.critter.icon_url)
         
         # Get hemisphere display name
         hemisphere_name = "Northern Hemisphere" if self.current_hemisphere == "NH" else "Southern Hemisphere"
@@ -1333,6 +2034,15 @@ class CritterAvailabilityView(discord.ui.View):
         
         self.add_item(hemisphere_select)
         self.add_item(month_select)
+        
+        # Add refresh images button
+        refresh_button = discord.ui.Button(
+            label="🔄 Refresh Images", 
+            style=discord.ButtonStyle.secondary, 
+            row=2
+        )
+        refresh_button.callback = self.refresh_images_callback
+        self.add_item(refresh_button)
     
     async def hemisphere_callback(self, interaction: discord.Interaction):
         """Handle hemisphere selection"""
@@ -1340,6 +2050,7 @@ class CritterAvailabilityView(discord.ui.View):
             await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
             return
             
+
         self.current_hemisphere = interaction.data['values'][0]
         embed = self.get_availability_embed()
         await interaction.response.edit_message(embed=embed, view=self)
@@ -1350,21 +2061,146 @@ class CritterAvailabilityView(discord.ui.View):
             await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
             return
             
+
         self.current_month = interaction.data['values'][0]
         embed = self.get_availability_embed()
         await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def refresh_images_callback(self, interaction: discord.Interaction):
+        """Refresh images in case Discord CDN fails to load them"""
+        if interaction.user.id != self.interaction_user.id:
+            await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
+            return
+        
+        # Check cooldown (3 seconds minimum between refreshes)
+        import time
+        current_time = time.time()
+        if current_time - self.last_refresh_time < 10:
+            remaining = int(10 - (current_time - self.last_refresh_time))
+            await interaction.response.send_message(f"Please wait {remaining} more second(s) before refreshing again.", ephemeral=True)
+            return
+        
+        # Update last refresh time
+        self.last_refresh_time = current_time
+            
+        try:
+            # Get the current embed
+            embed = self.get_availability_embed()
+            
+            # Add a subtle indicator that images were refreshed
+            if embed.footer and embed.footer.text:
+                footer_text = embed.footer.text
+                if "🔄 Images refreshed" not in footer_text:
+                    embed.set_footer(text=f"{footer_text} | 🔄 Images refreshed")
+            else:
+                embed.set_footer(text="🔄 Images refreshed")
+            
+            # Edit the message with the refreshed embed to force Discord to re-fetch images
+            await interaction.response.edit_message(embed=embed, view=self)
+            
+            # After a short delay, restore the original footer text
+            import asyncio
+            await asyncio.sleep(2)
+            
+            # Restore original footer
+            try:
+                original_embed = self.get_availability_embed()
+                if self.message:
+                    await self.message.edit(embed=original_embed, view=self)
+            except:
+                pass  # Ignore errors if message was deleted or interaction expired
+                
+        except Exception as e:
+            logger.error(f"Error refreshing critter images: {e}")
+            try:
+                await interaction.response.send_message("❌ Failed to refresh images", ephemeral=True)
+            except:
+                pass
+    
+    async def refresh_main_images_callback(self, interaction: discord.Interaction):
+        """Refresh images for main critter view in case Discord CDN fails to load them"""
+        if interaction.user.id != self.interaction_user.id:
+            await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
+            return
+        
+        # Check cooldown (3 seconds minimum between refreshes)
+        import time
+        current_time = time.time()
+        if current_time - self.last_refresh_time < 3:
+            remaining = int(3 - (current_time - self.last_refresh_time))
+            await interaction.response.send_message(f"Please wait {remaining} more second(s) before refreshing again.", ephemeral=True)
+            return
+        
+        # Update last refresh time
+        self.last_refresh_time = current_time
+            
+        try:
+            # Get the main critter embed
+            embed = self.critter.to_discord_embed()
+            
+            # Add critter type info in footer
+            critter_type = {
+                'fish': 'Fish',
+                'insect': 'Bug', 
+                'sea': 'Sea Creature'
+            }.get(self.critter.kind, self.critter.kind.title())
+            
+            footer_text = f"{critter_type}"
+            if self.critter.location:
+                footer_text += f" • {self.critter.location}"
+            
+            # Add refresh indicator
+            footer_text += " | 🔄 Images refreshed"
+            embed.set_footer(text=footer_text)
+            
+            # Edit the message with the refreshed embed to force Discord to re-fetch images
+            await interaction.response.edit_message(embed=embed, view=self)
+            
+            # After a short delay, restore the original footer text
+            import asyncio
+            await asyncio.sleep(2)
+            
+            # Restore original footer
+            try:
+                original_embed = self.critter.to_discord_embed()
+                original_footer = f"{critter_type}"
+                if self.critter.location:
+                    original_footer += f" • {self.critter.location}"
+                original_embed.set_footer(text=original_footer)
+                
+                if self.message:
+                    await self.message.edit(embed=original_embed, view=self)
+            except:
+                pass  # Ignore errors if message was deleted or interaction expired
+                
+        except Exception as e:
+            logger.error(f"Error refreshing main critter images: {e}")
+            try:
+                await interaction.response.send_message("❌ Failed to refresh images", ephemeral=True)
+            except:
+                pass
     
     def add_back_button(self):
         """Add only the back to details button"""
         back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
         back_button.callback = self.back_callback
         self.add_item(back_button)
+        
+
     
     def add_view_availability_button(self):
         """Add only the view availability button"""
         availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
         availability_button.callback = self.availability_callback
         self.add_item(availability_button)
+        
+        # Add refresh images button for main critter view
+        refresh_button = discord.ui.Button(
+            label="🔄 Refresh Images", 
+            style=discord.ButtonStyle.secondary
+        )
+        refresh_button.callback = self.refresh_main_images_callback
+        self.add_item(refresh_button)
     
     async def back_callback(self, interaction: discord.Interaction):
         """Go back to the main critter details"""
@@ -1372,13 +2208,17 @@ class CritterAvailabilityView(discord.ui.View):
             await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
             return
             
+        # Stop the current view's timeout since we're replacing it
+        # logger.info(f"Stopping CritterAvailabilityView: id={id(self)}, show_availability={self.show_availability}")
+        self.stop()
+        
         embed = self.critter.to_discord_embed()
         
         # Add critter type info in footer
         critter_type = {
-            'fish': '🐟 Fish',
-            'insect': '🦋 Bug', 
-            'sea': '🌊 Sea Creature'
+            'fish': 'Fish',
+            'insect': 'Bug', 
+            'sea': 'Sea Creature'
         }.get(self.critter.kind, self.critter.kind.title())
         
         footer_text = f"{critter_type}"
@@ -1391,6 +2231,10 @@ class CritterAvailabilityView(discord.ui.View):
         view.clear_items()
         view.add_view_availability_button()
         
+        # Transfer the message reference to the new view for timeout handling
+        view.message = self.message
+
+        
         await interaction.response.edit_message(embed=embed, view=view)
     
     async def availability_callback(self, interaction: discord.Interaction):
@@ -1399,11 +2243,64 @@ class CritterAvailabilityView(discord.ui.View):
             await interaction.response.send_message("Only the user who initiated this command can use these controls.", ephemeral=True)
             return
             
+        # Stop the current view's timeout since we're replacing it
+        self.stop()
+        
         # Create new view with availability controls
         view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True)
         
+        # Transfer the message reference to the new view for timeout handling
+        view.message = self.message
+
+        
         embed = view.get_availability_embed()
         await interaction.response.edit_message(embed=embed, view=view)
+    
+    async def on_timeout(self):
+        """Disable interactive buttons when view times out after 2 minutes, but keep link buttons enabled"""
+        # Disable all buttons and selects except link buttons
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                # Keep link buttons enabled (they don't need interaction handling)
+                if item.style != discord.ButtonStyle.link:
+                    item.disabled = True
+            elif isinstance(item, discord.ui.Select):
+                item.disabled = True
+        
+        # Try to update the message to show disabled buttons
+        if self.message:
+            try:
+                # Generate the appropriate embed based on current view state
+                if self.show_availability:
+                    embed = self.get_availability_embed()
+                else:
+                    # Main critter details view
+                    embed = self.critter.to_discord_embed()
+                    
+                    # Add critter type info in footer
+                    critter_type = {
+                        'fish': 'Fish',
+                        'insect': 'Bug', 
+                        'sea': 'Sea Creature'
+                    }.get(self.critter.kind, self.critter.kind.title())
+                    
+                    footer_text = f"{critter_type}"
+                    if self.critter.location:
+                        footer_text += f" • {self.critter.location}"
+                    embed.set_footer(text=footer_text)
+                
+                # Update footer to show timeout with user-friendly message
+                if embed.footer and embed.footer.text:
+                    embed.set_footer(text=f"{embed.footer.text} | 💤 Use the command again to interact with buttons")
+                else:
+                    embed.set_footer(text="💤 Buttons have expired - use the command again to interact")
+                
+                # Edit the message with disabled view, keeping the current view state
+                await self.message.edit(embed=embed, view=self)
+            except Exception as e:
+                # Log the error but don't crash
+                logger.error(f"Failed to update critter message on timeout: {e}", exc_info=True)
+        # If no message reference, timeout silently
 
 async def setup(bot: commands.Bot):
     """Setup function for the cog"""

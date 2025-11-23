@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from .settings import DISCORD_API_SECRET, GUILDS_ID
 from .services.acnh_service import NooklookService
 from db_tools.import_all_datasets import ACNHDatasetImporter
+import topgg
 
 class ACNHBot(commands.Bot):
     def __init__(self):
@@ -27,6 +28,9 @@ class ACNHBot(commands.Bot):
         self.acnh_service = NooklookService()
         self._shutdown_gracefully = False
         
+        # Top.gg client (initialized in setup_hook)
+        self.topgg_client = None
+        
         # Data update tracking  
         self.dataset_importer = None
         self.last_data_check = None
@@ -34,12 +38,16 @@ class ACNHBot(commands.Bot):
         self.data_update_in_progress = False  # Prevent concurrent updates
     
 
-
-    
     async def setup_hook(self):
         """Called when the bot is starting up"""
         self.logger.info("Starting bot setup hook...")
         try:
+            # Initialize Top.gg client for bot listing and stats
+            if os.getenv("TOP_GG_TOKEN"):
+                # Auto posting every 1.3 hours
+                self.topgg_client = topgg.DBLClient(bot=self, token=os.getenv("TOP_GG_TOKEN"),autopost=True, post_shard_count=False,autopost_interval=4680)
+                self.logger.info("Top.gg client initialized with autopost enabled")
+            
             # Initialize the database
             await self.acnh_service.init_database()
             self.logger.info("ACNH database initialized successfully")
@@ -52,9 +60,20 @@ class ACNHBot(commands.Bot):
                 self.logger.error(f"Could not initialize dataset importer: {importer_error}")
                 self.logger.warning("Periodic data updates will be disabled")
             
+            # Initialize server repository for guild settings
+            from bot.repos.server_repo import ServerRepository
+            self.server_repo = ServerRepository()
+            self.logger.info("Server repository initialized successfully")
+            
             # Load the new nooklook commands cog
             await self.load_extension("bot.cogs.nooklook_commands")
             self.logger.info("Loaded nooklook commands cog successfully")
+
+            await self.load_extension("bot.cogs.server_management")
+            self.logger.info("Loaded server management cog successfully")
+            
+            # CDN monitoring task will be started in on_ready
+            self.logger.info("CDN monitoring task defined (will start when bot ready)")
             
             try:
                 await self.load_extension("bot.cogs.help")
@@ -62,53 +81,133 @@ class ACNHBot(commands.Bot):
             except Exception as help_error:
                 self.logger.warning(f"Could not load help cog (optional): {help_error}")
             
+            await self.sync()
+            
             # Note: Command syncing will happen in on_ready() after we know if we're in any guilds
             self.logger.info("Setup complete - commands will sync when bot joins a guild")
                 
         except Exception as e:
             self.logger.error(f"Error in setup_hook: {e}", exc_info=True)
+
+    async def sync(self):
+        """Sync the bot with Discord."""
+        logging.info("Syncing bot commands with Discord...")
+        try:
+            #forces global update
+            for guild in self.guilds:
+                self.tree.copy_global_to(guild=guild)
+            synced = await self.tree.sync()
+            self.logger.info(f"Synced {len(synced)} commands.")
+        except Exception as e:
+            logging.error(f"Error during syncing: {e}")
     
     async def on_ready(self):
         """Called when the bot is ready"""
         self.logger.info(f"{self.user} has connected to Discord!")
         self.logger.info(f"Bot is in {len(self.guilds)} guilds")
         
+        # Check and onboard existing guilds that may not have settings
+        await self._onboard_existing_guilds()
+        
         # Sync commands now that we know our guild status
         try:
-            if len(self.guilds) == 0:
-                self.logger.warning("Bot is not in any guilds! Invite the bot to a server to use commands.")
-                self.logger.info("Create an invite link at: https://discord.com/developers/applications/")
-            else:
-                # We're in at least one guild, sync commands to all guilds
-                # Sync globally to ensure commands appear in all current and future guilds
-                await self.tree.sync()
-                self.logger.info(f"Synced commands globally to all {len(self.guilds)} guilds")
-                
-                # Start periodic data update checks
-                if self.dataset_importer:
-                    self.periodic_data_check.start()
-                    self.logger.info(f"Started automatic data freshness checks (every 6 hours)")
-                    self.logger.info("Bot will automatically stay up-to-date with Google Sheets data")
+            # Start periodic data update checks
+            if self.dataset_importer:
+                self.periodic_data_check.start()
+                self.logger.info(f"Started automatic data freshness checks (every 6 hours)")
+                self.logger.info("Bot will automatically stay up-to-date with Google Sheets data")
+            
+            # Start CDN monitoring task
+            # if not self.cdn_monitoring_task.is_running():
+            #     self.cdn_monitoring_task.start()
+            #     self.logger.info("Started CDN service monitoring task (15-minute intervals)")
                     
                 self.logger.info("Bot is ready!")
         except Exception as e:
             self.logger.error(f"Error syncing commands: {e}")
 
-    async def on_guild_join(self, guild):
+    async def on_guild_join(self, guild: discord.Guild):
         """Called when the bot joins a new guild"""
         self.logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
         self.logger.info(f"Bot is now in {len(self.guilds)} guilds")
         
+        # Create default guild settings only for proper installations
+        try:
+            if hasattr(self, 'server_repo'):
+                # Check if settings already exist first
+                existing_settings = await self.server_repo.get_guild_settings_if_exists(guild.id)
+                if existing_settings is None:
+                    # Only create new settings if this is a fresh install
+                    # Use the create method which will insert with default False (public)
+                    settings = await self.server_repo.get_guild_settings(guild.id)
+                    self.logger.info(f"Created guild settings for {guild.name} with public responses (default)")
+                else:
+                    self.logger.info(f"Guild settings already exist for {guild.name}")
+            else:
+                self.logger.warning("ServerRepository not available for new guild setup")
+        except Exception as e:
+            self.logger.error(f"Error setting up guild settings for {guild.name}: {e}")
+        
         # Optional: Sync commands immediately for this guild for instant availability
         # Note: This is not strictly necessary since global commands will appear automatically
         try:
-            synced = await self.tree.sync(guild=guild)
+            # Add global commands to the guild
+            synced = await self.tree.sync()
             self.logger.info(f"Synced {len(synced)} commands to {guild.name} immediately")
         except Exception as e:
             self.logger.error(f"Error syncing commands to {guild.name}: {e}")
             # Don't worry too much - global commands will still work
 
+    async def on_guild_remove(self, guild: discord.Guild):
+        """Called when the bot is removed from a guild"""
+        self.logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
+        self.logger.info(f"Bot is now in {len(self.guilds)} guilds")
+        
+        # Clean up guild settings when bot leaves
+        try:
+            if hasattr(self, 'server_repo'):
+                success = await self.server_repo.delete_guild_settings(guild.id)
+                if success:
+                    self.logger.info(f"Cleaned up guild settings for {guild.name}")
+                else:
+                    self.logger.warning(f"Failed to clean up guild settings for {guild.name}")
+        except Exception as e:
+            self.logger.error(f"Error cleaning up guild settings for {guild.name}: {e}")
 
+    async def _onboard_existing_guilds(self):
+        """Check and onboard existing guilds that may not have settings in the database"""
+        if not hasattr(self, 'server_repo'):
+            self.logger.warning("ServerRepository not available for guild onboarding")
+            return
+            
+        self.logger.info("Checking existing guilds for missing database settings...")
+        onboarded_count = 0
+        
+        for guild in self.guilds:
+            try:
+                # Check if settings already exist
+                existing_settings = await self.server_repo.get_guild_settings_if_exists(guild.id)
+                if existing_settings is None:
+                    # This guild needs to be onboarded
+                    self.logger.info(f"Onboarding existing guild: {guild.name} (ID: {guild.id})")
+                    
+                    # Create default settings (this will use default False for public responses)
+                    settings = await self.server_repo.get_guild_settings(guild.id)
+                    if settings:
+                        onboarded_count += 1
+
+                    self.logger.info(f"Created guild settings for existing guild {guild.name} with public responses (default)")
+                else:
+                    self.logger.debug(f"Guild {guild.name} already has settings in database")
+                    
+            except Exception as e:
+                self.logger.error(f"Error onboarding guild {guild.name}: {e}")
+                continue
+        
+        if onboarded_count > 0:
+            self.logger.info(f"Successfully onboarded {onboarded_count} existing guild(s) to database")
+        else:
+            self.logger.info("All existing guilds already have database settings")
 
     @tasks.loop(hours=6)  # Check every 6 hours (reasonable frequency for sheet updates)
     async def periodic_data_check(self):
@@ -177,6 +276,22 @@ class ACNHBot(commands.Bot):
         """Wait for the bot to be ready before starting periodic checks"""
         await self.wait_until_ready()
         self.logger.info("Bot ready, periodic data checks will begin")
+    
+
+    # @tasks.loop(minutes=15)
+    # async def cdn_monitoring_task(self):
+    #     """Monitor CDN service health every 15 minutes"""
+    #     try:
+    #         from bot.utils.image_fallback import _image_service_status
+    #         await _image_service_status.check_all_monitored_services()
+    #     except Exception as e:
+    #         self.logger.error(f"Error in CDN monitoring: {e}")
+    
+    # @cdn_monitoring_task.before_loop
+    # async def before_cdn_monitoring(self):
+    #     """Wait for bot to be ready before starting CDN monitoring"""
+    #     await self.wait_until_ready()
+    #     self.logger.info("Bot ready, CDN monitoring will begin")
 
     async def _create_database_backup(self):
         """Create a timestamped backup of the current database before updating"""
@@ -247,6 +362,11 @@ class ACNHBot(commands.Bot):
         if hasattr(self, 'periodic_data_check') and self.periodic_data_check.is_running():
             self.periodic_data_check.cancel()
             self.logger.info("Stopped periodic data check task")
+        
+        # # Stop CDN monitoring task
+        # if self.cdn_monitoring_task.is_running():
+        #     self.cdn_monitoring_task.cancel()
+        #     self.logger.info("Stopped CDN monitoring task")
         
         # The ACNH service uses context managers for DB connections, so no cleanup needed
         self.logger.info("ACNH service uses auto-closing connections")
