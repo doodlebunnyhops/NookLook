@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any, List
 from bot.repos.acnh_items_repo import NooklookRepository
 from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
 import logging
+from bot.repos.acnh_items_repo import CLOTHING_CATEGORIES
 
 logger = logging.getLogger("bot.acnh_service")
 
@@ -26,6 +27,10 @@ class NooklookService:
         try:
             search_results = await self.repo.search_fts_autocomplete(query, category_filter, limit=50)
             
+            
+            # Track seen clothing items to deduplicate variants
+            seen_clothing_items = {}  # key: (name, category), value: item
+            
             # Resolve search results to actual objects
             resolved_items = []
             for result in search_results:
@@ -42,6 +47,13 @@ class NooklookService:
                     if item_subcategory and hasattr(obj, 'category'):
                         if obj.category != item_subcategory:
                             continue  # Skip items that don't match the subcategory
+                    
+                    # Deduplicate clothing items by name (since each variant is a separate item)
+                    if hasattr(obj, 'category') and obj.category in CLOTHING_CATEGORIES:
+                        item_key = (obj.name, obj.category)
+                        if item_key in seen_clothing_items:
+                            continue  # Skip duplicate clothing items with same name
+                        seen_clothing_items[item_key] = obj
                     
                     resolved_items.append(obj)
             
@@ -303,11 +315,18 @@ class NooklookService:
         try:
             logger.debug(f"Getting {limit} random item suggestions")
             
-            # Get random items from the repository
-            random_items = await self.repo.get_random_items(limit)
+            # Get random items from the repository (request more to account for deduplication)
+            random_items = await self.repo.get_random_items(limit * 2)
             
-            # Return name, id tuples
-            suggestions = [(item.name, item.id) for item in random_items if item.name]
+            # Deduplicate by name (keep first occurrence)
+            seen_names = set()
+            suggestions = []
+            for item in random_items:
+                if item.name and item.name not in seen_names:
+                    suggestions.append((item.name, item.id))
+                    seen_names.add(item.name)
+                    if len(suggestions) >= limit:
+                        break
             
             logger.debug(f"Returning {len(suggestions)} random items")
             return suggestions

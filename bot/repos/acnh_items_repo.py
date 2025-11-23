@@ -4,6 +4,9 @@ from typing import Optional, Dict, Any, List, Tuple
 from .database import Database
 from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
 
+# Clothing categories where each variant is a separate item row
+CLOTHING_CATEGORIES = {'accessories', 'bags', 'bottoms', 'dress-up', 'headwear', 'shoes', 'socks', 'tops', 'umbrellas'}
+
 class NooklookRepository:
     """Repository for nooklook database operations"""
     
@@ -163,7 +166,17 @@ class NooklookRepository:
         item = Item.from_dict(item_data)
         
         if load_variants:
-            item.variants = await self.get_item_variants(item_id)
+            # Check if this is a clothing category
+            if item.category in CLOTHING_CATEGORIES:
+                # For clothing, get all items with the same name and merge their variants
+                clothing_items = await self.get_clothing_variants_by_name(item.name, item.category)
+                # Merge all variants from all clothing items
+                item.variants = []
+                for clothing_item in clothing_items:
+                    item.variants.extend(clothing_item.variants)
+            else:
+                # For non-clothing items, load normal variants from item_variants table
+                item.variants = await self.get_item_variants(item_id)
         
         return item
     
@@ -212,6 +225,35 @@ class NooklookRepository:
         results = await self.db.execute_query(query, (item_id,))
         
         return [ItemVariant.from_dict(row) for row in results]
+    
+    async def get_clothing_variants_by_name(self, name: str, category: str) -> List[Item]:
+        """
+        Get all clothing items with the same name with their variants loaded from item_variants table.
+        Only works for clothing categories where each variant is a separate item row.
+        """
+        if category not in CLOTHING_CATEGORIES:
+            return []
+        
+        query = """
+            SELECT * FROM items 
+            WHERE name = ? AND category = ?
+            ORDER BY filename, id
+        """
+        results = await self.db.execute_query(query, (name, category))
+        
+        # Load each item with its variant from item_variants table
+        items = []
+        for row in results:
+            item = Item.from_dict(row)
+            # Each clothing item has exactly one variant in item_variants
+            item.variants = await self.get_item_variants(item.id)
+            items.append(item)
+        
+        return items
+    
+    async def is_clothing_category(self, category: str) -> bool:
+        """Check if a category is a clothing category"""
+        return category in CLOTHING_CATEGORIES
     
     async def browse_items(self, category: str = None, color: str = None, 
                           price_range: str = None, offset: int = 0, limit: int = 10) -> Tuple[List[Item], int]:
