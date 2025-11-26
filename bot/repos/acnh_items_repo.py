@@ -26,12 +26,120 @@ class NooklookRepository:
             logger.debug(f" Repository __init__: db_path exists = {pathlib.Path(db_path).exists()}")
         
         self.db = Database(str(db_path))
+        self._db_path = db_path
     
-    async def init_database(self):
-        """Initialize the database connection"""
-        # Database should already exist from import_all_datasets.py
-        # TODO ...make this init schema and update db if not exists..
-        pass
+    async def init_database(self) -> bool:
+        """Validate that the database exists and has expected tables.
+        
+        If the database is missing or empty, automatically runs the import script.
+        
+        Returns:
+            bool: True if database is valid and ready, False otherwise
+        
+        Raises:
+            RuntimeError: If import fails or required tables are still missing after import
+        """
+        import logging
+        logger = logging.getLogger("bot.repos.acnh_items_repo")
+        
+        # Check if database file exists
+        db_file = pathlib.Path(self._db_path)
+        needs_import = False
+        import_reason = ""
+        
+        if not db_file.exists():
+            needs_import = True
+            import_reason = "Database file not found"
+        else:
+            # Verify required tables exist
+            required_tables = ['items', 'item_variants', 'critters', 'recipes', 
+                              'villagers', 'fossils', 'artwork', 'search_index']
+            
+            try:
+                result = await self.db.execute_query(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+                existing_tables = {row['name'] for row in result}
+                
+                missing_tables = set(required_tables) - existing_tables
+                if missing_tables:
+                    needs_import = True
+                    import_reason = f"Missing required tables: {missing_tables}"
+                else:
+                    # Quick sanity check - verify we have data
+                    count_result = await self.db.execute_query_one(
+                        "SELECT COUNT(*) as count FROM items"
+                    )
+                    item_count = count_result['count'] if count_result else 0
+                    
+                    if item_count == 0:
+                        needs_import = True
+                        import_reason = "Database exists but contains no items"
+                    else:
+                        logger.info(f"Database validated: {item_count} items found")
+                        return True
+                        
+            except Exception as e:
+                needs_import = True
+                import_reason = f"Database validation error: {e}"
+        
+        # Run import if needed
+        if needs_import:
+            logger.warning(f"{import_reason} - running automatic import...")
+            await self._run_database_import()
+            
+            # Validate again after import
+            try:
+                count_result = await self.db.execute_query_one(
+                    "SELECT COUNT(*) as count FROM items"
+                )
+                item_count = count_result['count'] if count_result else 0
+                
+                if item_count == 0:
+                    raise RuntimeError(
+                        "Database import completed but no items found. "
+                        "Check your Google Sheets API key and internet connection."
+                    )
+                
+                logger.info(f"Database import successful: {item_count} items loaded")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Database validation failed after import: {e}")
+                raise
+        
+        return True
+    
+    async def _run_database_import(self):
+        """Run the database import script"""
+        import logging
+        import asyncio
+        logger = logging.getLogger("bot.repos.acnh_items_repo")
+        
+        logger.info("Starting database import from Google Sheets...")
+        
+        try:
+            # Import runs synchronously, so run in executor to not block
+            from db_tools.import_all_datasets import ACNHDatasetImporter
+            
+            def do_import():
+                importer = ACNHDatasetImporter()
+                importer.init_database()
+                # Use force import to ensure we get data
+                importer.import_all_datasets_smart()
+            
+            # Run the blocking import in a thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, do_import)
+            
+            logger.info("Database import completed")
+            
+        except Exception as e:
+            logger.error(f"Database import failed: {e}")
+            raise RuntimeError(
+                f"Failed to import database: {e}. "
+                f"Try running manually: python -m db_tools.run_full_import"
+            )
     
     async def search_fts(self, query: str, category_filter: str = None, limit: int = 50) -> List[Dict[str, Any]]:
         """Search using FTS5 search_index for strict matching"""
@@ -357,38 +465,7 @@ class NooklookRepository:
         critters = [Critter.from_dict(row) for row in results]
         
         return critters, total_count
-    
-    async def browse_recipes(self, category: str = None, offset: int = 0, limit: int = 10) -> Tuple[List[Recipe], int]:
-        """Browse recipes with filtering - returns (recipes, total_count)"""
-        base_query = "SELECT * FROM recipes"
-        count_query = "SELECT COUNT(*) as total FROM recipes"
-        params = []
-        
-        if category:
-            where_clause = " WHERE category = ?"
-            base_query += where_clause
-            count_query += where_clause
-            params.append(category)
-        
-        # Get total count
-        count_result = await self.db.execute_query_one(count_query, params)
-        total_count = count_result['total'] if count_result else 0
-        
-        # Add pagination and ordering
-        base_query += " ORDER BY name LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
-        
-        results = await self.db.execute_query(base_query, params)
-        
-        # Convert to Recipe objects and load ingredients
-        recipes = []
-        for row in results:
-            recipe = Recipe.from_dict(row)
-            recipe.ingredients = await self.get_recipe_ingredients(recipe.id)
-            recipes.append(recipe)
-        
-        return recipes, total_count
-    
+
     async def get_recipe_ingredients(self, recipe_id: int) -> List[Tuple[str, int]]:
         """Get ingredients for a recipe"""
         query = "SELECT ingredient_name, quantity FROM recipe_ingredients WHERE recipe_id = ?"
@@ -452,6 +529,89 @@ class NooklookRepository:
             return await self.get_artwork_by_id(obj_id)
         
         return None
+    
+    async def resolve_search_results_batch(self, search_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Batch resolve search results to actual objects (optimized - reduces N+1 queries)
+        
+        Args:
+            search_results: List of dicts with 'ref_table' and 'ref_id' keys
+            
+        Returns:
+            Dict mapping "table:id" to resolved objects
+        """
+        # Group IDs by table
+        ids_by_table: Dict[str, List[int]] = {
+            'items': [], 'critters': [], 'recipes': [], 
+            'villagers': [], 'fossils': [], 'artwork': []
+        }
+        
+        for result in search_results:
+            table = result.get('ref_table')
+            try:
+                obj_id = int(result.get('ref_id', 0))
+                if table in ids_by_table and obj_id:
+                    ids_by_table[table].append(obj_id)
+            except (ValueError, TypeError):
+                continue
+        
+        resolved: Dict[str, Any] = {}
+        
+        # Batch fetch items
+        if ids_by_table['items']:
+            placeholders = ','.join('?' * len(ids_by_table['items']))
+            query = f"SELECT * FROM items WHERE id IN ({placeholders})"
+            rows = await self.db.execute_query(query, tuple(ids_by_table['items']))
+            for row in rows:
+                item = Item.from_dict(row)
+                resolved[f"items:{item.id}"] = item
+        
+        # Batch fetch critters
+        if ids_by_table['critters']:
+            placeholders = ','.join('?' * len(ids_by_table['critters']))
+            query = f"SELECT * FROM critters WHERE id IN ({placeholders})"
+            rows = await self.db.execute_query(query, tuple(ids_by_table['critters']))
+            for row in rows:
+                critter = Critter.from_dict(row)
+                resolved[f"critters:{critter.id}"] = critter
+        
+        # Batch fetch recipes (need ingredients too)
+        if ids_by_table['recipes']:
+            placeholders = ','.join('?' * len(ids_by_table['recipes']))
+            query = f"SELECT * FROM recipes WHERE id IN ({placeholders})"
+            rows = await self.db.execute_query(query, tuple(ids_by_table['recipes']))
+            for row in rows:
+                recipe = Recipe.from_dict(row)
+                recipe.ingredients = await self.get_recipe_ingredients(recipe.id)
+                resolved[f"recipes:{recipe.id}"] = recipe
+        
+        # Batch fetch villagers
+        if ids_by_table['villagers']:
+            placeholders = ','.join('?' * len(ids_by_table['villagers']))
+            query = f"SELECT * FROM villagers WHERE id IN ({placeholders})"
+            rows = await self.db.execute_query(query, tuple(ids_by_table['villagers']))
+            for row in rows:
+                villager = Villager.from_dict(row)
+                resolved[f"villagers:{villager.id}"] = villager
+        
+        # Batch fetch fossils
+        if ids_by_table['fossils']:
+            placeholders = ','.join('?' * len(ids_by_table['fossils']))
+            query = f"SELECT * FROM fossils WHERE id IN ({placeholders})"
+            rows = await self.db.execute_query(query, tuple(ids_by_table['fossils']))
+            for row in rows:
+                fossil = Fossil.from_dict(row)
+                resolved[f"fossils:{fossil.id}"] = fossil
+        
+        # Batch fetch artwork
+        if ids_by_table['artwork']:
+            placeholders = ','.join('?' * len(ids_by_table['artwork']))
+            query = f"SELECT * FROM artwork WHERE id IN ({placeholders})"
+            rows = await self.db.execute_query(query, tuple(ids_by_table['artwork']))
+            for row in rows:
+                artwork = Artwork.from_dict(row)
+                resolved[f"artwork:{artwork.id}"] = artwork
+        
+        return resolved
     
     async def get_critter_by_id(self, critter_id: int) -> Optional[Critter]:
         """Get a critter by ID"""

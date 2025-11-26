@@ -1,21 +1,42 @@
 import aiosqlite
 import pathlib
 import logging
+import asyncio
 from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger("bot.database")
 
 class Database:
-    """Base database class for handling SQLite operations"""
+    """Base database class for handling SQLite operations with connection pooling"""
     
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.db_dir = pathlib.Path(db_path).parent
+        self._connection: Optional[aiosqlite.Connection] = None
+        self._lock = asyncio.Lock()
         
         # Debug logging for database initialization
         logger.debug(f" Database __init__: db_path = {db_path}")
         logger.debug(f" Database __init__: absolute path = {pathlib.Path(db_path).resolve()}")
         logger.debug(f" Database __init__: db_path exists = {pathlib.Path(db_path).exists()}")
+    
+    async def _get_connection(self) -> aiosqlite.Connection:
+        """Get or create a persistent database connection"""
+        if self._connection is None:
+            self._connection = await aiosqlite.connect(self.db_path)
+            self._connection.row_factory = aiosqlite.Row
+            # Enable WAL mode for better concurrent read performance
+            await self._connection.execute("PRAGMA journal_mode=WAL")
+            await self._connection.execute("PRAGMA synchronous=NORMAL")
+            logger.info(f"Database connection established: {self.db_path}")
+        return self._connection
+    
+    async def close(self):
+        """Close the persistent connection"""
+        if self._connection is not None:
+            await self._connection.close()
+            self._connection = None
+            logger.info("Database connection closed")
         
     async def ensure_db_directory(self):
         """Ensure the database directory exists"""
@@ -52,12 +73,8 @@ class Database:
     
     async def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
         """Execute a SELECT query and return results as list of dictionaries"""
-        # Debug: Log the absolute path being used
-        abs_path = pathlib.Path(self.db_path).resolve()
-        logger.debug(f"Database connection attempt - Relative path: {self.db_path}, Absolute path: {abs_path}, Exists: {abs_path.exists()}")
-        
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
+        async with self._lock:
+            db = await self._get_connection()
             cursor = await db.execute(query, params)
             rows = await cursor.fetchall()
             await cursor.close()
@@ -65,8 +82,8 @@ class Database:
     
     async def execute_query_one(self, query: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
         """Execute a SELECT query and return first result as dictionary"""
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
+        async with self._lock:
+            db = await self._get_connection()
             cursor = await db.execute(query, params)
             row = await cursor.fetchone()
             await cursor.close()
@@ -74,7 +91,8 @@ class Database:
     
     async def execute_command(self, command: str, params: tuple = ()) -> int:
         """Execute an INSERT, UPDATE, or DELETE command and return affected rows"""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._lock:
+            db = await self._get_connection()
             cursor = await db.execute(command, params)
             await db.commit()
             affected_rows = cursor.rowcount

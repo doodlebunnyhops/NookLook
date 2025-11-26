@@ -202,7 +202,7 @@ class HelpDropdown(discord.ui.Select):
         
         # Create new view with the dropdown for continued navigation
         view = HelpDetailView(interaction_user=interaction.user)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+        await interaction.response.edit_message(embed=embed, view=view)
         # Store message reference for timeout handling
         view.message = await interaction.original_response()
 
@@ -394,23 +394,27 @@ class Help(commands.Cog):
         ephemeral = not is_dm(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         
-        # Get database statistics using the service method
+        # Get database statistics using the shared service
         try:
-            # Access the service through the nooklook commands cog
-            nooklook_cog = self.bot.get_cog('ACNHCommands')
-            if nooklook_cog:
-                stats = await nooklook_cog.service.get_database_stats()
+            service = getattr(self.bot, 'nooklook_service', None)
+            if service:
+                stats = await service.get_database_stats()
                 total_items = stats.get('items', 0)
+                total_variants = stats.get('variants', 0)
                 total_critters = stats.get('critters', 0)
                 total_recipes = stats.get('recipes', 0)
                 total_villagers = stats.get('villagers', 0)
+                total_fossils = stats.get('fossils', 0)
+                total_artwork = stats.get('artwork', 0)
                 total_content = stats.get('total_content', 0)
             else:
-                total_items = total_critters = total_recipes = total_villagers = total_content = 0
+                total_items = total_variants = total_critters = total_recipes = 0
+                total_villagers = total_fossils = total_artwork = total_content = 0
             
         except Exception as e:
             print(f"Error getting database stats: {e}")
-            total_items = total_critters = total_recipes = total_villagers = total_content = 0
+            total_items = total_variants = total_critters = total_recipes = 0
+            total_villagers = total_fossils = total_artwork = total_content = 0
         
         embed = discord.Embed(
             title="NookLook - Information",
@@ -422,11 +426,13 @@ class Help(commands.Cog):
         embed.add_field(
             name="Database Statistics",
             value=(
-                f"**Items**: {total_items:,}\n"
+                f"**Items**: {total_items:,} ({total_variants:,} variants)\n"
                 f"**Critters**: {total_critters:,}\n"
                 f"**Recipes**: {total_recipes:,}\n"
                 f"**Villagers**: {total_villagers:,}\n"
-                f"**Total Content**: {total_content:,}"
+                f"**Fossils**: {total_fossils:,}\n"
+                f"**Artwork**: {total_artwork:,}\n"
+                f"**Total**: {total_content:,}"
             ),
             inline=True
         )
