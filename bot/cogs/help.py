@@ -43,6 +43,11 @@ class HelpDropdown(discord.ui.Select):
                 value="critter"
             ),
             discord.SelectOption(
+                label="Stash Commands",
+                description="Save items to personal stashes for later",
+                value="stash"
+            ),
+            discord.SelectOption(
                 label="Server Settings",
                 description="Guild management and configuration",
                 value="server"
@@ -154,6 +159,25 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="Examples",
                 value="`/critter anchovy` - Look up anchovy fish\n`/critter monarch butterfly` - Look up butterfly info",
+                inline=False
+            )
+            
+        elif command == "stash":
+            embed.title = "Stash Commands"
+            embed.description = "Save items to personal collections for quick reference later. Stashes are private and work in servers and DMs."
+            embed.add_field(
+                name="Managing Stashes",
+                value="• `/stash create <name>` - Create a new stash\n• `/stash list` - View all your stashes\n• `/stash rename <stash> <new_name>` - Rename a stash\n• `/stash delete <stash>` - Delete a stash and its contents",
+                inline=False
+            )
+            embed.add_field(
+                name="Viewing & Using Stashes",
+                value="• `/stash view <stash>` - Browse items in a stash\n• Use the **Add to Stash** button on any lookup result\n• Navigate through saved items with ◀ ▶ buttons\n• In servers/group DMs, others can browse your stash view (only you can remove items)",
+                inline=False
+            )
+            embed.add_field(
+                name="Quick Add Feature",
+                value="• If you only have one stash, items auto-add to it\n• With multiple stashes, you'll pick which one\n• Each item saves with its current variant",
                 inline=False
             )
             
@@ -444,7 +468,8 @@ class Help(commands.Cog):
             name="Features",
             value=(
                 "Smart search & autocomplete • Color variants & hex codes\n"
-                "Seasonal availability • Prices & sources • Villager details"
+                "Seasonal availability • Prices & sources • Villager details\n"
+                "Personal stashes to save items"
             ),
             inline=False
         )
@@ -453,6 +478,7 @@ class Help(commands.Cog):
         embed.add_field(
             name="Credits & Support",
             value=(
+                "**Created by:** BloominDaisy\n"
                 "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
                 "**Sites:** [Nookipedia](https://nookipedia.com) to link back to items\n"
                 "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"
