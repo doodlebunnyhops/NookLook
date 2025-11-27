@@ -14,6 +14,8 @@ NookLook is a Discord bot that provides information about Animal Crossing: New H
 - DIY and cooking recipes
 - Artwork authenticity details
 - Fish, bug, and sea creature data
+- Personal stashes for saving item collections
+- Server-specific configuration settings
 
 ## 3. Acceptable Use
 
@@ -48,6 +50,8 @@ NookLook is a Discord bot that provides information about Animal Crossing: New H
 ### Information We Collect
 - Discord user IDs and server IDs for command processing
 - Command usage for analytics and improvement
+- User stash data (collection names and saved item references)
+- Server configuration settings (response visibility preferences)
 - No personal information beyond Discord's provided data
 
 ### Information We Don't Collect
@@ -59,6 +63,11 @@ NookLook is a Discord bot that provides information about Animal Crossing: New H
 - Data is used solely to provide Bot functionality
 - Analytics help improve Bot performance and features
 - We do not sell or share user data with third parties
+
+### Data Deletion
+- User stashes can be deleted anytime via `/stash delete` command
+- Guild settings are automatically deleted when the bot is removed from a server
+- Manual data deletion requests can be submitted through our support server
 
 ## 6. Bot Availability and Performance
 
