@@ -75,7 +75,11 @@ class ArtworkCommands(commands.Cog):
             embed.set_footer(text=category_text)
             
             # Add Nookipedia and refresh button
-            view = get_combined_view(None, artwork.nookipedia_url, add_refresh=True, content_type="artwork")
+            view = get_combined_view(
+                None, artwork.nookipedia_url, 
+                add_refresh=True, content_type="artwork",
+                stash_info={'ref_table': 'artwork', 'ref_id': artwork.id, 'display_name': artwork.name}
+            )
             
             if view:
                 view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)

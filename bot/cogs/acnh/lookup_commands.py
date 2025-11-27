@@ -75,7 +75,10 @@ class LookupCommands(commands.Cog):
                 else:
                     # Single item - show directly
                     embed = result.to_discord_embed()
-                    view = get_combined_view(None, result.nookipedia_url, add_refresh=True, content_type="item")
+                    view = get_combined_view(
+                        None, result.nookipedia_url, add_refresh=True, content_type="item",
+                        stash_info={"ref_table": "items", "ref_id": result.id, "name": result.name}
+                    )
                     if view:
                         view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
                     else:

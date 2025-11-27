@@ -32,6 +32,7 @@ class NooklookRepository:
         """Validate that the database exists and has expected tables.
         
         If the database is missing or empty, automatically runs the import script.
+        Also ensures any new schema tables (like stashes) are created.
         
         Returns:
             bool: True if database is valid and ready, False otherwise
@@ -77,6 +78,8 @@ class NooklookRepository:
                         import_reason = "Database exists but contains no items"
                     else:
                         logger.info(f"Database validated: {item_count} items found")
+                        # Ensure any new schema tables exist (safe - uses IF NOT EXISTS)
+                        await self.db.ensure_schema()
                         return True
                         
             except Exception as e:

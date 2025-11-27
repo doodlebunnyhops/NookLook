@@ -75,7 +75,11 @@ class FossilCommands(commands.Cog):
             embed.set_footer(text=footer_text)
             
             # Add Nookipedia and refresh button
-            view = get_combined_view(None, fossil.nookipedia_url, add_refresh=True, content_type="fossil")
+            view = get_combined_view(
+                None, fossil.nookipedia_url, 
+                add_refresh=True, content_type="fossil",
+                stash_info={'ref_table': 'fossils', 'ref_id': fossil.id, 'display_name': fossil.name}
+            )
             
             logger.info(f"found fossil: {fossil.name}")
             if view:

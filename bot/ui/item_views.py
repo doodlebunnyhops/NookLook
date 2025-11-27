@@ -9,7 +9,7 @@ import logging
 from typing import List
 from bot.models.acnh_item import Item
 from .base import UserRestrictedView, MessageTrackingMixin, TimeoutPreservingView
-from .common import RefreshImagesButton
+from .common import RefreshImagesButton, AddToStashButton
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +42,45 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         if len(item.variants) > 1:
             self.add_variant_selector()
         
+        # Add stash button with current variant info
+        self._add_stash_button()
+        
         # Add refresh images button with 30s cooldown
         self.add_item(RefreshImagesButton())
+    
+    def _get_variant_name(self, variant) -> str:
+        """Get a display name for a variant"""
+        if not variant:
+            return None
+        # Use display_name, color, or body_title
+        if variant.display_name:
+            return variant.display_name
+        if variant.color1:
+            if variant.color2 and variant.color2 != variant.color1:
+                return f"{variant.color1} / {variant.color2}"
+            return variant.color1
+        if variant.body_title:
+            return variant.body_title
+        return None
+    
+    def _add_stash_button(self):
+        """Add or update the stash button with current variant info"""
+        # Remove existing stash button if present
+        for item in self.children[:]:
+            if isinstance(item, AddToStashButton):
+                self.remove_item(item)
+                break
+        
+        variant_id = self.selected_variant.id if self.selected_variant else None
+        variant_name = self._get_variant_name(self.selected_variant)
+        
+        self.add_item(AddToStashButton(
+            ref_table='items',
+            ref_id=self.item.id,
+            display_name=self.item.name,
+            variant_id=variant_id,
+            variant_name=variant_name
+        ))
     
     def add_variant_selector(self):
         """Add dropdown for variant selection - handles up to 25 variants per dropdown"""
@@ -205,6 +242,9 @@ class VariantSelect(discord.ui.Select):
                 self.view.user_selected_different_variant = True
             else:
                 self.view.user_selected_different_variant = False
+            
+            # Update the stash button with new variant info
+            self.view._add_stash_button()
             
             # Create new embed and update message
             embed = self.view.create_embed()

@@ -84,7 +84,10 @@ class CritterCommands(commands.Cog):
             
             # Create view with availability button and Nookipedia link
             view = CritterAvailabilityView(critter, interaction.user)
-            get_combined_view(view, critter.nookipedia_url)  # Adds Nookipedia button in-place
+            get_combined_view(
+                view, critter.nookipedia_url,
+                stash_info={"ref_table": "critters", "ref_id": critter.id, "name": critter.name}
+            )  # Adds Nookipedia and Stash buttons in-place
             
             logger.info(f"found critter: {critter.name}")
             

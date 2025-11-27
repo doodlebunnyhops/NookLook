@@ -9,7 +9,7 @@ import logging
 from typing import List, Any
 from bot.models.acnh_item import Item, Critter, Recipe, Villager, Fossil, Artwork
 from .base import UserRestrictedView, MessageTrackingMixin, TimeoutPreservingView
-from .common import RefreshImagesButton
+from .common import RefreshImagesButton, AddToStashButton
 
 logger = logging.getLogger(__name__)
 
@@ -147,8 +147,37 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             # Add navigation buttons
             self.add_navigation_buttons()
         
+        # Add stash button for current result
+        current_result = self.results[self.current_index] if self.results else None
+        if current_result:
+            ref_table = self._get_ref_table(current_result)
+            if ref_table:
+                button_row = 3 if total > 10 else (2 if total > 1 else 0)
+                self.add_item(AddToStashButton(
+                    ref_table=ref_table,
+                    ref_id=current_result.id,
+                    display_name=getattr(current_result, 'name', 'Unknown'),
+                    row=button_row
+                ))
+        
         # Always add refresh images button
         self.add_item(RefreshImagesButton())
+    
+    def _get_ref_table(self, result: Any) -> str:
+        """Get the database table name for a result type"""
+        if isinstance(result, Item):
+            return 'items'
+        elif isinstance(result, Critter):
+            return 'critters'
+        elif isinstance(result, Recipe):
+            return 'recipes'
+        elif isinstance(result, Villager):
+            return 'villagers'
+        elif isinstance(result, Fossil):
+            return 'fossils'
+        elif isinstance(result, Artwork):
+            return 'artwork'
+        return None
     
     def add_navigation_buttons(self):
         """Add buttons for navigating through search results"""

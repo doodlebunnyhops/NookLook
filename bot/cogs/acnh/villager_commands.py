@@ -63,7 +63,10 @@ class VillagerCommands(commands.Cog):
             
             # Create view with details buttons and Nookipedia link
             view = VillagerDetailsView(villager, interaction.user, self.service)
-            get_combined_view(view, villager.nookipedia_url)  # Adds Nookipedia button in-place
+            get_combined_view(
+                view, villager.nookipedia_url,
+                stash_info={"ref_table": "villagers", "ref_id": villager.id, "name": villager.name}
+            )  # Adds Nookipedia and Stash buttons in-place
             
             # Send and store message reference for timeout handling
             view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)

@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from typing import Optional
+from typing import Optional, Any
 import logging
 
 from bot.services.acnh_service import NooklookService
@@ -11,6 +11,23 @@ from bot.ui.common import get_combined_view
 from bot.cogs.acnh.base import check_guild_ephemeral
 
 logger = logging.getLogger(__name__)
+
+
+def _get_ref_table_for_result(result: Any) -> str:
+    """Determine the ref_table for a search result based on its type"""
+    if hasattr(result, 'variants'):
+        return "items"
+    elif hasattr(result, 'kind') and result.kind in ('fish', 'insect', 'sea'):
+        return "critters"
+    elif hasattr(result, 'species'):  # villagers have species
+        return "villagers"
+    elif hasattr(result, 'is_real'):  # artwork has is_real flag
+        return "artwork"
+    elif hasattr(result, 'fossil_group'):
+        return "fossils"
+    elif hasattr(result, 'materials') and hasattr(result, 'recipes_to_unlock'):
+        return "recipes"
+    return "items"  # Default fallback
 
 
 class SearchCommands(commands.Cog):
@@ -133,8 +150,12 @@ class SearchCommands(commands.Cog):
                     category_info = f" in {category}" if category else ""
                     logger.info(f"Search found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
                     
-                    # Add Nookipedia button if available
-                    view = get_combined_view(None, result.nookipedia_url)
+                    # Add Nookipedia and Stash buttons if available
+                    ref_table = _get_ref_table_for_result(result)
+                    view = get_combined_view(
+                        None, result.nookipedia_url,
+                        stash_info={"ref_table": ref_table, "ref_id": result.id, "name": result.name}
+                    )
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
             # Multiple results - show navigation view

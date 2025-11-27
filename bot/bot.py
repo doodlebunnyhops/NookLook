@@ -80,6 +80,9 @@ class ACNHBot(commands.Bot):
             await self.load_extension("bot.cogs.server_management")
             self.logger.info("Loaded server management cog successfully")
             
+            await self.load_extension("bot.cogs.stash_commands")
+            self.logger.info("Loaded stash commands cog successfully")
+            
             # CDN monitoring task will be started in on_ready
             self.logger.info("CDN monitoring task defined (will start when bot ready)")
             
@@ -381,8 +384,10 @@ class ACNHBot(commands.Bot):
         #     self.cdn_monitoring_task.cancel()
         #     self.logger.info("Stopped CDN monitoring task")
         
-        # The ACNH service uses context managers for DB connections, so no cleanup needed
-        self.logger.info("ACNH service uses auto-closing connections")
+        # Close all database connections (singleton pattern handles all instances)
+        from bot.repos.database import Database
+        await Database.close_all()
+        self.logger.info("Closed all database connections")
         
         # Call the parent close method
         await super().close()

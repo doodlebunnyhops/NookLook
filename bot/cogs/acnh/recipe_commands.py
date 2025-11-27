@@ -73,7 +73,11 @@ class RecipeCommands(commands.Cog):
             # embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
             
             # Add Nookipedia and refresh button
-            view = get_combined_view(None, recipe.nookipedia_url, add_refresh=True, content_type="recipe")
+            view = get_combined_view(
+                None, recipe.nookipedia_url, 
+                add_refresh=True, content_type="recipe",
+                stash_info={'ref_table': 'recipes', 'ref_id': recipe.id, 'display_name': recipe.name}
+            )
             
             logger.info(f"found recipe: {recipe.name} ({recipe_type})")
             if view:

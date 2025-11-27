@@ -573,8 +573,11 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         view.clear_items()
         view.add_view_availability_button()
         
-        # Add Nookipedia button if URL exists
-        get_combined_view(view, self.critter.nookipedia_url)
+        # Add Nookipedia and Stash buttons if URL exists
+        get_combined_view(
+            view, self.critter.nookipedia_url,
+            stash_info={"ref_table": "critters", "ref_id": self.critter.id, "name": self.critter.name}
+        )
         
         # Transfer the message reference to the new view for timeout handling
         view.message = self.message
@@ -593,8 +596,11 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         # Create new view with availability controls
         view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True)
         
-        # Add Nookipedia button if URL exists
-        get_combined_view(view, self.critter.nookipedia_url)
+        # Add Nookipedia and Stash buttons if URL exists
+        get_combined_view(
+            view, self.critter.nookipedia_url,
+            stash_info={"ref_table": "critters", "ref_id": self.critter.id, "name": self.critter.name}
+        )
         
         # Transfer the message reference to the new view for timeout handling
         view.message = self.message
