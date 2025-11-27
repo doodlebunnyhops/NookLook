@@ -38,6 +38,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.initial_variant = self.selected_variant  # Track the initial/default variant
         self.user_selected_different_variant = False  # Track if user selected a DIFFERENT variant
         self.nookipedia_url = None  # Set via add_action_buttons()
+        self._variant_selector_count = 0  # Track how many variant selectors were added
         
         # Add variant selector if item has multiple variants (row 0)
         if len(item.variants) > 1:
@@ -69,8 +70,15 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         """
         self.nookipedia_url = nookipedia_url
         
-        # Determine row - row 1 if we have variant selectors, row 0 otherwise
-        action_row = 1 if len(self.item.variants) > 1 else 0
+        # Determine row based on how many variant selectors exist
+        # Each select takes its own row, so action buttons go after all selects
+        if self._variant_selector_count > 0:
+            action_row = self._variant_selector_count  # Row after all variant selects
+        else:
+            action_row = 0
+        
+        # Cap at row 4 (Discord max is rows 0-4)
+        action_row = min(action_row, 4)
         
         # 1. Add to Stash button
         variant_id = self.selected_variant.id if self.selected_variant else None
@@ -117,11 +125,17 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.add_action_buttons(self.nookipedia_url)
     
     def add_variant_selector(self):
-        """Add dropdown for variant selection - handles up to 25 variants per dropdown"""
+        """Add dropdown for variant selection - handles up to 25 variants per dropdown
+        
+        Note: Discord limits views to 5 rows (0-4). Each select needs its own row.
+        We reserve row 4 for action buttons, so max 4 variant selects (rows 0-3).
+        This covers up to 100 variants (4 pages × 25 per page).
+        """
         if not self.item.variants:
             return
             
         total_variants = len(self.item.variants)
+        self._variant_selector_count = 0
         
         # If 25 or fewer variants, use single dropdown
         if total_variants <= 25:
@@ -147,14 +161,18 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                     value=str(variant.id),
                 ))
             
-            select = VariantSelect(options, self.item)
+            select = VariantSelect(options, self.item, row=0)
             self.add_item(select)
+            self._variant_selector_count = 1
         else:
             # For more than 25 variants, split into multiple pages of 25 each
             variants_per_page = 25
             total_pages = (total_variants + variants_per_page - 1) // variants_per_page
             
-            for page in range(total_pages):
+            # Limit to 4 pages (rows 0-3) to leave row 4 for action buttons
+            max_pages = min(total_pages, 4)
+            
+            for page in range(max_pages):
                 start_idx = page * variants_per_page
                 end_idx = min(start_idx + variants_per_page, total_variants)
                 page_variants = self.item.variants[start_idx:end_idx]
@@ -187,9 +205,11 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                         value=str(variant.id),
                     ))
                 
-                # Create select with page indicator
-                select = VariantSelect(options, self.item, page=page+1, total_pages=total_pages)
+                # Create select with page indicator, each on its own row
+                select = VariantSelect(options, self.item, page=page+1, total_pages=total_pages, row=page)
                 self.add_item(select)
+            
+            self._variant_selector_count = max_pages
     
     def create_embed(self) -> discord.Embed:
         """Create embed for the selected variant"""
@@ -226,9 +246,10 @@ class VariantSelect(discord.ui.Select):
         item: The ACNH item these variants belong to
         page: Current page number (for multi-page selects)
         total_pages: Total number of pages (for multi-page selects)
+        row: Row number for this select (0-4)
     """
     
-    def __init__(self, options: List[discord.SelectOption], item: Item, page: int = 1, total_pages: int = 1):
+    def __init__(self, options: List[discord.SelectOption], item: Item, page: int = 1, total_pages: int = 1, row: int = 0):
         # Create placeholder text that shows page info for multi-page selectors
         if total_pages > 1:
             placeholder = f"Choose variant (Page {page}/{total_pages})..."
@@ -240,7 +261,8 @@ class VariantSelect(discord.ui.Select):
         super().__init__(
             placeholder=placeholder,
             options=options,
-            custom_id=custom_id
+            custom_id=custom_id,
+            row=row
         )
         self.item = item
     
