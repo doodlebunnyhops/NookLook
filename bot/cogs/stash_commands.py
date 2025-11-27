@@ -132,7 +132,8 @@ class StashCommands(commands.Cog):
             stash_service=self.stash_service
         )
         
-        embed = await view.create_embed()
+        # Initialize the view (loads first item, sets up Nookipedia button)
+        embed = await view.initialize()
         message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         view.message = message
     

@@ -68,7 +68,8 @@ class LookupCommands(commands.Cog):
                     # Multiple variants - show selector (shorter timeout for direct lookup)
                     embed = result.to_discord_embed()
                     view = VariantSelectView(result, interaction.user, timeout=60)
-                    get_combined_view(view, result.nookipedia_url)  # Adds Nookipedia button in-place
+                    # Add action buttons in correct order: Stash → Refresh → Nookipedia
+                    view.add_action_buttons(result.nookipedia_url)
                     
                     # Send and store message reference for timeout handling
                     view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
@@ -77,7 +78,7 @@ class LookupCommands(commands.Cog):
                     embed = result.to_discord_embed()
                     view = get_combined_view(
                         None, result.nookipedia_url, add_refresh=True, content_type="item",
-                        stash_info={"ref_table": "items", "ref_id": result.id, "name": result.name}
+                        stash_info={"ref_table": "items", "ref_id": result.id, "display_name": result.name}
                     )
                     if view:
                         view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)

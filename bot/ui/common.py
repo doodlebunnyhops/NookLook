@@ -172,13 +172,17 @@ class RefreshImagesButton(discord.ui.Button):
     falls back to using the current message embed.
     
     The button enforces a 30-second cooldown between refreshes to prevent spam.
+    
+    Args:
+        row: Optional row number (0-4) for button placement
     """
     
-    def __init__(self):
+    def __init__(self, row: int = None):
         super().__init__(
             label="🔄 Refresh Images",
             style=discord.ButtonStyle.secondary,
-            custom_id="refresh_images"
+            custom_id="refresh_images",
+            row=row
         )
         self.last_refresh_time = 0
     
@@ -369,10 +373,12 @@ def get_combined_view(
     content_type: str = "content",
     stash_info: Optional[dict] = None
 ) -> Optional[discord.ui.View]:
-    """Combine an existing view with Nookipedia button, refresh, and stash functionality
+    """Combine an existing view with Stash, Refresh, and Nookipedia functionality
     
-    This utility function helps compose views by adding Nookipedia link buttons,
-    refresh functionality, and stash buttons to existing views.
+    This utility function helps compose views by adding stash buttons, refresh 
+    functionality, and Nookipedia link buttons to existing views.
+    
+    Button order: Add to Stash → Refresh Images → Nookipedia (consistent across all views)
     
     Args:
         existing_view: An existing view to enhance, or None
@@ -392,27 +398,43 @@ def get_combined_view(
             stash_info={'ref_table': 'recipes', 'ref_id': recipe.id, 'display_name': recipe.name}
         )
     """
-    # If we need to add refresh but have no existing view, create a simple one
-    if add_refresh and not existing_view:
-        existing_view = RefreshableStaticView(content_type)
+    # Determine if we need to create a view
+    needs_view = add_refresh or nookipedia_url or stash_info
     
-    if existing_view and nookipedia_url:
-        # Add Nookipedia button directly to existing view (no intermediate object)
-        existing_view.add_item(_create_nookipedia_button(nookipedia_url))
-    elif nookipedia_url and not add_refresh:
-        # Only Nookipedia button needed - use lightweight NookipediaView
-        existing_view = NookipediaView(nookipedia_url)
-    elif nookipedia_url and add_refresh:
-        # Create view with both nookipedia and refresh
-        existing_view = RefreshableStaticView(content_type)
-        existing_view.add_item(_create_nookipedia_button(nookipedia_url))
+    if not needs_view:
+        return existing_view
     
-    # Add stash button if info provided
-    if existing_view and stash_info:
-        existing_view.add_item(AddToStashButton(
-            ref_table=stash_info['ref_table'],
-            ref_id=stash_info['ref_id'],
-            display_name=stash_info['display_name']
-        ))
+    # Create a new view if we need one and don't have one
+    if not existing_view and (add_refresh or stash_info or nookipedia_url):
+        existing_view = RefreshableStaticView(content_type)
+        # Remove default refresh button - we'll add it in correct order below
+        for item in existing_view.children[:]:
+            if isinstance(item, discord.ui.Button) and "Refresh" in (item.label or ""):
+                existing_view.remove_item(item)
+    
+    if existing_view:
+        # Add buttons in consistent order: Stash → Refresh → Nookipedia
+        
+        # 1. Add stash button first
+        if stash_info:
+            existing_view.add_item(AddToStashButton(
+                ref_table=stash_info['ref_table'],
+                ref_id=stash_info['ref_id'],
+                display_name=stash_info['display_name']
+            ))
+        
+        # 2. Add refresh button second (if requested and not already present)
+        if add_refresh:
+            has_refresh = any(
+                isinstance(item, (RefreshImagesButton, discord.ui.Button)) and 
+                "Refresh" in (getattr(item, 'label', '') or "")
+                for item in existing_view.children
+            )
+            if not has_refresh:
+                existing_view.add_item(RefreshImagesButton())
+        
+        # 3. Add Nookipedia button last (external link, rightmost)
+        if nookipedia_url:
+            existing_view.add_item(_create_nookipedia_button(nookipedia_url))
     
     return existing_view

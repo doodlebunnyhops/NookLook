@@ -130,7 +130,16 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self._add_components()
     
     def _add_components(self):
-        """Add all UI components (dropdowns, buttons, refresh)"""
+        """Add all UI components (dropdowns, buttons, refresh)
+        
+        Layout:
+        - Row 0: Page selector (if >10 results)
+        - Row 1: Item selector (or row 0 if no page selector)
+        - Row 2: Navigation buttons (if multiple results)
+        - Row 3: Action buttons (Stash, Refresh, Nookipedia)
+        
+        For single results, action buttons go on row 0.
+        """
         total = len(self.results)
         
         if total > 1:
@@ -144,24 +153,11 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             item_row = 1 if has_page_select else 0
             self.add_item(ResultItemSelect(self.results, self.current_index, row=item_row))
             
-            # Add navigation buttons
+            # Add navigation buttons on their own row
             self.add_navigation_buttons()
         
-        # Add stash button for current result
-        current_result = self.results[self.current_index] if self.results else None
-        if current_result:
-            ref_table = self._get_ref_table(current_result)
-            if ref_table:
-                button_row = 3 if total > 10 else (2 if total > 1 else 0)
-                self.add_item(AddToStashButton(
-                    ref_table=ref_table,
-                    ref_id=current_result.id,
-                    display_name=getattr(current_result, 'name', 'Unknown'),
-                    row=button_row
-                ))
-        
-        # Always add refresh images button
-        self.add_item(RefreshImagesButton())
+        # Add action buttons on a dedicated row (below navigation)
+        self._add_action_buttons()
     
     def _get_ref_table(self, result: Any) -> str:
         """Get the database table name for a result type"""
@@ -178,6 +174,52 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         elif isinstance(result, Artwork):
             return 'artwork'
         return None
+    
+    def _add_action_buttons(self):
+        """Add action buttons (Stash, Refresh, Nookipedia) on their own row
+        
+        Order: Add to Stash → Refresh Images → Nookipedia Link
+        """
+        total = len(self.results)
+        
+        # Determine which row for action buttons
+        # Row 3 if >10 results (page select + item select + nav)
+        # Row 2 if 2-10 results (item select + nav)
+        # Row 0 if single result (no nav)
+        if total > 10:
+            action_row = 3
+        elif total > 1:
+            action_row = 2
+        else:
+            action_row = 0
+        
+        current_result = self.results[self.current_index] if self.results else None
+        if not current_result:
+            return
+        
+        # Add Stash button
+        ref_table = self._get_ref_table(current_result)
+        if ref_table:
+            self.add_item(AddToStashButton(
+                ref_table=ref_table,
+                ref_id=current_result.id,
+                display_name=getattr(current_result, 'name', 'Unknown'),
+                row=action_row
+            ))
+        
+        # Add Refresh Images button
+        self.add_item(RefreshImagesButton(row=action_row))
+        
+        # Add Nookipedia link button (external link, always last)
+        nookipedia_url = getattr(current_result, 'nookipedia_url', None)
+        if nookipedia_url:
+            self.add_item(discord.ui.Button(
+                label="Nookipedia",
+                style=discord.ButtonStyle.link,
+                url=nookipedia_url,
+                emoji="📖",
+                row=action_row
+            ))
     
     def add_navigation_buttons(self):
         """Add buttons for navigating through search results"""

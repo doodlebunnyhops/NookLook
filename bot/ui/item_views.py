@@ -37,16 +37,14 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.selected_variant = item.variants[0] if item.variants else None
         self.initial_variant = self.selected_variant  # Track the initial/default variant
         self.user_selected_different_variant = False  # Track if user selected a DIFFERENT variant
+        self.nookipedia_url = None  # Set via add_action_buttons()
         
-        # Add variant selector if item has multiple variants
+        # Add variant selector if item has multiple variants (row 0)
         if len(item.variants) > 1:
             self.add_variant_selector()
         
-        # Add stash button with current variant info
-        self._add_stash_button()
-        
-        # Add refresh images button with 30s cooldown
-        self.add_item(RefreshImagesButton())
+        # Note: Action buttons (Stash, Refresh, Nookipedia) are added separately
+        # via add_action_buttons() to ensure correct order after variant selector
     
     def _get_variant_name(self, variant) -> str:
         """Get a display name for a variant"""
@@ -63,14 +61,18 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             return variant.body_title
         return None
     
-    def _add_stash_button(self):
-        """Add or update the stash button with current variant info"""
-        # Remove existing stash button if present
-        for item in self.children[:]:
-            if isinstance(item, AddToStashButton):
-                self.remove_item(item)
-                break
+    def add_action_buttons(self, nookipedia_url: str = None):
+        """Add action buttons in correct order: Stash → Refresh → Nookipedia
         
+        Args:
+            nookipedia_url: Optional URL for Nookipedia link button
+        """
+        self.nookipedia_url = nookipedia_url
+        
+        # Determine row - row 1 if we have variant selectors, row 0 otherwise
+        action_row = 1 if len(self.item.variants) > 1 else 0
+        
+        # 1. Add to Stash button
         variant_id = self.selected_variant.id if self.selected_variant else None
         variant_name = self._get_variant_name(self.selected_variant)
         
@@ -79,8 +81,40 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             ref_id=self.item.id,
             display_name=self.item.name,
             variant_id=variant_id,
-            variant_name=variant_name
+            variant_name=variant_name,
+            row=action_row
         ))
+        
+        # 2. Refresh Images button
+        self.add_item(RefreshImagesButton(row=action_row))
+        
+        # 3. Nookipedia link button (external, rightmost)
+        if nookipedia_url:
+            self.add_item(discord.ui.Button(
+                label="Nookipedia",
+                style=discord.ButtonStyle.link,
+                url=nookipedia_url,
+                emoji="📖",
+                row=action_row
+            ))
+    
+    def _rebuild_action_buttons(self):
+        """Rebuild action buttons after variant change to maintain order"""
+        # Remove existing action buttons (Stash, Refresh, Nookipedia link)
+        buttons_to_remove = []
+        for item in self.children:
+            if isinstance(item, AddToStashButton):
+                buttons_to_remove.append(item)
+            elif isinstance(item, RefreshImagesButton):
+                buttons_to_remove.append(item)
+            elif isinstance(item, discord.ui.Button) and item.style == discord.ButtonStyle.link:
+                buttons_to_remove.append(item)
+        
+        for item in buttons_to_remove:
+            self.remove_item(item)
+        
+        # Re-add action buttons in correct order
+        self.add_action_buttons(self.nookipedia_url)
     
     def add_variant_selector(self):
         """Add dropdown for variant selection - handles up to 25 variants per dropdown"""
@@ -243,8 +277,8 @@ class VariantSelect(discord.ui.Select):
             else:
                 self.view.user_selected_different_variant = False
             
-            # Update the stash button with new variant info
-            self.view._add_stash_button()
+            # Rebuild action buttons to update stash with new variant info
+            self.view._rebuild_action_buttons()
             
             # Create new embed and update message
             embed = self.view.create_embed()

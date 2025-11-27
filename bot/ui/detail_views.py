@@ -350,12 +350,8 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         self.current_month = "jan"  # Default to January
         self.show_availability = show_availability
         
-        # Add appropriate buttons based on mode
-        if show_availability:
-            self.add_availability_controls()
-            self.add_back_button()
-        else:
-            self.add_view_availability_button()
+        # Note: Buttons are added later via add_view_availability_button() or 
+        # add_availability_action_buttons() to control ordering properly
     
     def get_availability_embed(self) -> discord.Embed:
         """Create embed showing availability for selected hemisphere and month"""
@@ -496,14 +492,8 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         self.add_item(hemisphere_select)
         self.add_item(month_select)
         
-        # Add refresh images button
-        refresh_button = discord.ui.Button(
-            label="🔄 Refresh Images", 
-            style=discord.ButtonStyle.secondary, 
-            row=2
-        )
-        refresh_button.callback = self.refresh_images_callback
-        self.add_item(refresh_button)
+        # Note: Action buttons (back, stash, refresh, nookipedia) are added separately
+        # in add_action_buttons() to control ordering
     
     async def hemisphere_callback(self, interaction: discord.Interaction):
         """Handle hemisphere selection - interaction_check handles authorization"""
@@ -531,19 +521,84 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         back_button.callback = self.back_callback
         self.add_item(back_button)
     
+    def add_availability_action_buttons(self, nookipedia_url: str = None):
+        """Add action buttons for availability view in correct order:
+        Back to Details → Add to Stash → Refresh Images → Nookipedia
+        """
+        # 1. Back to Details (primary action for this view)
+        back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
+        back_button.callback = self.back_callback
+        self.add_item(back_button)
+        
+        # 2. Add to Stash
+        from .common import AddToStashButton
+        self.add_item(AddToStashButton(
+            ref_table="critters",
+            ref_id=self.critter.id,
+            display_name=self.critter.name,
+            row=2
+        ))
+        
+        # 3. Refresh Images
+        refresh_button = discord.ui.Button(
+            label="🔄 Refresh Images", 
+            style=discord.ButtonStyle.secondary, 
+            row=2
+        )
+        refresh_button.callback = self.refresh_images_callback
+        self.add_item(refresh_button)
+        
+        # 4. Nookipedia Link (external, rightmost)
+        if nookipedia_url:
+            nookipedia_button = discord.ui.Button(
+                label="Nookipedia",
+                style=discord.ButtonStyle.link,
+                url=nookipedia_url,
+                emoji="📖",
+                row=2
+            )
+            self.add_item(nookipedia_button)
+    
     def add_view_availability_button(self):
-        """Add only the view availability button"""
+        """Add only the view availability button (used when called from critters_commands)"""
+        availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
+        availability_button.callback = self.availability_callback
+        self.add_item(availability_button)
+    
+    def add_details_action_buttons(self, nookipedia_url: str = None):
+        """Add action buttons for main details view in correct order:
+        View Availability → Add to Stash → Refresh Images → Nookipedia
+        """
+        # 1. View Availability (primary action for this view)
         availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
         availability_button.callback = self.availability_callback
         self.add_item(availability_button)
         
-        # Add refresh images button for main critter view
+        # 2. Add to Stash
+        from .common import AddToStashButton
+        self.add_item(AddToStashButton(
+            ref_table="critters",
+            ref_id=self.critter.id,
+            display_name=self.critter.name
+        ))
+        
+        # 3. Refresh Images
         refresh_button = discord.ui.Button(
             label="🔄 Refresh Images", 
             style=discord.ButtonStyle.secondary
         )
         refresh_button.callback = self.refresh_main_images_callback
         self.add_item(refresh_button)
+        
+        # 4. Nookipedia Link (external, rightmost)
+        if nookipedia_url:
+            nookipedia_button = discord.ui.Button(
+                label="Nookipedia",
+                style=discord.ButtonStyle.link,
+                url=nookipedia_url,
+                emoji="📖"
+            )
+            self.add_item(nookipedia_button)
     
     async def back_callback(self, interaction: discord.Interaction):
         """Go back to the main critter details
@@ -568,16 +623,9 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             footer_text += f" • {self.critter.location}"
         embed.set_footer(text=footer_text)
         
-        # Create a new view with only the availability button (no selects)
+        # Create a new view with buttons in correct order
         view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=False)
-        view.clear_items()
-        view.add_view_availability_button()
-        
-        # Add Nookipedia and Stash buttons if URL exists
-        get_combined_view(
-            view, self.critter.nookipedia_url,
-            stash_info={"ref_table": "critters", "ref_id": self.critter.id, "name": self.critter.name}
-        )
+        view.add_details_action_buttons(self.critter.nookipedia_url)
         
         # Transfer the message reference to the new view for timeout handling
         view.message = self.message
@@ -595,12 +643,10 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         
         # Create new view with availability controls
         view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True)
+        view.add_availability_controls()
         
-        # Add Nookipedia and Stash buttons if URL exists
-        get_combined_view(
-            view, self.critter.nookipedia_url,
-            stash_info={"ref_table": "critters", "ref_id": self.critter.id, "name": self.critter.name}
-        )
+        # Add action buttons in correct order: Back → Stash → Refresh → Nookipedia
+        view.add_availability_action_buttons(self.critter.nookipedia_url)
         
         # Transfer the message reference to the new view for timeout handling
         view.message = self.message

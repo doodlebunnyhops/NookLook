@@ -4,7 +4,6 @@ from discord import app_commands
 import logging
 
 from bot.services.acnh_service import NooklookService
-from bot.ui.common import get_combined_view
 from bot.ui.detail_views import CritterAvailabilityView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import critter_name_autocomplete
@@ -82,12 +81,9 @@ class CritterCommands(commands.Cog):
                 footer_text += f" • {critter.location}"
             embed.set_footer(text=footer_text)
             
-            # Create view with availability button and Nookipedia link
+            # Create view with buttons in correct order: Availability → Stash → Refresh → Nookipedia
             view = CritterAvailabilityView(critter, interaction.user)
-            get_combined_view(
-                view, critter.nookipedia_url,
-                stash_info={"ref_table": "critters", "ref_id": critter.id, "name": critter.name}
-            )  # Adds Nookipedia and Stash buttons in-place
+            view.add_details_action_buttons(critter.nookipedia_url)
             
             logger.info(f"found critter: {critter.name}")
             

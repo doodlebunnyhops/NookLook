@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional, Union
 from .base import UserRestrictedView, MessageTrackingMixin, TimeoutPreservingView
+from .common import RefreshImagesButton
 from bot.models.acnh_item import Item, Critter, Recipe, Villager, Fossil, Artwork
 from bot.repos.acnh_items_repo import NooklookRepository
 
@@ -130,6 +131,15 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
     
     Similar to SearchResultsView, this allows users to navigate through stash items
     with full detail embeds for each item.
+    
+    Navigation (selects, prev/next buttons) is open to everyone so others can browse
+    a shared stash. Only the owner can remove items.
+    
+    Layout:
+    - Row 0: Page selector (if >10 items)
+    - Row 1: Item selector
+    - Row 2: Navigation buttons (First, Prev, Next, Last)
+    - Row 3: Action buttons (Remove from Stash, Refresh Images, Nookipedia)
     """
     
     def __init__(
@@ -146,11 +156,45 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.stash_service = stash_service
         self.repo = repo or NooklookRepository()
         self.current_index = 0
+        self._current_nookipedia_url: Optional[str] = None
         
         # Cache for loaded item details
         self._item_cache: Dict[int, Union[Item, Critter, Recipe, Villager, Fossil, Artwork]] = {}
         
         self._add_components()
+    
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Allow anyone to navigate, but only owner can remove items
+        
+        This lets others browse a shared stash without being able to modify it.
+        The remove button has its own owner check as a second layer of protection.
+        """
+        # Check if this is the remove button - only owner can use it
+        if interaction.data and interaction.data.get('custom_id') == 'remove':
+            if interaction.user != self.interaction_user:
+                await interaction.response.send_message(
+                    "❌ Only the stash owner can remove items.",
+                    ephemeral=True
+                )
+                return False
+        
+        # Allow all other interactions (navigation, selects)
+        return True
+    
+    async def initialize(self) -> discord.Embed:
+        """Initialize the view by loading the first item and building components
+        
+        This should be called after creating the view to properly set up the
+        Nookipedia button based on the first item's URL.
+        
+        Returns:
+            The embed for the current (first) item
+        """
+        # Load embed first (sets _current_nookipedia_url)
+        embed = await self.create_embed()
+        # Rebuild components with nookipedia URL
+        self._add_components()
+        return embed
     
     def _add_components(self):
         """Add all UI components"""
@@ -227,7 +271,8 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.add_item(last_btn)
     
     def _add_action_buttons(self, row: int):
-        """Add action buttons (remove from stash)"""
+        """Add action buttons in order: Remove from Stash → Refresh Images → Nookipedia"""
+        # 1. Remove from Stash button (owner only)
         remove_btn = discord.ui.Button(
             label="🗑️ Remove from Stash",
             style=discord.ButtonStyle.danger,
@@ -236,6 +281,20 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         )
         remove_btn.callback = self._remove_current_item
         self.add_item(remove_btn)
+        
+        # 2. Refresh Images button
+        self.add_item(RefreshImagesButton(row=row))
+        
+        # 3. Nookipedia link button (added dynamically based on current item)
+        # This will be updated when create_embed loads the item details
+        if self._current_nookipedia_url:
+            self.add_item(discord.ui.Button(
+                label="Nookipedia",
+                style=discord.ButtonStyle.link,
+                url=self._current_nookipedia_url,
+                emoji="📖",
+                row=row
+            ))
     
     async def _first_item(self, interaction: discord.Interaction):
         """Navigate to first item"""
@@ -262,7 +321,15 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             await self._update_view(interaction)
     
     async def _remove_current_item(self, interaction: discord.Interaction):
-        """Remove the currently displayed item from the stash"""
+        """Remove the currently displayed item from the stash (owner only)"""
+        # Double-check ownership (interaction_check should have caught this, but be safe)
+        if interaction.user != self.interaction_user:
+            await interaction.response.send_message(
+                "❌ Only the stash owner can remove items.",
+                ephemeral=True
+            )
+            return
+        
         if not self.items:
             return
         
@@ -284,8 +351,9 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             if self.current_index >= len(self.items) and self.items:
                 self.current_index = len(self.items) - 1
             
-            self._add_components()
+            # First load embed (sets _current_nookipedia_url), then rebuild components
             embed = await self.create_embed()
+            self._add_components()
             embed.set_footer(text=f"✅ Removed {removed_name} • {len(self.items)}/{self.stash_service.max_items} items")
             await interaction.response.edit_message(embed=embed, view=self)
         else:
@@ -293,8 +361,10 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
     
     async def _update_view(self, interaction: discord.Interaction):
         """Update the view after navigation"""
-        self._add_components()
+        # First load the embed (which sets _current_nookipedia_url)
         embed = await self.create_embed()
+        # Then rebuild components (which uses _current_nookipedia_url for Nookipedia button)
+        self._add_components()
         await interaction.response.edit_message(embed=embed, view=self)
     
     async def _get_item_detail(self, stash_item: Dict[str, Any]) -> Optional[Union[Item, Critter, Recipe, Villager, Fossil, Artwork]]:
@@ -332,8 +402,12 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         return result
     
     async def create_embed(self) -> discord.Embed:
-        """Create embed for current stash item with full details"""
+        """Create embed for current stash item with full details
+        
+        Also updates _current_nookipedia_url for the Nookipedia button.
+        """
         if not self.items:
+            self._current_nookipedia_url = None
             embed = discord.Embed(
                 title=f"📦 {self.stash['name']}",
                 description="*This stash is empty*\n\nUse `/lookup`, `/search`, or other commands and click **Add to Stash** to save items here!",
@@ -344,6 +418,9 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         current_item = self.items[self.current_index]
         detail = await self._get_item_detail(current_item)
+        
+        # Update nookipedia URL for current item
+        self._current_nookipedia_url = getattr(detail, 'nookipedia_url', None) if detail else None
         
         if detail:
             # Use the item's native to_embed method for full details
@@ -433,8 +510,9 @@ class StashItemPageSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         view: StashContentsView = self.view
         view.current_index = int(self.values[0])
-        view._add_components()
+        # Load embed first (sets _current_nookipedia_url), then rebuild components
         embed = await view.create_embed()
+        view._add_components()
         await interaction.response.edit_message(embed=embed, view=view)
 
 
@@ -480,8 +558,9 @@ class StashItemSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         view: StashContentsView = self.view
         view.current_index = int(self.values[0])
-        view._add_components()
+        # Load embed first (sets _current_nookipedia_url), then rebuild components
         embed = await view.create_embed()
+        view._add_components()
         await interaction.response.edit_message(embed=embed, view=view)
 
 

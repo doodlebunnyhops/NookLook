@@ -135,7 +135,8 @@ class SearchCommands(commands.Cog):
                 if hasattr(result, 'variants') and len(result.variants) > 1:
                     view = VariantSelectView(result, interaction.user)
                     embed = view.create_embed()
-                    get_combined_view(view, result.nookipedia_url)  # Adds Nookipedia button in-place
+                    # Add action buttons in correct order: Stash → Refresh → Nookipedia
+                    view.add_action_buttons(result.nookipedia_url)
                     
                     # Send and store message reference for timeout handling
                     view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
@@ -154,7 +155,7 @@ class SearchCommands(commands.Cog):
                     ref_table = _get_ref_table_for_result(result)
                     view = get_combined_view(
                         None, result.nookipedia_url,
-                        stash_info={"ref_table": ref_table, "ref_id": result.id, "name": result.name}
+                        stash_info={"ref_table": ref_table, "ref_id": result.id, "display_name": result.name}
                     )
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
