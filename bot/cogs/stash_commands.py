@@ -49,6 +49,8 @@ class StashCommands(commands.Cog):
     async def stash_list(self, interaction: discord.Interaction):
         """List all user's stashes"""
         await interaction.response.defer(ephemeral=True)
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"stash list command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
         
         stashes = await self.stash_service.get_user_stashes(interaction.user.id)
         
@@ -68,6 +70,10 @@ class StashCommands(commands.Cog):
     async def stash_create(self, interaction: discord.Interaction, name: str):
         """Create a new stash"""
         await interaction.response.defer(ephemeral=True)
+        
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"stash create command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
+        
         
         success, message, stash_id = await self.stash_service.create_stash(
             interaction.user.id, 
@@ -103,6 +109,9 @@ class StashCommands(commands.Cog):
         # Use guild ephemeral settings (public in DMs, honor guild settings, ephemeral if bot not installed)
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"stash view command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
         
         # stash is the stash ID from autocomplete
         try:
@@ -153,6 +162,9 @@ class StashCommands(commands.Cog):
         """Rename a stash"""
         await interaction.response.defer(ephemeral=True)
         
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"stash rename command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
+        
         try:
             stash_id = int(stash)
         except ValueError:
@@ -190,6 +202,9 @@ class StashCommands(commands.Cog):
     async def stash_delete(self, interaction: discord.Interaction, stash: str):
         """Delete a stash"""
         await interaction.response.defer(ephemeral=True)
+        
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"stash delete command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
         
         try:
             stash_id = int(stash)
@@ -230,6 +245,9 @@ class StashCommands(commands.Cog):
     async def stash_clear(self, interaction: discord.Interaction, stash: str):
         """Clear all items from a stash"""
         await interaction.response.defer(ephemeral=True)
+        
+        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
+        logger.info(f"stash clear command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
         
         try:
             stash_id = int(stash)
