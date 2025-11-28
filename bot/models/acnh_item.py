@@ -2,21 +2,6 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
-# Import image fallback utilities
-# try:
-#     from ..utils.image_fallback import safe_set_image, safe_set_thumbnail
-# except ImportError:
-#     # Fallback if utils aren't available
-#     async def safe_set_image(embed, url, content_type='general'):
-#         if url:
-#             embed.set_image(url=url)
-#         return embed
-    
-#     async def safe_set_thumbnail(embed, url, content_type='general'):
-#         if url:
-#             embed.set_thumbnail(url=url)
-#         return embed
-
 @dataclass(slots=True)
 class ItemVariant:
     """Represents a color/pattern variant of an item"""
@@ -1086,5 +1071,3 @@ class Fossil:
     def to_embed(self) -> discord.Embed:
         """Convert this fossil to a Discord embed (compatibility method)"""
         return self.to_discord_embed()
-
-# ACNHItem class removed - using new nooklook schema classes instead

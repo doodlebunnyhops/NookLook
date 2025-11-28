@@ -422,6 +422,47 @@ END;
 
 
 -- =========================================================
+-- USER_STASHES: user-created collections of items
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS user_stashes (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id             TEXT NOT NULL,              -- Discord user ID
+    name                TEXT NOT NULL,              -- Stash name (e.g., "Kitchen Ideas", "Dino Theme")
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, name)                           -- User can't have duplicate stash names
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_stashes_user_id ON user_stashes(user_id);
+
+-- Trigger to update the updated_at timestamp when stash is modified
+CREATE TRIGGER IF NOT EXISTS update_user_stashes_timestamp 
+    AFTER UPDATE ON user_stashes
+    FOR EACH ROW
+BEGIN
+    UPDATE user_stashes SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;
+
+-- =========================================================
+-- STASH_ITEMS: items saved to user stashes
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS stash_items (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    stash_id            INTEGER NOT NULL REFERENCES user_stashes(id) ON DELETE CASCADE,
+    ref_table           TEXT NOT NULL,              -- 'items', 'critters', 'recipes', 'villagers', 'fossils', 'artwork'
+    ref_id              INTEGER NOT NULL,           -- ID in the referenced table
+    variant_id          INTEGER,                    -- For items with variants, which variant was selected (NULL if no variant)
+    display_name        TEXT NOT NULL,              -- Cached name for display without lookup (includes variant info)
+    added_at            DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(stash_id, ref_table, ref_id, variant_id) -- Can't add same item+variant twice to a stash
+);
+
+CREATE INDEX IF NOT EXISTS idx_stash_items_stash_id ON stash_items(stash_id);
+
+
+-- =========================================================
 -- SEARCH INDEX (FTS5): unified name search
 -- =========================================================
 

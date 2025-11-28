@@ -7,7 +7,6 @@ import os
 import pathlib
 from datetime import datetime, timedelta
 from .settings import DISCORD_API_SECRET, GUILDS_ID
-from .services.acnh_service import NooklookService
 from db_tools.import_all_datasets import ACNHDatasetImporter
 import topgg
 
@@ -25,7 +24,6 @@ class ACNHBot(commands.Bot):
         )
         
         self.logger = logging.getLogger("bot")
-        self.acnh_service = NooklookService()
         self._shutdown_gracefully = False
         
         # Top.gg client (initialized in setup_hook)
@@ -48,9 +46,8 @@ class ACNHBot(commands.Bot):
                 self.topgg_client = topgg.DBLClient(bot=self, token=os.getenv("TOP_GG_TOKEN"),autopost=True, post_shard_count=False,autopost_interval=4680)
                 self.logger.info("Top.gg client initialized with autopost enabled")
             
-            # Initialize the database
-            await self.acnh_service.init_database()
-            self.logger.info("ACNH database initialized successfully")
+            # Note: Database initialization happens in ACNHBaseCog.cog_load()
+            # The shared nooklook_service will be available after loading the base cog
             
             # Initialize dataset importer for periodic updates
             try:
@@ -66,11 +63,25 @@ class ACNHBot(commands.Bot):
             self.logger.info("Server repository initialized successfully")
             
             # Load the new nooklook commands cog
-            await self.load_extension("bot.cogs.nooklook_commands")
+            # await self.load_extension("bot.cogs.nooklook_commands")
+            # Load base FIRST - initializes the shared NooklookService
+            await self.load_extension("bot.cogs.acnh.base")
+
+            # Then load command cogs (order doesn't matter for these)
+            await self.load_extension("bot.cogs.acnh.artwork_commands")
+            await self.load_extension("bot.cogs.acnh.critters_commands")
+            await self.load_extension("bot.cogs.acnh.fossil_commands")
+            await self.load_extension("bot.cogs.acnh.lookup_commands")
+            await self.load_extension("bot.cogs.acnh.recipe_commands")
+            await self.load_extension("bot.cogs.acnh.search_commands")
+            await self.load_extension("bot.cogs.acnh.villager_commands")
             self.logger.info("Loaded nooklook commands cog successfully")
 
             await self.load_extension("bot.cogs.server_management")
             self.logger.info("Loaded server management cog successfully")
+            
+            await self.load_extension("bot.cogs.stash_commands")
+            self.logger.info("Loaded stash commands cog successfully")
             
             # CDN monitoring task will be started in on_ready
             self.logger.info("CDN monitoring task defined (will start when bot ready)")
@@ -235,8 +246,9 @@ class ACNHBot(commands.Bot):
                 
                 try:
                     # Close any existing database connections in the ACNH service
-                    await self.acnh_service.close_connections()
-                    self.logger.info("Closed existing database connections")
+                    if hasattr(self, 'nooklook_service'):
+                        await self.nooklook_service.close_connections()
+                        self.logger.info("Closed existing database connections")
                     
                     # Wait a moment for any ongoing operations to complete
                     await asyncio.sleep(2)
@@ -250,9 +262,13 @@ class ACNHBot(commands.Bot):
                     if import_performed:
                         self.logger.info("Database automatically refreshed with latest data!")
                         
-                        # Reinitialize the ACNH service with fresh connections
-                        await self.acnh_service.init_database()
-                        self.logger.info("Bot service refreshed with new data")
+                        # Validate the refreshed database
+                        if hasattr(self, 'nooklook_service'):
+                            try:
+                                await self.nooklook_service.init_database()
+                                self.logger.info("Database validated after refresh")
+                            except Exception as e:
+                                self.logger.error(f"Database validation failed after refresh: {e}")
                     else:
                         self.logger.info("No data changes detected during import check")
                         
@@ -368,8 +384,10 @@ class ACNHBot(commands.Bot):
         #     self.cdn_monitoring_task.cancel()
         #     self.logger.info("Stopped CDN monitoring task")
         
-        # The ACNH service uses context managers for DB connections, so no cleanup needed
-        self.logger.info("ACNH service uses auto-closing connections")
+        # Close all database connections (singleton pattern handles all instances)
+        from bot.repos.database import Database
+        await Database.close_all()
+        self.logger.info("Closed all database connections")
         
         # Call the parent close method
         await super().close()
