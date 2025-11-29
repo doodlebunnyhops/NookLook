@@ -164,6 +164,9 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         # Cache for loaded item details
         self._item_cache: Dict[int, Union[Item, Critter, Recipe, Villager, Fossil, Artwork]] = {}
         
+        # Cache for item labels (with artwork genuine/fake info)
+        self._item_labels: Dict[int, str] = {}
+        
         self._add_components()
     
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -193,6 +196,8 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         Returns:
             The embed for the current (first) item
         """
+        # Build item labels (for artwork genuine/fake)
+        await self._build_item_labels()
         # Load embed first (sets _current_nookipedia_url)
         embed = await self.create_embed()
         # Rebuild components with nookipedia URL
@@ -220,7 +225,8 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         # Row 1 (or 0): Item selector for quick navigation within range
         item_row = 1 if has_page_select else 0
-        self.add_item(StashItemSelect(self.items, self.current_index, row=item_row))
+        self.add_item(StashItemSelect(self.items, self.current_index, row=item_row, 
+                                       item_labels=self._item_labels))
         
         # Navigation buttons row
         if total > 1:
@@ -403,6 +409,8 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             if self.current_index >= len(self.items) and self.items:
                 self.current_index = len(self.items) - 1
 
+            # Rebuild item labels (indices changed after removal)
+            await self._build_item_labels()
             # First load embed (sets _current_nookipedia_url), then rebuild components
             embed = await self.create_embed()
             self._add_components()
@@ -483,8 +491,8 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             )
             return
 
-        # Create the full list embed
-        embed = self._create_full_list_embed()
+        # Create the full list embed (now async to look up artwork details)
+        embed = await self._create_full_list_embed()
         
         # Switch to full list mode and update components
         self.showing_full_list = True
@@ -492,10 +500,28 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         await interaction.response.edit_message(embed=embed, view=self)
 
-    def _create_full_list_embed(self) -> discord.Embed:
+    async def _create_full_list_embed(self) -> discord.Embed:
         """Create an embed showing the consolidated item list"""
         from collections import Counter
-        item_counts = Counter(item['display_name'] for item in self.items)
+        
+        # Build display names, checking artwork for genuine/fake status and recipes for DIY
+        display_names = []
+        for item in self.items:
+            name = item['display_name']
+            
+            # For artwork, look up genuine/fake status
+            if item['ref_table'] == 'artwork':
+                detail = await self._get_item_detail(item)
+                if detail and isinstance(detail, Artwork):
+                    authenticity = "Genuine" if detail.genuine else "Fake"
+                    name = f"{detail.name} ({authenticity})"
+            # For recipes, add DIY indicator
+            elif item['ref_table'] == 'recipes':
+                name = f"{name} (DIY)"
+            
+            display_names.append(name)
+        
+        item_counts = Counter(display_names)
 
         # Build the list with counts
         lines = []
@@ -573,6 +599,26 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         return result
     
+    async def _build_item_labels(self):
+        """Build display labels for items, including artwork genuine/fake status and recipe DIY indicator
+        
+        This populates self._item_labels with index -> label mappings.
+        """
+        self._item_labels.clear()
+        
+        for i, item in enumerate(self.items):
+            if item['ref_table'] == 'artwork':
+                detail = await self._get_item_detail(item)
+                if detail and isinstance(detail, Artwork):
+                    authenticity = "Genuine" if detail.genuine else "Fake"
+                    self._item_labels[i] = f"{detail.name} ({authenticity})"
+                else:
+                    self._item_labels[i] = item['display_name']
+            elif item['ref_table'] == 'recipes':
+                self._item_labels[i] = f"{item['display_name']} (DIY)"
+            else:
+                self._item_labels[i] = item['display_name']
+    
     async def create_embed(self) -> discord.Embed:
         """Create embed for current stash item with full details
         
@@ -610,6 +656,11 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                     # Add variant info to title
                     variant_name = variant.display_name
                     embed.title = f"{detail.name} ({variant_name})"
+            
+            # For artwork, ensure the title shows genuine/fake status
+            if isinstance(detail, Artwork):
+                authenticity = "Genuine" if detail.genuine else "Fake"
+                embed.title = f"{detail.name} ({authenticity})"
         else:
             # Fallback if we can't load details
             emoji = self.stash_service.get_type_emoji(current_item['ref_table'])
@@ -691,7 +742,15 @@ class StashItemPageSelect(discord.ui.Select):
 class StashItemSelect(discord.ui.Select):
     """Dropdown to select a specific stash item to view"""
     
-    def __init__(self, items: List[Dict[str, Any]], current_index: int, row: int = 0):
+    def __init__(self, items: List[Dict[str, Any]], current_index: int, row: int = 0, 
+                 item_labels: Dict[int, str] = None):
+        """
+        Args:
+            items: List of stash items
+            current_index: Currently selected item index
+            row: Discord UI row
+            item_labels: Optional dict mapping item index to display label (for artwork genuine/fake)
+        """
         # Show items around current position (10 items max due to Discord limits)
         page_size = 10
         page_start = (current_index // page_size) * page_size
@@ -713,8 +772,11 @@ class StashItemSelect(discord.ui.Select):
             }
             emoji = emoji_map.get(item['ref_table'], '📦')
             
+            # Use pre-built label if available (for artwork genuine/fake), else default
+            label = item_labels.get(global_index, item['display_name']) if item_labels else item['display_name']
+            
             options.append(discord.SelectOption(
-                label=item['display_name'][:95],
+                label=label[:95],
                 value=str(global_index),
                 emoji=emoji,
                 default=(global_index == current_index)
