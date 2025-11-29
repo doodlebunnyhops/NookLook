@@ -101,7 +101,8 @@ class StashSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreservin
         await interaction.response.edit_message(embed=embed, view=None)
         
         # Auto-delete the confirmation after a short delay
-        asyncio.create_task(self._delete_after_delay(interaction, delay=3.0))
+        logger.info("on_stash_select confirmation will be auto-deleted after delay")
+        asyncio.create_task(self._delete_after_delay(interaction, delay=10.0))
     
     async def _cancel(self, interaction: discord.Interaction):
         """Handle cancel button"""
@@ -117,6 +118,7 @@ class StashSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreservin
     
     async def _delete_after_delay(self, interaction: discord.Interaction, delay: float = 3.0):
         """Delete the ephemeral message after a delay"""
+        logger.info(f"Message will be auto-deleted after {delay} seconds")
         try:
             await asyncio.sleep(delay)
             await interaction.delete_original_response()
@@ -884,3 +886,238 @@ class ConfirmDeleteView(UserRestrictedView, MessageTrackingMixin):
             embed=None,
             view=None
         )
+
+
+class RemoveItemsView(UserRestrictedView, MessageTrackingMixin):
+    """View for selecting multiple items to remove from a stash"""
+    
+    def __init__(self, interaction_user: discord.Member, stash: Dict[str, Any], 
+                 items: List[Dict[str, Any]], stash_service):
+        super().__init__(interaction_user=interaction_user, timeout=120)
+        self.stash = stash
+        self.items = items
+        self.stash_service = stash_service
+        self.selected_item_ids: set = set()
+        self.current_page = 0
+        self.items_per_page = 25  # Discord select limit
+        
+        self._add_components()
+    
+    @property
+    def total_pages(self) -> int:
+        return max(1, (len(self.items) + self.items_per_page - 1) // self.items_per_page)
+    
+    def _add_components(self):
+        """Add select menu and buttons"""
+        self.clear_items()
+        
+        if not self.items:
+            return
+        
+        # Row 0: Multi-select for items on current page
+        start_idx = self.current_page * self.items_per_page
+        end_idx = min(start_idx + self.items_per_page, len(self.items))
+        page_items = self.items[start_idx:end_idx]
+        
+        options = []
+        for item in page_items:
+            # Get emoji for item type
+            emoji_map = {
+                'items': '🪑',
+                'critters': '🦋',
+                'recipes': '📋',
+                'villagers': '🏠',
+                'fossils': '🦴',
+                'artwork': '🖼️'
+            }
+            emoji = emoji_map.get(item['ref_table'], '📦')
+            
+            options.append(discord.SelectOption(
+                label=item['display_name'][:100],
+                value=str(item['id']),
+                emoji=emoji,
+                default=(item['id'] in self.selected_item_ids)
+            ))
+        
+        select = discord.ui.Select(
+            placeholder=f"Select items to remove (page {self.current_page + 1}/{self.total_pages})...",
+            options=options,
+            min_values=0,
+            max_values=len(options),
+            custom_id="item_select",
+            row=0
+        )
+        select.callback = self._on_select
+        self.add_item(select)
+        
+        # Row 1: Page navigation (if needed)
+        if self.total_pages > 1:
+            prev_btn = discord.ui.Button(
+                label="◀️ Prev Page",
+                style=discord.ButtonStyle.secondary,
+                custom_id="prev_page",
+                disabled=(self.current_page == 0),
+                row=1
+            )
+            prev_btn.callback = self._prev_page
+            self.add_item(prev_btn)
+            
+            next_btn = discord.ui.Button(
+                label="Next Page ▶️",
+                style=discord.ButtonStyle.secondary,
+                custom_id="next_page",
+                disabled=(self.current_page >= self.total_pages - 1),
+                row=1
+            )
+            next_btn.callback = self._next_page
+            self.add_item(next_btn)
+        
+        # Row 2: Action buttons
+        action_row = 2 if self.total_pages > 1 else 1
+        
+        remove_btn = discord.ui.Button(
+            label=f"🗑️ Remove Selected ({len(self.selected_item_ids)})",
+            style=discord.ButtonStyle.danger,
+            custom_id="remove",
+            disabled=(len(self.selected_item_ids) == 0),
+            row=action_row
+        )
+        remove_btn.callback = self._remove_selected
+        self.add_item(remove_btn)
+        
+        select_all_btn = discord.ui.Button(
+            label="Select All",
+            style=discord.ButtonStyle.secondary,
+            custom_id="select_all",
+            row=action_row
+        )
+        select_all_btn.callback = self._select_all
+        self.add_item(select_all_btn)
+        
+        clear_btn = discord.ui.Button(
+            label="Clear Selection",
+            style=discord.ButtonStyle.secondary,
+            custom_id="clear",
+            disabled=(len(self.selected_item_ids) == 0),
+            row=action_row
+        )
+        clear_btn.callback = self._clear_selection
+        self.add_item(clear_btn)
+        
+        cancel_btn = discord.ui.Button(
+            label="Cancel",
+            style=discord.ButtonStyle.secondary,
+            custom_id="cancel",
+            row=action_row
+        )
+        cancel_btn.callback = self._cancel
+        self.add_item(cancel_btn)
+    
+    async def _on_select(self, interaction: discord.Interaction):
+        """Handle item selection"""
+        # Get current page items to know which IDs are being toggled
+        start_idx = self.current_page * self.items_per_page
+        end_idx = min(start_idx + self.items_per_page, len(self.items))
+        page_items = self.items[start_idx:end_idx]
+        page_item_ids = {item['id'] for item in page_items}
+        
+        # Remove all page items from selection first
+        self.selected_item_ids -= page_item_ids
+        
+        # Add newly selected items
+        for value in interaction.data['values']:
+            self.selected_item_ids.add(int(value))
+        
+        self._add_components()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def _prev_page(self, interaction: discord.Interaction):
+        """Go to previous page"""
+        self.current_page = max(0, self.current_page - 1)
+        self._add_components()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def _next_page(self, interaction: discord.Interaction):
+        """Go to next page"""
+        self.current_page = min(self.total_pages - 1, self.current_page + 1)
+        self._add_components()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def _select_all(self, interaction: discord.Interaction):
+        """Select all items"""
+        self.selected_item_ids = {item['id'] for item in self.items}
+        self._add_components()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def _clear_selection(self, interaction: discord.Interaction):
+        """Clear all selections"""
+        self.selected_item_ids.clear()
+        self._add_components()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def _remove_selected(self, interaction: discord.Interaction):
+        """Remove all selected items"""
+        if not self.selected_item_ids:
+            await interaction.response.send_message("No items selected.", ephemeral=True)
+            return
+        
+        # Remove each selected item
+        removed_count = 0
+        for item_id in self.selected_item_ids:
+            success, _ = await self.stash_service.remove_item_by_id(item_id, interaction.user.id)
+            if success:
+                removed_count += 1
+        
+        self.stop()
+        
+        embed = discord.Embed(
+            title="🗑️ Items Removed",
+            description=f"Removed **{removed_count}** item(s) from **{self.stash['name']}**",
+            color=discord.Color.green()
+        )
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+    
+    async def _cancel(self, interaction: discord.Interaction):
+        """Cancel the operation"""
+        self.stop()
+        await interaction.response.edit_message(
+            content="Cancelled.",
+            embed=None,
+            view=None
+        )
+    
+    def create_embed(self) -> discord.Embed:
+        """Create the embed showing selection state"""
+        embed = discord.Embed(
+            title=f"🗑️ Remove Items from {self.stash['name']}",
+            color=discord.Color.orange()
+        )
+        
+        # Show selected items summary
+        if self.selected_item_ids:
+            # Get names of selected items
+            selected_names = []
+            for item in self.items:
+                if item['id'] in self.selected_item_ids:
+                    selected_names.append(item['display_name'])
+            
+            # Show up to 10 selected items
+            if len(selected_names) <= 10:
+                items_list = "\n".join(f"• {name}" for name in selected_names)
+            else:
+                items_list = "\n".join(f"• {name}" for name in selected_names[:10])
+                items_list += f"\n*...and {len(selected_names) - 10} more*"
+            
+            embed.description = f"**Selected ({len(self.selected_item_ids)}):**\n{items_list}"
+        else:
+            embed.description = "*No items selected*\n\nSelect items from the dropdown below to remove them."
+        
+        embed.set_footer(text=f"Page {self.current_page + 1}/{self.total_pages} • {len(self.items)} items total")
+        
+        return embed

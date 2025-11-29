@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 
 from bot.services.stash_service import StashService
-from bot.ui.stash_views import StashListView, StashContentsView, ConfirmDeleteView
+from bot.ui.stash_views import StashListView, StashContentsView, ConfirmDeleteView, RemoveItemsView
 from bot.cogs.acnh.base import check_guild_ephemeral
 
 logger = logging.getLogger(__name__)
@@ -43,26 +43,6 @@ class StashCommands(commands.Cog):
                 ))
         
         return choices[:25]
-    
-    @stash.command(name="list", description="View all your stashes")
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def stash_list(self, interaction: discord.Interaction):
-        """List all user's stashes"""
-        await interaction.response.defer(ephemeral=True)
-        guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"stash list command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
-        
-        stashes = await self.stash_service.get_user_stashes(interaction.user.id)
-        
-        view = StashListView(
-            interaction_user=interaction.user,
-            stashes=stashes,
-            stash_service=self.stash_service
-        )
-        
-        embed = view.create_embed()
-        message = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        view.message = message
     
     @stash.command(name="create", description="Create a new stash")
     @app_commands.describe(name="Name for your new stash (e.g., 'Kitchen Ideas', 'Cozy Theme')")
@@ -238,16 +218,16 @@ class StashCommands(commands.Cog):
         message = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         view.message = message
     
-    @stash.command(name="clear", description="Remove all items from a stash")
-    @app_commands.describe(stash="The stash to clear")
+    @stash.command(name="remove", description="Remove multiple items from a stash")
+    @app_commands.describe(stash="The stash to remove items from")
     @app_commands.autocomplete(stash=stash_name_autocomplete)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def stash_clear(self, interaction: discord.Interaction, stash: str):
-        """Clear all items from a stash"""
+    async def stash_remove(self, interaction: discord.Interaction, stash: str):
+        """Remove multiple items from a stash"""
         await interaction.response.defer(ephemeral=True)
         
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
-        logger.info(f"stash clear command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
+        logger.info(f"stash remove command used by:\n\t{interaction.user.display_name} ({interaction.user.id}) in {guild_name or 'Unknown Guild'}")
         
         try:
             stash_id = int(stash)
@@ -258,22 +238,32 @@ class StashCommands(commands.Cog):
                 return
             stash_id = stash_data['id']
         
-        success, message = await self.stash_service.clear_stash(stash_id, interaction.user.id)
+        stash_data = await self.stash_service.get_stash(stash_id, interaction.user.id)
+        if not stash_data:
+            await interaction.followup.send("❌ Stash not found", ephemeral=True)
+            return
         
-        if success:
-            embed = discord.Embed(
-                title="🧹 Stash Cleared",
-                description=message,
-                color=discord.Color.green()
-            )
-        else:
-            embed = discord.Embed(
-                title="❌ Couldn't Clear",
-                description=message,
-                color=discord.Color.red()
-            )
+        items = await self.stash_service.get_stash_items(stash_id, interaction.user.id)
         
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        if not items:
+            embed = discord.Embed(
+                title="📦 Empty Stash",
+                description=f"**{stash_data['name']}** is empty - nothing to remove!",
+                color=discord.Color.blue()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        view = RemoveItemsView(
+            interaction_user=interaction.user,
+            stash=stash_data,
+            items=items,
+            stash_service=self.stash_service
+        )
+        
+        embed = view.create_embed()
+        message = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        view.message = message
 
 
 async def setup(bot: commands.Bot):

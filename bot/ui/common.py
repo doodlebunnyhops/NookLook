@@ -194,7 +194,7 @@ class StashQuantityView(discord.ui.View):
         if quantity_to_add <= 0:
             embed = discord.Embed(
                 title="❌ Stash Full",
-                description=f"**{stash_name}** is already at maximum capacity ({max_items} items).",
+                description=f"**{stash_name}** is already at maximum capacity ({max_items} items).\nCreate a new stash `/stash create` to add more items. Or remove some items from this stash first with `/stash remove`.",
                 color=discord.Color.red()
             )
             await interaction.response.edit_message(embed=embed, view=None)
@@ -242,12 +242,14 @@ class StashQuantityView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=None)
         
         # Auto-delete after delay
-        asyncio.create_task(self._delete_after_delay(interaction, delay=3.0))
+        logger.info("Stash _confirm will be auto-deleted after delay")
+        asyncio.create_task(self._delete_after_delay(interaction, delay=10.0))
     
     async def _cancel(self, interaction: discord.Interaction):
         """Cancel the operation"""
         await interaction.response.edit_message(content="Cancelled.", embed=None, view=None)
-        asyncio.create_task(self._delete_after_delay(interaction, delay=2.0))
+        logger.info("Stash _cancel will be auto-deleted after delay")
+        asyncio.create_task(self._delete_after_delay(interaction, delay=5.0))
     
     async def _delete_after_delay(self, interaction: discord.Interaction, delay: float):
         """Delete the message after a delay"""
@@ -424,7 +426,7 @@ class RefreshableStaticView(MessageTrackingMixin, TimeoutPreservingView, Refresh
     
     async def on_timeout(self):
         """Disable buttons when view times out"""
-        logger.info(f"RefreshableStaticView for {self.content_type} timed out")
+        logger.debug(f"RefreshableStaticView for {self.content_type} timed out")
         for item in self.children:
             if isinstance(item, discord.ui.Button) and item.style != discord.ButtonStyle.link:
                 item.disabled = True

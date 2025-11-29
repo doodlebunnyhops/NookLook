@@ -167,17 +167,22 @@ class HelpDropdown(discord.ui.Select):
             embed.description = "Save items to personal collections for quick reference later. Stashes are private and work in servers and DMs."
             embed.add_field(
                 name="Managing Stashes",
-                value="• `/stash create <name>` - Create a new stash\n• `/stash list` - View all your stashes\n• `/stash rename <stash> <new_name>` - Rename a stash\n• `/stash delete <stash>` - Delete a stash and its contents",
+                value="• `/stash create <name>` - Create a new stash\n• `/stash rename <stash> <new_name>` - Rename a stash\n• `/stash delete <stash>` - Delete a stash and its contents\n• `/stash remove <stash>` - Remove multiple items at once",
                 inline=False
             )
             embed.add_field(
                 name="Viewing & Using Stashes",
-                value="• `/stash view <stash>` - Browse items in a stash\n• Use the **Add to Stash** button on any lookup result\n• Navigate through saved items with ◀ ▶ buttons\n• In servers/group DMs, others can browse your stash view (only you can remove items)",
+                value="• `/stash view <stash>` - Browse items in a stash\n• Use the **Add to Stash** button on any lookup result\n• Choose quantity when adding (1, 5, 10, 20, 40)\n• Navigate through saved items with ◀ ▶ buttons\n• **Full List** shows all items with quantities",
+                inline=False
+            )
+            embed.add_field(
+                name="Treasure Islands Integration",
+                value="• **TI Order** button generates `$order` commands for [Treasure Islands](https://discord.gg/treasureislands)\n• *Note: Treasure Islands does not endorse NookLook. This feature is for personal convenience only.*",
                 inline=False
             )
             embed.add_field(
                 name="Quick Add Feature",
-                value="• If you only have one stash, items auto-add to it\n• With multiple stashes, you'll pick which one\n• Each item saves with its current variant",
+                value="• If you only have one stash, items auto-add to it\n• With multiple stashes, you'll pick which one\n• Each item saves with its current variant\n• Duplicates allowed for Treasure Island orders",
                 inline=False
             )
             

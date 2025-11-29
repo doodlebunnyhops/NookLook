@@ -219,13 +219,14 @@ class Database:
             await cursor.close()
 
             if not result:
+                logger.error("Failed to retrieve stash_items table schema for migration check")
                 return
 
             table_sql = result[0] or ""
 
             # If there's NO UNIQUE constraint, we're good (duplicates allowed)
             if "UNIQUE" not in table_sql:
-                logger.debug("stash_items table already allows duplicates (no UNIQUE constraint)")
+                logger.info("stash_items table already allows duplicates (no UNIQUE constraint)")
                 return
 
             logger.info("Migrating stash_items table to allow duplicate items for TI orders...")
