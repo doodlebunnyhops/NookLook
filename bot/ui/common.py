@@ -45,7 +45,7 @@ class AddToStashButton(discord.ui.Button):
             self.display_name = display_name
     
     async def callback(self, interaction: discord.Interaction):
-        """Show stash selection or create prompt"""
+        """Show quantity selection, then stash selection"""
         from bot.services.stash_service import StashService
         from .stash_views import StashSelectView
         
@@ -53,95 +53,25 @@ class AddToStashButton(discord.ui.Button):
         stashes = await stash_service.get_user_stashes(interaction.user.id)
         
         if not stashes:
-            # No stashes - auto-create a "Default" stash and add the item
+            # No stashes - auto-create a "Default" stash first
             success, message, stash_id = await stash_service.create_stash(
                 interaction.user.id, "Default"
             )
             
-            if success and stash_id:
-                # Add the item to the newly created stash
-                add_success, add_message = await stash_service.add_to_stash(
-                    stash_id, interaction.user.id,
-                    self.ref_table, self.ref_id, self.display_name,
-                    variant_id=self.variant_id
-                )
-                
-                if add_success:
-                    embed = discord.Embed(
-                        title="📦 Added to Stash!",
-                        description=f"Created your first stash **Default** and added **{self.display_name}**!\n\n"
-                                   "💡 **Tips:**\n"
-                                   "• Use `/stash list` to view your stashes\n"
-                                   "• Use `/stash create <name>` to make more stashes\n"
-                                   "• You can have up to 5 stashes with 50 items each",
-                        color=discord.Color.green()
-                    )
-                else:
-                    embed = discord.Embed(
-                        title="❌ Error",
-                        description=f"Created stash but couldn't add item: {add_message}",
-                        color=discord.Color.red()
-                    )
-            else:
+            if not success:
                 embed = discord.Embed(
                     title="❌ Error",
                     description=f"Couldn't create stash: {message}",
                     color=discord.Color.red()
                 )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
             
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+            # Refresh stashes list
+            stashes = await stash_service.get_user_stashes(interaction.user.id)
         
-        # Check if already in any stashes (check for this specific variant)
-        stashes_with_item = await stash_service.get_stashes_containing_item(
-            interaction.user.id, self.ref_table, self.ref_id, variant_id=self.variant_id
-        )
-        
-        # If user has exactly one stash and item isn't already in it, add directly
-        if len(stashes) == 1 and not stashes_with_item:
-            stash = stashes[0]
-            add_success, add_message = await stash_service.add_to_stash(
-                stash['id'], interaction.user.id,
-                self.ref_table, self.ref_id, self.display_name,
-                variant_id=self.variant_id
-            )
-            
-            if add_success:
-                embed = discord.Embed(
-                    title="✅ Added to Stash",
-                    description=f"**{self.display_name}** has been added to **{stash['name']}**",
-                    color=discord.Color.green()
-                )
-            else:
-                embed = discord.Embed(
-                    title="❌ Couldn't Add",
-                    description=add_message,
-                    color=discord.Color.red()
-                )
-            
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            
-            # Auto-delete the confirmation after a short delay
-            asyncio.create_task(self._delete_after_delay(interaction, delay=3.0))
-            return
-        
-        # Multiple stashes or item already in some - show selection UI
-        if stashes_with_item:
-            stash_names = ", ".join(f"**{s['name']}**" for s in stashes_with_item)
-            embed = discord.Embed(
-                title="📦 Already Stashed",
-                description=f"**{self.display_name}** is already in: {stash_names}\n\n"
-                           "Select a different stash to add it there too:",
-                color=discord.Color.blue()
-            )
-        else:
-            embed = discord.Embed(
-                title="📦 Add to Stash",
-                description=f"Select a stash for **{self.display_name}**:",
-                color=discord.Color.blue()
-            )
-        
-        view = StashSelectView(
+        # Show quantity selection view
+        view = StashQuantityView(
             interaction_user=interaction.user,
             stashes=stashes,
             ref_table=self.ref_table,
@@ -151,17 +81,208 @@ class AddToStashButton(discord.ui.Button):
             variant_id=self.variant_id
         )
         
+        embed = view.create_embed()
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class StashQuantityView(discord.ui.View):
+    """View for selecting quantity and stash to add items to"""
     
-    async def _delete_after_delay(self, interaction: discord.Interaction, delay: float = 3.0):
-        """Delete the ephemeral message after a delay"""
+    def __init__(self, interaction_user, stashes, ref_table, ref_id, 
+                 display_name, stash_service, variant_id=None):
+        super().__init__(timeout=60)
+        self.interaction_user = interaction_user
+        self.stashes = stashes
+        self.ref_table = ref_table
+        self.ref_id = ref_id
+        self.display_name = display_name
+        self.stash_service = stash_service
+        self.variant_id = variant_id
+        self.selected_quantity = 1
+        self.selected_stash_id = stashes[0]['id'] if len(stashes) == 1 else None
+        
+        self._add_components()
+    
+    def _add_components(self):
+        """Add quantity buttons and stash selector"""
+        self.clear_items()
+        
+        # Row 0: Quantity buttons
+        quantities = [1, 5, 10, 20, 40]
+        for qty in quantities:
+            btn = discord.ui.Button(
+                label=str(qty),
+                style=discord.ButtonStyle.primary if qty == self.selected_quantity else discord.ButtonStyle.secondary,
+                custom_id=f"qty_{qty}",
+                row=0
+            )
+            btn.callback = self._make_qty_callback(qty)
+            self.add_item(btn)
+        
+        # Row 1: Stash selector (if multiple stashes)
+        if len(self.stashes) > 1:
+            options = []
+            for stash in self.stashes[:25]:
+                item_count = stash.get('item_count', 0)
+                max_items = self.stash_service.max_items
+                options.append(discord.SelectOption(
+                    label=stash['name'][:100],
+                    value=str(stash['id']),
+                    description=f"{item_count}/{max_items} items",
+                    emoji="📦",
+                    default=(stash['id'] == self.selected_stash_id)
+                ))
+            
+            select = discord.ui.Select(
+                placeholder="Choose a stash...",
+                options=options,
+                custom_id="stash_select",
+                row=1
+            )
+            select.callback = self._on_stash_select
+            self.add_item(select)
+        
+        # Row 2: Confirm and Cancel buttons
+        confirm_btn = discord.ui.Button(
+            label="✅ Add to Stash",
+            style=discord.ButtonStyle.success,
+            custom_id="confirm",
+            row=2,
+            disabled=(self.selected_stash_id is None and len(self.stashes) > 1)
+        )
+        confirm_btn.callback = self._confirm
+        self.add_item(confirm_btn)
+        
+        cancel_btn = discord.ui.Button(
+            label="Cancel",
+            style=discord.ButtonStyle.secondary,
+            custom_id="cancel",
+            row=2
+        )
+        cancel_btn.callback = self._cancel
+        self.add_item(cancel_btn)
+    
+    def _make_qty_callback(self, qty: int):
+        """Create a callback for quantity button"""
+        async def callback(interaction: discord.Interaction):
+            self.selected_quantity = qty
+            self._add_components()
+            embed = self.create_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+        return callback
+    
+    async def _on_stash_select(self, interaction: discord.Interaction):
+        """Handle stash selection"""
+        self.selected_stash_id = int(interaction.data['values'][0])
+        self._add_components()
+        embed = self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def _confirm(self, interaction: discord.Interaction):
+        """Add the items to the stash"""
+        stash_id = self.selected_stash_id or self.stashes[0]['id']
+        stash_name = next((s['name'] for s in self.stashes if s['id'] == stash_id), "stash")
+        
+        # Get current item count
+        current_count = await self.stash_service.get_stash_item_count(stash_id)
+        max_items = self.stash_service.max_items
+        available_space = max_items - current_count
+        
+        # Calculate how many we can actually add
+        quantity_to_add = min(self.selected_quantity, available_space)
+        
+        if quantity_to_add <= 0:
+            embed = discord.Embed(
+                title="❌ Stash Full",
+                description=f"**{stash_name}** is already at maximum capacity ({max_items} items).",
+                color=discord.Color.red()
+            )
+            await interaction.response.edit_message(embed=embed, view=None)
+            return
+        
+        # Add items
+        success_count = 0
+        for _ in range(quantity_to_add):
+            success, _ = await self.stash_service.add_to_stash(
+                stash_id, interaction.user.id,
+                self.ref_table, self.ref_id, self.display_name,
+                variant_id=self.variant_id
+            )
+            if success:
+                success_count += 1
+        
+        # Build response
+        if success_count == self.selected_quantity:
+            # Added all requested
+            if success_count == 1:
+                desc = f"**{self.display_name}** has been added to **{stash_name}**"
+            else:
+                desc = f"**{self.display_name}** x{success_count} has been added to **{stash_name}**"
+            embed = discord.Embed(
+                title="✅ Added to Stash",
+                description=desc,
+                color=discord.Color.green()
+            )
+        elif success_count > 0:
+            # Partial add due to capacity
+            embed = discord.Embed(
+                title="⚠️ Partially Added",
+                description=f"Added **{self.display_name}** x{success_count} to **{stash_name}**\n\n"
+                           f"Could only add {success_count} of {self.selected_quantity} requested "
+                           f"(stash capacity: {max_items} items)",
+                color=discord.Color.gold()
+            )
+        else:
+            embed = discord.Embed(
+                title="❌ Error",
+                description="Failed to add items to stash.",
+                color=discord.Color.red()
+            )
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+        
+        # Auto-delete after delay
+        asyncio.create_task(self._delete_after_delay(interaction, delay=3.0))
+    
+    async def _cancel(self, interaction: discord.Interaction):
+        """Cancel the operation"""
+        await interaction.response.edit_message(content="Cancelled.", embed=None, view=None)
+        asyncio.create_task(self._delete_after_delay(interaction, delay=2.0))
+    
+    async def _delete_after_delay(self, interaction: discord.Interaction, delay: float):
+        """Delete the message after a delay"""
         try:
             await asyncio.sleep(delay)
             await interaction.delete_original_response()
-        except discord.NotFound:
-            pass  # Message already deleted
-        except discord.HTTPException:
-            pass  # Can't delete, ignore
+        except:
+            pass
+    
+    def create_embed(self) -> discord.Embed:
+        """Create the quantity selection embed"""
+        stash_id = self.selected_stash_id or (self.stashes[0]['id'] if len(self.stashes) == 1 else None)
+        stash_name = next((s['name'] for s in self.stashes if s['id'] == stash_id), None) if stash_id else None
+        
+        embed = discord.Embed(
+            title="📦 Add to Stash",
+            color=discord.Color.blue()
+        )
+        
+        desc_parts = [f"**Item:** {self.display_name}"]
+        desc_parts.append(f"**Quantity:** {self.selected_quantity}")
+        
+        if stash_name:
+            stash_info = next((s for s in self.stashes if s['id'] == stash_id), None)
+            if stash_info:
+                current = stash_info.get('item_count', 0)
+                max_items = self.stash_service.max_items
+                desc_parts.append(f"**Stash:** {stash_name} ({current}/{max_items} items)")
+        elif len(self.stashes) > 1:
+            desc_parts.append("**Stash:** *Select below*")
+        
+        desc_parts.append("\n💡 *Select quantity, then confirm to add to your stash!*")
+        
+        embed.description = "\n".join(desc_parts)
+        return embed
 
 
 class RefreshImagesButton(discord.ui.Button):
@@ -208,7 +329,11 @@ class RefreshImagesButton(discord.ui.Button):
             
             # Check if this view has a create_embed method
             if hasattr(view, 'create_embed'):
-                embed = view.create_embed()
+                import asyncio
+                if asyncio.iscoroutinefunction(view.create_embed):
+                    embed = await view.create_embed()
+                else:
+                    embed = view.create_embed()
             else:
                 # For other views, just refresh the current embed
                 embed = interaction.message.embeds[0] if interaction.message.embeds else None
@@ -231,7 +356,11 @@ class RefreshImagesButton(discord.ui.Button):
             # Restore original footer if the view still has create_embed
             try:
                 if hasattr(view, 'create_embed'):
-                    original_embed = view.create_embed()
+                    import asyncio
+                    if asyncio.iscoroutinefunction(view.create_embed):
+                        original_embed = await view.create_embed()
+                    else:
+                        original_embed = view.create_embed()
                     if original_footer:
                         original_embed.set_footer(text=original_footer)
                     else:

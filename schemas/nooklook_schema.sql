@@ -455,8 +455,8 @@ CREATE TABLE IF NOT EXISTS stash_items (
     ref_id              INTEGER NOT NULL,           -- ID in the referenced table
     variant_id          INTEGER,                    -- For items with variants, which variant was selected (NULL if no variant)
     display_name        TEXT NOT NULL,              -- Cached name for display without lookup (includes variant info)
-    added_at            DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(stash_id, ref_table, ref_id, variant_id) -- Can't add same item+variant twice to a stash
+    added_at            DATETIME DEFAULT CURRENT_TIMESTAMP
+    -- Note: Duplicates are allowed so users can add multiples for TI orders
 );
 
 CREATE INDEX IF NOT EXISTS idx_stash_items_stash_id ON stash_items(stash_id);

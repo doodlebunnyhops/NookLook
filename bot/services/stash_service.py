@@ -130,6 +130,10 @@ class StashService:
     async def get_stash_items(self, stash_id: int, user_id: int) -> List[Dict[str, Any]]:
         """Get all items in a stash"""
         return await self.repo.get_stash_items(stash_id, user_id)
+
+    async def get_stash_item_count(self, stash_id: int) -> int:
+        """Get the number of items in a stash"""
+        return await self.repo.get_stash_item_count(stash_id)
     
     async def add_to_stash(
         self, 

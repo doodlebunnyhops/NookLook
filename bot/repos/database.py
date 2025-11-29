@@ -193,12 +193,13 @@ class Database:
     async def _run_migrations(self, db):
         """Run any necessary migrations for existing tables"""
         
-        # Check if stash_items needs migration for the variant_id unique constraint
-        await self._migrate_stash_items_unique_constraint(db)
-    
-    async def _migrate_stash_items_unique_constraint(self, db):
+        # Check if stash_items needs migration to REMOVE the unique constraint (allow duplicates for TI orders)
+        await self._migrate_stash_items_allow_duplicates(db)
+
+    async def _migrate_stash_items_allow_duplicates(self, db):
         """
-        Migrate stash_items table to include variant_id in UNIQUE constraint.
+        Migrate stash_items table to REMOVE the UNIQUE constraint.
+        This allows users to add duplicate items for TI orders.
         SQLite doesn't support ALTER TABLE to modify constraints, so we must recreate the table.
         """
         try:
@@ -208,28 +209,28 @@ class Database:
             )
             table_exists = await cursor.fetchone()
             await cursor.close()
-            
+
             if not table_exists:
                 return  # Table doesn't exist yet, schema will create it correctly
-            
+
             # Check current table schema for the UNIQUE constraint
             cursor = await db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='stash_items'")
             result = await cursor.fetchone()
             await cursor.close()
-            
+
             if not result:
                 return
-            
+
             table_sql = result[0] or ""
-            
-            # If the constraint already includes variant_id, we're good
-            if "variant_id)" in table_sql and "UNIQUE" in table_sql:
-                logger.debug("stash_items table already has correct UNIQUE constraint")
+
+            # If there's NO UNIQUE constraint, we're good (duplicates allowed)
+            if "UNIQUE" not in table_sql:
+                logger.debug("stash_items table already allows duplicates (no UNIQUE constraint)")
                 return
-            
-            logger.info("Migrating stash_items table to include variant_id in UNIQUE constraint...")
-            
-            # Create new table with correct constraint
+
+            logger.info("Migrating stash_items table to allow duplicate items for TI orders...")
+
+            # Create new table WITHOUT the UNIQUE constraint
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS stash_items_new (
                     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -238,12 +239,9 @@ class Database:
                     ref_id              INTEGER NOT NULL,
                     variant_id          INTEGER,
                     display_name        TEXT NOT NULL,
-                    added_at            DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(stash_id, ref_table, ref_id, variant_id)
+                    added_at            DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
-            
-            # Copy data from old table
+            """)            # Copy data from old table
             await db.execute("""
                 INSERT INTO stash_items_new (id, stash_id, ref_table, ref_id, variant_id, display_name, added_at)
                 SELECT id, stash_id, ref_table, ref_id, variant_id, display_name, added_at
@@ -255,17 +253,17 @@ class Database:
             
             # Rename new table
             await db.execute("ALTER TABLE stash_items_new RENAME TO stash_items")
-            
+
             # Recreate index
             await db.execute("CREATE INDEX IF NOT EXISTS idx_stash_items_stash_id ON stash_items(stash_id)")
-            
+
             await db.commit()
-            logger.info("Successfully migrated stash_items table with variant_id UNIQUE constraint")
-            
+            logger.info("Successfully migrated stash_items table to allow duplicates for TI orders")
+
         except Exception as e:
             logger.error(f"Failed to migrate stash_items table: {e}")
-            # Don't fail - the old table will still work, just won't allow same item different variants
-    
+            # Don't fail - the table will still work
+
     async def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
         """Execute a SELECT query and return results as list of dictionaries"""
         async with self._lock:

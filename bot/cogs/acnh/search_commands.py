@@ -146,7 +146,7 @@ class SearchCommands(commands.Cog):
                         title=getattr(result, 'name', 'Unknown'),
                         color=0x95a5a6
                     )
-                    embed.title = f"🔍 {embed.title}"
+                    embed.title = f"{embed.title}"
                     embed.set_footer(text=f"Search result for '{query}'")
                     category_info = f" in {category}" if category else ""
                     logger.info(f"Search found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
@@ -155,6 +155,7 @@ class SearchCommands(commands.Cog):
                     ref_table = _get_ref_table_for_result(result)
                     view = get_combined_view(
                         None, result.nookipedia_url,
+                        add_refresh=True,
                         stash_info={"ref_table": ref_table, "ref_id": result.id, "display_name": result.name}
                     )
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)

@@ -9,7 +9,7 @@ logger = logging.getLogger("bot.repos.stash_repo")
 
 # Limits
 MAX_STASHES_PER_USER = 5
-MAX_ITEMS_PER_STASH = 50
+MAX_ITEMS_PER_STASH = 40
 
 
 class StashRepository:
@@ -154,21 +154,9 @@ class StashRepository:
         item_count = await self.get_stash_item_count(stash_id)
         if item_count >= MAX_ITEMS_PER_STASH:
             return False, f"Stash is full ({MAX_ITEMS_PER_STASH} items max)"
-        
-        # Check if item already in stash (including variant)
-        if variant_id is not None:
-            existing = await self.db.execute_query_one(
-                "SELECT id FROM stash_items WHERE stash_id = ? AND ref_table = ? AND ref_id = ? AND variant_id = ?",
-                (stash_id, ref_table, ref_id, variant_id)
-            )
-        else:
-            existing = await self.db.execute_query_one(
-                "SELECT id FROM stash_items WHERE stash_id = ? AND ref_table = ? AND ref_id = ? AND variant_id IS NULL",
-                (stash_id, ref_table, ref_id)
-            )
-        if existing:
-            return False, "Item already in stash"
-        
+
+        # Note: Duplicates are now allowed so users can add multiples for TI orders
+
         # Add the item
         query = """
             INSERT INTO stash_items (stash_id, ref_table, ref_id, variant_id, display_name)

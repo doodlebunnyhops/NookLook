@@ -6,7 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional, Union
 from .base import UserRestrictedView, MessageTrackingMixin, TimeoutPreservingView
 from .common import RefreshImagesButton
-from bot.models.acnh_item import Item, Critter, Recipe, Villager, Fossil, Artwork
+from bot.models.acnh_item import Item, Critter, Recipe, Villager, Fossil, Artwork, ItemVariant
 from bot.repos.acnh_items_repo import NooklookRepository
 
 logger = logging.getLogger(__name__)
@@ -157,6 +157,7 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.repo = repo or NooklookRepository()
         self.current_index = 0
         self._current_nookipedia_url: Optional[str] = None
+        self.showing_full_list = False
         
         # Cache for loaded item details
         self._item_cache: Dict[int, Union[Item, Critter, Recipe, Villager, Fossil, Artwork]] = {}
@@ -201,6 +202,11 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.clear_items()
         
         if not self.items:
+            return
+        
+        # Full list mode: show simplified buttons
+        if self.showing_full_list:
+            self._add_full_list_buttons(row=0)
             return
         
         total = len(self.items)
@@ -271,7 +277,7 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         self.add_item(last_btn)
     
     def _add_action_buttons(self, row: int):
-        """Add action buttons in order: Remove from Stash → Refresh Images → Nookipedia"""
+        """Add action buttons in order: Remove from Stash → Full List → TI Order → Refresh Images → Nookipedia"""
         # 1. Remove from Stash button (owner only)
         remove_btn = discord.ui.Button(
             label="🗑️ Remove from Stash",
@@ -281,11 +287,33 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         )
         remove_btn.callback = self._remove_current_item
         self.add_item(remove_btn)
-        
-        # 2. Refresh Images button
+
+        # 2. Full List button (shows consolidated text list)
+        if self.items:
+            full_list_btn = discord.ui.Button(
+                label="📝 Full List",
+                style=discord.ButtonStyle.secondary,
+                custom_id="full_list",
+                row=row
+            )
+            full_list_btn.callback = self._show_full_list
+            self.add_item(full_list_btn)
+
+        # 3. Convert to TI Order button (only show if items exist)
+        if self.items:
+            ti_order_btn = discord.ui.Button(
+                label="📋 TI Order",
+                style=discord.ButtonStyle.success,
+                custom_id="ti_order",
+                row=row
+            )
+            ti_order_btn.callback = self._generate_ti_order
+            self.add_item(ti_order_btn)
+
+        # 4. Refresh Images button
         self.add_item(RefreshImagesButton(row=row))
-        
-        # 3. Nookipedia link button (added dynamically based on current item)
+
+        # 5. Nookipedia link button (added dynamically based on current item)
         # This will be updated when create_embed loads the item details
         if self._current_nookipedia_url:
             self.add_item(discord.ui.Button(
@@ -295,7 +323,29 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                 emoji="📖",
                 row=row
             ))
-    
+
+    def _add_full_list_buttons(self, row: int):
+        """Add buttons for full list view: Back → TI Order"""
+        # 1. Back button to return to detail view
+        back_btn = discord.ui.Button(
+            label="◀️ Back to Details",
+            style=discord.ButtonStyle.primary,
+            custom_id="back_to_details",
+            row=row
+        )
+        back_btn.callback = self._back_to_detail_view
+        self.add_item(back_btn)
+
+        # 2. TI Order button
+        ti_order_btn = discord.ui.Button(
+            label="📋 TI Order",
+            style=discord.ButtonStyle.success,
+            custom_id="ti_order",
+            row=row
+        )
+        ti_order_btn.callback = self._generate_ti_order
+        self.add_item(ti_order_btn)
+
     async def _first_item(self, interaction: discord.Interaction):
         """Navigate to first item"""
         if self.current_index > 0:
@@ -329,28 +379,28 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                 ephemeral=True
             )
             return
-        
+
         if not self.items:
             return
-        
+
         current_item = self.items[self.current_index]
         removed_name = current_item['display_name']
-        
+
         success, message = await self.stash_service.remove_item_by_id(
-            current_item['id'], 
+            current_item['id'],
             interaction.user.id
         )
-        
+
         if success:
             # Remove from local list and cache
             self.items = [i for i in self.items if i['id'] != current_item['id']]
             if current_item['id'] in self._item_cache:
                 del self._item_cache[current_item['id']]
-            
+
             # Adjust current index if needed
             if self.current_index >= len(self.items) and self.items:
                 self.current_index = len(self.items) - 1
-            
+
             # First load embed (sets _current_nookipedia_url), then rebuild components
             embed = await self.create_embed()
             self._add_components()
@@ -358,7 +408,127 @@ class StashContentsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             await interaction.response.edit_message(embed=embed, view=self)
         else:
             await interaction.response.send_message(f"❌ {message}", ephemeral=True)
-    
+
+    async def _generate_ti_order(self, interaction: discord.Interaction):
+        """Generate a Treasure Island order command from all items in the stash"""
+        if not self.items:
+            await interaction.response.send_message(
+                "❌ Stash is empty - nothing to convert!",
+                ephemeral=True
+            )
+            return
+
+        # Collect hex codes and item descriptions
+        hex_codes = []
+        item_descriptions = []
+        skipped_items = []
+
+        for stash_item in self.items:
+            detail = await self._get_item_detail(stash_item)
+            if not detail:
+                skipped_items.append(stash_item['display_name'])
+                continue
+
+            ti_hex = None
+            item_name = stash_item['display_name']
+
+            # Handle items with variants
+            if isinstance(detail, Item):
+                variant_id = stash_item.get('variant_id')
+                if variant_id and detail.variants:
+                    # Find the specific variant
+                    variant = next((v for v in detail.variants if v.id == variant_id), None)
+                    if variant and variant.ti_full_hex:
+                        ti_hex = variant.ti_full_hex
+                elif detail.variants:
+                    # Use first/default variant
+                    default_variant = detail.primary_variant
+                    if default_variant and default_variant.ti_full_hex:
+                        ti_hex = default_variant.ti_full_hex
+            # Handle critters, recipes, fossils, artwork (they have ti_full_hex directly)
+            elif hasattr(detail, 'ti_full_hex') and detail.ti_full_hex:
+                ti_hex = detail.ti_full_hex
+
+            if ti_hex:
+                hex_codes.append(ti_hex)
+                item_descriptions.append(f"{item_name} = {ti_hex}")
+            else:
+                skipped_items.append(item_name)
+
+        if not hex_codes:
+            await interaction.response.send_message(
+                "❌ No items in this stash have TI hex codes available.\n"
+                "This might happen with villagers or items without internal IDs.",
+                ephemeral=True
+            )
+            return
+
+        # Build the order command
+        order_command = f"$order {' '.join(hex_codes)}"
+
+        # Send just the command in a code block for easy copying
+        await interaction.response.send_message(
+            f"```\n{order_command}\n```",
+            ephemeral=True
+        )
+
+    async def _show_full_list(self, interaction: discord.Interaction):
+        """Switch to full list view showing consolidated items with xN for duplicates"""
+        if not self.items:
+            await interaction.response.send_message(
+                "❌ Stash is empty!",
+                ephemeral=True
+            )
+            return
+
+        # Create the full list embed
+        embed = self._create_full_list_embed()
+        
+        # Switch to full list mode and update components
+        self.showing_full_list = True
+        self._add_components()
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    def _create_full_list_embed(self) -> discord.Embed:
+        """Create an embed showing the consolidated item list"""
+        from collections import Counter
+        item_counts = Counter(item['display_name'] for item in self.items)
+
+        # Build the list with counts
+        lines = []
+        for item_name, count in item_counts.items():
+            if count > 1:
+                lines.append(f"• {item_name} x{count}")
+            else:
+                lines.append(f"• {item_name}")
+
+        stash_name = self.stash['name']
+        total_items = len(self.items)
+        unique_items = len(item_counts)
+
+        embed = discord.Embed(
+            title=f"📋 {stash_name} — Full List",
+            color=discord.Color.blue()
+        )
+
+        # Join lines and handle Discord's 4096 char description limit
+        item_list = "\n".join(lines)
+        if len(item_list) > 4000:
+            item_list = item_list[:3950] + "\n\n*... list truncated*"
+        
+        embed.description = item_list
+        embed.set_footer(text=f"{total_items} items ({unique_items} unique) • {total_items}/{self.stash_service.max_items} capacity")
+
+        return embed
+
+    async def _back_to_detail_view(self, interaction: discord.Interaction):
+        """Switch back from full list view to detail view"""
+        self.showing_full_list = False
+        self._add_components()
+        embed = await self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+
     async def _update_view(self, interaction: discord.Interaction):
         """Update the view after navigation"""
         # First load the embed (which sets _current_nookipedia_url)
