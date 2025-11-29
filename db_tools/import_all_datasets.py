@@ -1380,8 +1380,10 @@ class ACNHDatasetImporter:
             # 1D: 000000 + primary(2) + 0000 + item_hex(4) = 16 chars
             ti_full_hex = f"000000{ti_primary:02X}0000{item_hex}"
         else:
-            # 2D: 000000 + secondary(2) + 0000 + item_hex(4) = 16 chars
-            ti_full_hex = f"000000{ti_secondary:02X}0000{item_hex}"
+            # 2D: 000000 + (primary + secondary)(2) + 0000 + item_hex(4) = 16 chars
+            # The variant byte combines primary_index + (secondary_index * 32)
+            combined_variant = ti_primary + ti_secondary
+            ti_full_hex = f"000000{combined_variant:02X}0000{item_hex}"
         
         return item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex
 
