@@ -1355,7 +1355,7 @@ class ACNHDatasetImporter:
         
         conn.close()
 
-    def build_ti_codes(self, internal_id: int, primary_index: Optional[int], secondary_index: Optional[int]) -> Tuple[str, Optional[int], Optional[int], Optional[str], str]:
+    def build_ti_codes(self, internal_id: int, primary_index: Optional[int], secondary_index: Optional[int], is_recipe: bool = False) -> Tuple[str, Optional[int], Optional[int], Optional[str], str]:
         """Build TI codes from internal ID and variant indices"""
         # 1. Base item hex
         item_hex = format(internal_id, "04X")
@@ -1376,12 +1376,18 @@ class ACNHDatasetImporter:
             ti_customize_str = f"{ti_primary} {ti_secondary}"
         
         # 5. Full TI drop hex
-        if ti_secondary is None:
-            # 1D: 000000 + primary(2) + 0000 + item_hex(4) = 16 chars
-            ti_full_hex = f"000000{ti_primary:02X}0000{item_hex}"
+        if is_recipe:
+            # Recipes use a different format: {internal_id_hex}000016A2 (11 chars)
+            # The 16A2 suffix is a recipe card marker in TI's system
+            ti_full_hex = f"{internal_id:X}000016A2"
+        elif ti_secondary is None:
+            # 1D items: always use 00 for variant byte (TI doesn't use primary_index for 1D)
+            ti_full_hex = f"000000000000{item_hex}"
         else:
-            # 2D: 000000 + secondary(2) + 0000 + item_hex(4) = 16 chars
-            ti_full_hex = f"000000{ti_secondary:02X}0000{item_hex}"
+            # 2D: 000000 + (primary + secondary)(2) + 0000 + item_hex(4) = 16 chars
+            # The variant byte combines primary_index + (secondary_index * 32)
+            combined_variant = ti_primary + ti_secondary
+            ti_full_hex = f"000000{combined_variant:02X}0000{item_hex}"
         
         return item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex
 
@@ -1694,7 +1700,7 @@ class ACNHDatasetImporter:
         internal_id = self._get_int_value(row, ['Internal ID'])
         if internal_id:
             item_hex, ti_primary, ti_secondary, ti_customize_str, ti_full_hex = self.build_ti_codes(
-                internal_id, None, None  # Recipes are typically 1D with no variant indices
+                internal_id, None, None, is_recipe=True  # Recipes use special TI format
             )
         else:
             item_hex = ti_primary = ti_secondary = ti_customize_str = ti_full_hex = None

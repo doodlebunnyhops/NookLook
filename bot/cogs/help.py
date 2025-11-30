@@ -43,6 +43,11 @@ class HelpDropdown(discord.ui.Select):
                 value="critter"
             ),
             discord.SelectOption(
+                label="Stash Commands",
+                description="Save items to personal stashes for later",
+                value="stash"
+            ),
+            discord.SelectOption(
                 label="Server Settings",
                 description="Guild management and configuration",
                 value="server"
@@ -157,6 +162,30 @@ class HelpDropdown(discord.ui.Select):
                 inline=False
             )
             
+        elif command == "stash":
+            embed.title = "Stash Commands"
+            embed.description = "Save items to personal collections for quick reference later. Stashes are private and work in servers and DMs."
+            embed.add_field(
+                name="Managing Stashes",
+                value="• `/stash create <name>` - Create a new stash\n• `/stash rename <stash> <new_name>` - Rename a stash\n• `/stash delete <stash>` - Delete a stash and its contents\n• `/stash remove <stash>` - Remove multiple items at once",
+                inline=False
+            )
+            embed.add_field(
+                name="Viewing & Using Stashes",
+                value="• `/stash view <stash>` - Browse items in a stash\n• Use the **Add to Stash** button on any lookup result\n• Choose quantity when adding (1, 5, 10, 20, 40)\n• Navigate through saved items with ◀ ▶ buttons\n• **Full List** shows all items with quantities",
+                inline=False
+            )
+            embed.add_field(
+                name="Treasure Islands Integration",
+                value="• **TI Order** button generates `$order` commands for [Treasure Islands](https://discord.gg/treasureislands)\n• *Note: Treasure Islands does not endorse NookLook. This feature is for personal convenience only.*",
+                inline=False
+            )
+            embed.add_field(
+                name="Quick Add Feature",
+                value="• If you only have one stash, items auto-add to it\n• With multiple stashes, you'll pick which one\n• Each item saves with its current variant\n• Duplicates allowed for Treasure Island orders",
+                inline=False
+            )
+            
         elif command == "server":
             embed.title = "Server Settings Commands"
             embed.description = "**Usage:** `/server <subcommand>`\n\nManage server-specific bot configuration. **Admin/Owner only** and requires **Guild Installation**."
@@ -202,7 +231,7 @@ class HelpDropdown(discord.ui.Select):
         
         # Create new view with the dropdown for continued navigation
         view = HelpDetailView(interaction_user=interaction.user)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+        await interaction.response.edit_message(embed=embed, view=view)
         # Store message reference for timeout handling
         view.message = await interaction.original_response()
 
@@ -394,23 +423,27 @@ class Help(commands.Cog):
         ephemeral = not is_dm(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         
-        # Get database statistics using the service method
+        # Get database statistics using the shared service
         try:
-            # Access the service through the nooklook commands cog
-            nooklook_cog = self.bot.get_cog('ACNHCommands')
-            if nooklook_cog:
-                stats = await nooklook_cog.service.get_database_stats()
+            service = getattr(self.bot, 'nooklook_service', None)
+            if service:
+                stats = await service.get_database_stats()
                 total_items = stats.get('items', 0)
+                total_variants = stats.get('variants', 0)
                 total_critters = stats.get('critters', 0)
                 total_recipes = stats.get('recipes', 0)
                 total_villagers = stats.get('villagers', 0)
+                total_fossils = stats.get('fossils', 0)
+                total_artwork = stats.get('artwork', 0)
                 total_content = stats.get('total_content', 0)
             else:
-                total_items = total_critters = total_recipes = total_villagers = total_content = 0
+                total_items = total_variants = total_critters = total_recipes = 0
+                total_villagers = total_fossils = total_artwork = total_content = 0
             
         except Exception as e:
             print(f"Error getting database stats: {e}")
-            total_items = total_critters = total_recipes = total_villagers = total_content = 0
+            total_items = total_variants = total_critters = total_recipes = 0
+            total_villagers = total_fossils = total_artwork = total_content = 0
         
         embed = discord.Embed(
             title="NookLook - Information",
@@ -422,11 +455,13 @@ class Help(commands.Cog):
         embed.add_field(
             name="Database Statistics",
             value=(
-                f"**Items**: {total_items:,}\n"
+                f"**Items**: {total_items:,} ({total_variants:,} variants)\n"
                 f"**Critters**: {total_critters:,}\n"
                 f"**Recipes**: {total_recipes:,}\n"
                 f"**Villagers**: {total_villagers:,}\n"
-                f"**Total Content**: {total_content:,}"
+                f"**Fossils**: {total_fossils:,}\n"
+                f"**Artwork**: {total_artwork:,}\n"
+                f"**Total**: {total_content:,}"
             ),
             inline=True
         )
@@ -438,7 +473,8 @@ class Help(commands.Cog):
             name="Features",
             value=(
                 "Smart search & autocomplete • Color variants & hex codes\n"
-                "Seasonal availability • Prices & sources • Villager details"
+                "Seasonal availability • Prices & sources • Villager details\n"
+                "Personal stashes to save items"
             ),
             inline=False
         )
@@ -447,6 +483,7 @@ class Help(commands.Cog):
         embed.add_field(
             name="Credits & Support",
             value=(
+                "**Created by:** BloominDaisy\n"
                 "**Data Source:** [ACNH Spreadsheet](https://discord.gg/kWMMYrN) community\n"
                 "**Sites:** [Nookipedia](https://nookipedia.com) to link back to items\n"
                 "**Support Server:** [BloominWatch](https://discord.gg/fxhXWgxcHV)"

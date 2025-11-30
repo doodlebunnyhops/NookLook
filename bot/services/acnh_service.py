@@ -12,29 +12,39 @@ class NooklookService:
     def __init__(self):
         self.repo = NooklookRepository()
     
-    async def init_database(self):
-        """Initialize the database"""
-        await self.repo.init_database()
+    async def init_database(self) -> bool:
+        """Initialize and validate the database.
+        
+        Returns:
+            bool: True if database is valid and ready
+            
+        Raises:
+            FileNotFoundError: If database file doesn't exist
+            RuntimeError: If required tables are missing
+        """
+        return await self.repo.init_database()
     
     async def close_connections(self):
-        """Close any existing database connections for maintenance"""
-        # Since we use aiosqlite with context managers, connections auto-close
-        # But we can add any cleanup logic here if needed in the future
-        logger.info("Database connections use auto-closing context managers - no manual cleanup needed")
+        """Close persistent database connections"""
+        await self.repo.db.close()
+        logger.info("Database connections closed")
     
     async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None, item_subcategory: str = None) -> List[Any]:
         """Search across all content types using FTS5 with prefix matching"""
         try:
             search_results = await self.repo.search_fts_autocomplete(query, category_filter, limit=50)
             
+            # Batch resolve all search results (optimized - reduces N+1 queries to ~6)
+            resolved_map = await self.repo.resolve_search_results_batch(search_results)
             
             # Track seen clothing items to deduplicate variants
             seen_clothing_items = {}  # key: (name, category), value: item
             
-            # Resolve search results to actual objects
+            # Process results in original search order
             resolved_items = []
             for result in search_results:
-                obj = await self.repo.resolve_search_result(result['ref_table'], result['ref_id'])
+                key = f"{result['ref_table']}:{result['ref_id']}"
+                obj = resolved_map.get(key)
                 if obj:
                     # Filter recipes by subtype if specified
                     if recipe_subtype and hasattr(obj, 'is_food'):
@@ -204,24 +214,6 @@ class NooklookService:
             }
         }
     
-    async def browse_recipes(self, category: str = None, page: int = 0, per_page: int = 10) -> Dict[str, Any]:
-        """Browse recipes with filtering and pagination"""
-        offset = page * per_page
-        recipes, total_count = await self.repo.browse_recipes(category, offset, per_page)
-        
-        total_pages = (total_count + per_page - 1) // per_page
-        
-        return {
-            'recipes': recipes,
-            'pagination': {
-                'current_page': page,
-                'per_page': per_page,
-                'total_items': total_count,
-                'total_pages': total_pages,
-                'has_next': page < total_pages - 1,
-                'has_previous': page > 0
-            }
-        }
     
     async def browse_villagers(self, species: str = None, personality: str = None, 
                               page: int = 0, per_page: int = 10) -> Dict[str, Any]:
@@ -291,17 +283,20 @@ class NooklookService:
             search_results = await self.repo.search_fts_autocomplete(query, category_filter="item", limit=25)
             logger.debug(f"FTS autocomplete search returned {len(search_results)} results")
             
+            # Filter to only items and batch resolve
+            item_results = [r for r in search_results if r['ref_table'] == 'items']
+            resolved_map = await self.repo.resolve_search_results_batch(item_results)
+            
             base_items = []
             seen_names = set()
             
-            for result in search_results:
-                if result['ref_table'] == 'items':
-                    # Get the item to access its name and ID
-                    item = await self.repo.resolve_search_result(result['ref_table'], result['ref_id'])
-                    if item and item.name and item.name not in seen_names:
-                        base_items.append((item.name, item.id))
-                        seen_names.add(item.name)
-                        logger.debug(f"Added item: {item.name} (ID: {item.id})")
+            for result in item_results:
+                key = f"{result['ref_table']}:{result['ref_id']}"
+                item = resolved_map.get(key)
+                if item and item.name and item.name not in seen_names:
+                    base_items.append((item.name, item.id))
+                    seen_names.add(item.name)
+                    logger.debug(f"Added item: {item.name} (ID: {item.id})")
             
             logger.debug(f"Returning {len(base_items)} unique base items: {[name for name, _ in base_items[:5]]}")
             return base_items

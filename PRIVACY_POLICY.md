@@ -11,10 +11,18 @@ This Privacy Policy explains how NookLook ("we", "our", "the Bot") collects, use
 ### 2.1 Automatically Collected Information
 
 **Discord Platform Data:**
-- Discord User ID (for command processing)
-- Discord Server ID (for server-specific functionality)
+- Discord User ID (for command processing and stash ownership)
+- Discord Server ID (for server-specific functionality and settings)
 - Command usage and timestamps (for analytics)
 - Discord username and discriminator (for logging purposes)
+
+**User-Created Data:**
+- Stash names and saved item references (personal collections you create)
+- Item variant selections within stashes
+
+**Server Configuration Data:**
+- Guild settings (response visibility preferences)
+- Server ID linked to configuration
 
 **Technical Data:**
 - Command response times (for performance monitoring)
@@ -107,7 +115,9 @@ We may disclose information when legally required to:
 - Command logs: 30 days maximum
 - Error logs: 90 days maximum
 - Analytics data: 1 year maximum (aggregated only)
-- No permanent personal data storage
+- Guild settings: Deleted automatically when bot is removed from server
+- User stashes: Stored until user deletes them via `/stash delete` command
+- Manual data deletion: Available upon request in support server
 
 ### 5.2 Security Measures
 
@@ -147,8 +157,13 @@ We may disclose information when legally required to:
 - Right to withdraw consent where applicable
 - Right to data portability (where technically feasible)
 
+**Self-Service Data Management:**
+- Delete your stashes anytime via `/stash delete` command
+- View your stashes via `/stash list` command
+- Guild settings are automatically removed when the bot leaves the server
+
 **Exercising Rights:**
-- Contact us through our support server
+- Contact us through our support server for manual data deletion requests
 - Submit requests via GitHub issues
 - Allow up to 30 days for response
 - Requests must be verifiable to protect privacy
