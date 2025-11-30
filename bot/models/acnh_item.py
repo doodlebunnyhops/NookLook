@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
+from bot.utils.localization import get_ui
+
 @dataclass(slots=True)
 class ItemVariant:
     """Represents a color/pattern variant of an item"""
@@ -180,6 +182,72 @@ class Item:
             # Fallback to total variant count if we can't determine variations/patterns
             return f" {len(self.variants)} variants"
     
+    def get_variation_footer(self, ui) -> str:
+        """Get localized variation/pattern footer text.
+        
+        Args:
+            ui: LocalizedUI instance for the target language
+        
+        Returns:
+            Localized footer like "This item has 7 variations and 4 patterns"
+        """
+        if not self.variants or len(self.variants) <= 1:
+            return ""
+        
+        # Count unique variations and patterns
+        variations = set()
+        patterns = set()
+        
+        for variant in self.variants:
+            if variant.variation_label and variant.variation_label.strip():
+                variations.add(variant.variation_label)
+            if variant.pattern_label and variant.pattern_label.strip():
+                patterns.add(variant.pattern_label)
+        
+        variations.discard(None)
+        variations.discard('')
+        patterns.discard(None)
+        patterns.discard('')
+        
+        return ui.format_variation_footer(
+            variation_count=len(variations),
+            pattern_count=len(patterns),
+            total_variants=len(self.variants)
+        )
+    
+    def get_variants_available_text(self, ui) -> str:
+        """Get localized 'X variations available' text for embed field.
+        
+        Args:
+            ui: LocalizedUI instance for the target language
+        
+        Returns:
+            Localized text like "8 variations available" or "7 variations and 4 patterns"
+        """
+        if not self.variants or len(self.variants) <= 1:
+            return ""
+        
+        # Count unique variations and patterns
+        variations = set()
+        patterns = set()
+        
+        for variant in self.variants:
+            if variant.variation_label and variant.variation_label.strip():
+                variations.add(variant.variation_label)
+            if variant.pattern_label and variant.pattern_label.strip():
+                patterns.add(variant.pattern_label)
+        
+        variations.discard(None)
+        variations.discard('')
+        patterns.discard(None)
+        patterns.discard('')
+        
+        return ui.format_variants_available(
+            variation_count=len(variations),
+            pattern_count=len(patterns),
+            total_variants=len(self.variants)
+        )
+    
     @property
     def primary_variant(self) -> Optional[ItemVariant]:
         """Get the primary/default variant"""
@@ -199,9 +267,16 @@ class Item:
             return primary.image_url
         return self.image_url
     
-    def to_discord_embed(self, variant: Optional[ItemVariant] = None, is_variant_view: bool = False) -> discord.Embed:
-        """Create Discord embed for this item"""
+    def to_discord_embed(self, variant: Optional[ItemVariant] = None, is_variant_view: bool = False, language: str = 'en') -> discord.Embed:
+        """Create Discord embed for this item
+        
+        Args:
+            variant: Optional specific variant to display
+            is_variant_view: Whether this is a variant-specific view
+            language: User's preferred language for UI labels (default: 'en')
+        """
         selected_variant = variant or self.primary_variant
+        ui = get_ui(language)
         
         # Build title
         if self.name:
@@ -212,27 +287,29 @@ class Item:
             color=discord.Color.green()
         )
         
-        # Add basic info
+        # Add basic info with localized labels
         info_lines = []
         
         if self.category:
-            info_lines.append(f"Category: {self.category}")
+            translated_category = ui.translate_category(self.category)
+            info_lines.append(f"{ui.category}: {translated_category}")
         
         if self.sell_price:
-            info_lines.append(f"Sell Price: {self.sell_price:,} Bells")
+            info_lines.append(f"{ui.sell_price}: {self.sell_price:,} {ui.bells}")
         
         if self.buy_price:
-            info_lines.append(f"Buy Price: {self.buy_price:,} Bells")
+            info_lines.append(f"{ui.buy_price}: {self.buy_price:,} {ui.bells}")
             
         if self.source:
-            info_lines.append(f"Source: {self.source}")
+            translated_source = ui.translate_source(self.source)
+            info_lines.append(f"{ui.source}: {translated_source}")
         
         embed.description = "\n".join(info_lines)
         
         if is_variant_view and variant:
             # Variant view format - cleaner with emoji sections
             variant_info = []
-            variant_info.append("Details")
+            variant_info.append(ui.details)
             
             # Show variant name
             default_parts = []
@@ -242,11 +319,11 @@ class Item:
                 default_parts.append(variant.pattern_label)
             
             if default_parts:
-                variant_info.append(f"Variant: {', '.join(default_parts)}")
+                variant_info.append(f"{ui.variant}: {', '.join(default_parts)}")
             
             # Show hex code
             if variant.item_hex:
-                variant_info.append(f"Hex: {variant.item_hex}")
+                variant_info.append(f"{ui.hex}: {variant.item_hex}")
             
             # Show customize command with $ prefix
             if variant.item_hex and variant.ti_customize_str:
@@ -267,26 +344,26 @@ class Item:
                     default_parts.append(selected_variant.pattern_label)
                 
                 if default_parts:
-                    variant_info.append(f"Default: {', '.join(default_parts)}")
+                    variant_info.append(f"{ui.default}: {', '.join(default_parts)}")
                 
                 # Show only item hex (not all TI codes)
                 if selected_variant.item_hex:
-                    variant_info.append(f"Item Hex: {selected_variant.item_hex}")
+                    variant_info.append(f"{ui.item_hex}: {selected_variant.item_hex}")
                 
                 if variant_info:
-                    embed.add_field(name="Details", value="\n".join(variant_info), inline=False)
+                    embed.add_field(name=ui.details, value="\n".join(variant_info), inline=False)
             
             # Add variant count if multiple (base view only)
             if self.has_variants:
-                # Remove parentheses and format nicely
-                variant_summary = self.variation_pattern_summary.strip("()")
-                embed.add_field(name="Variants", value=f"{variant_summary} available", inline=True)
+                # Get localized variants available text
+                variant_text = self.get_variants_available_text(ui)
+                embed.add_field(name=ui.variants, value=variant_text, inline=True)
             
             # Add HHA info if available (base view only)
             if self.hha_base or (selected_variant and (selected_variant.body_customizable or selected_variant.pattern_customizable)):
                 hha_info = []
                 if self.hha_base:
-                    hha_info.append(f"HHA Points: {self.hha_base:,}")
+                    hha_info.append(f"{ui.hha_points}: {self.hha_base:,}")
                 
                 if selected_variant:
                     customization = []
@@ -298,10 +375,10 @@ class Item:
                         customization.append("Cyrus")
                     
                     if customization:
-                        hha_info.append(f"Customizable: {', '.join(customization)}")
+                        hha_info.append(f"{ui.customizable}: {', '.join(customization)}")
                 
                 if hha_info:
-                    embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
+                    embed.add_field(name=ui.hha_info, value="\n".join(hha_info), inline=True)
         
         # Set image with fallback handling
         thumbnail_image_url = selected_variant.image_url_alt if selected_variant else self.display_image_url

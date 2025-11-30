@@ -3,6 +3,8 @@
 Complete ACNH Dataset Importer
 Imports all ACNH datasets from Google Sheets API into the nooklook.db SQLite database using the nooklook_schema.sql structure
 """
+import time
+from datetime import datetime, timezone
 import sqlite3
 import csv
 import pathlib
@@ -145,8 +147,13 @@ class ACNHDatasetImporter:
 
     def import_all_datasets(self):
         """Import all available datasets"""
+        self.import_start_time = time.time()
+        
         print("Starting complete dataset import")
         print("=" * 60)
+        
+        # Get sheet modification time at the start for import logging
+        self._current_sheet_info = self.check_sheet_last_modified()
         
         # Define dataset mapping to their respective import methods
         dataset_mappings = {
@@ -219,6 +226,12 @@ class ACNHDatasetImporter:
         # Populate search index and museum index
         self._populate_search_index()
         self._populate_museum_index()
+        
+        # Import events from Google Sheets (separate sheet)
+        self._import_events()
+        
+        # Enrich with Nookipedia URLs (optional - requires NOOKIPEDIA_API key)
+        self._enrich_with_nookipedia_urls()
         
         self._print_final_stats()
 
@@ -361,7 +374,7 @@ class ACNHDatasetImporter:
             cursor = conn.cursor()
             
             from datetime import datetime
-            import_timestamp = datetime.utcnow().isoformat() + 'Z'
+            import_timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
             
             cursor.execute("""
                 INSERT INTO import_log (import_timestamp, sheet_modified_time, records_imported, import_duration_seconds)
@@ -1296,6 +1309,190 @@ class ACNHDatasetImporter:
         
         conn.close()
 
+    def _import_events(self):
+        """Import events from Google Sheets and enrich with Nookipedia data"""
+        print("\nImporting events...")
+        
+        try:
+            # Handle imports whether run as module or directly
+            try:
+                from db_tools.events import EventImporter, NookipediaEnricher, EventItemsImporter, apply_manual_url_mappings
+            except ImportError:
+                # When running directly, add parent to path
+                import sys
+                db_tools_dir = pathlib.Path(__file__).parent
+                project_root = db_tools_dir.parent
+                if str(project_root) not in sys.path:
+                    sys.path.insert(0, str(project_root))
+                from db_tools.events import EventImporter, NookipediaEnricher, EventItemsImporter, apply_manual_url_mappings
+            
+            # Step 1: Import events from Google Sheets (source of truth)
+            print("   Importing events from Google Sheets...")
+            importer = EventImporter(db_path=self.db_path)
+            event_stats = importer.import_events()
+            
+            events_imported = event_stats.get('events_imported', 0) + event_stats.get('events_updated', 0)
+            dates_imported = event_stats.get('dates_imported', 0)
+            print(f"   Events: {events_imported}, Dates: {dates_imported}")
+            
+            # Step 2: Enrich with Nookipedia URLs (optional)
+            print("   Enriching with Nookipedia URLs...")
+            try:
+                enricher = NookipediaEnricher(db_path=self.db_path)
+                enrich_stats = enricher.enrich_events()
+                print(f"   URLs added: {enrich_stats.get('urls_added', 0)}")
+            except Exception as e:
+                print(f"   Nookipedia enrichment skipped: {e}")
+            
+            # Step 3: Apply manual URL mappings (zodiac, blooming, etc.)
+            print("   Applying manual URL mappings...")
+            try:
+                manual_stats = apply_manual_url_mappings(db_path=self.db_path)
+                print(f"   Manual URLs applied: {manual_stats.get('total_updated', 0)}")
+            except Exception as e:
+                print(f"   Manual URL mappings skipped: {e}")
+            
+            # Step 4: Import event items (optional)
+            print("   Importing event items...")
+            try:
+                items_importer = EventItemsImporter(db_path=self.db_path)
+                items_stats = items_importer.import_items()
+                print(f"   Items imported: {items_stats.get('items_imported', 0)}")
+            except Exception as e:
+                print(f"   Event items import skipped: {e}")
+            
+            print("   Events import completed")
+            
+        except ImportError as e:
+            print(f"   Events module not available: {e}")
+            print("   Skipping events import")
+        except Exception as e:
+            print(f"   Events import failed: {e}")
+            # Don't fail the entire import if events fail
+            self.import_stats['errors'] += 1
+
+    def _enrich_with_nookipedia_urls(self):
+        """
+        Enrich database with Nookipedia URLs for items, critters, fossils, artwork, villagers, recipes.
+        
+        This is optional - only runs if NOOKIPEDIA_API environment variable is set.
+        Uses the nookipedia module to fetch and update URLs.
+        """
+        nookipedia_api = os.getenv('NOOKIPEDIA_API')
+        if not nookipedia_api:
+            print("\nNookipedia enrichment skipped (NOOKIPEDIA_API not set)")
+            return
+        
+        print("\nEnriching with Nookipedia URLs...")
+        
+        try:
+            # Import the Nookipedia modules - handle both direct run and module import
+            try:
+                from nookipedia.client import NookipediaClient
+                from nookipedia.update_db import NookipediaDBUpdater
+            except ImportError:
+                import sys
+                db_tools_dir = pathlib.Path(__file__).parent
+                project_root = db_tools_dir.parent
+                if str(project_root) not in sys.path:
+                    sys.path.insert(0, str(project_root))
+                from nookipedia.client import NookipediaClient
+                from nookipedia.update_db import NookipediaDBUpdater
+            
+            client = NookipediaClient(api_key=nookipedia_api)
+            
+            # Category mappings: Nookipedia category -> db categories (for items)
+            enrichments = [
+                # Items
+                ('clothing', ['accessories', 'bags', 'bottoms', 'dress-up', 'headwear', 'shoes', 'socks', 'tops', 'umbrellas', 'clothing-other']),
+                ('furniture', ['housewares', 'miscellaneous', 'wall-mounted', 'ceiling-decor']),
+                ('tools', ['tools-goods', 'fencing']),
+                ('items', ['other']),
+                ('interior', ['floors', 'wallpaper', 'rugs']),
+                ('photos', ['photos', 'posters']),
+                ('gyroids', ['gyroids']),
+                # Critters
+                ('fish', None),
+                ('bugs', None),
+                ('sea', None),
+                # Others
+                ('fossils', None),
+                ('art', None),
+                ('villagers', None),
+                ('recipes', None),
+            ]
+
+            total_updated = 0
+            
+            # Use context manager to properly initialize the database connection
+            with NookipediaDBUpdater(self.db_path) as updater:
+                for nookipedia_category, db_categories in enrichments:
+                    try:
+                        # Fetch data from Nookipedia (uses cache if available)
+                        if nookipedia_category == 'clothing':
+                            data = client.get_clothing_urls()
+                        elif nookipedia_category == 'furniture':
+                            data = client.get_furniture_urls()
+                        elif nookipedia_category == 'tools':
+                            data = client.get_tools_urls()
+                        elif nookipedia_category == 'items':
+                            data = client.get_items_urls()
+                        elif nookipedia_category == 'interior':
+                            data = client.get_interior_urls()
+                        elif nookipedia_category == 'photos':
+                            data = client.get_photos_urls()
+                        elif nookipedia_category == 'gyroids':
+                            data = client.get_gyroids_urls()
+                        elif nookipedia_category == 'fish':
+                            data = client.get_fish_urls()
+                        elif nookipedia_category == 'bugs':
+                            data = client.get_bugs_urls()
+                        elif nookipedia_category == 'sea':
+                            data = client.get_sea_creatures_urls()
+                        elif nookipedia_category == 'fossils':
+                            data = client.get_fossils_urls()
+                        elif nookipedia_category == 'art':
+                            data = client.get_art_urls()
+                        elif nookipedia_category == 'villagers':
+                            data = client.get_villagers_urls()
+                        elif nookipedia_category == 'recipes':
+                            data = client.get_recipes_urls()
+                        else:
+                            continue
+
+                        if not data:
+                            continue
+
+                        # Update database
+                        if nookipedia_category in ['fish', 'bugs', 'sea']:
+                            kind_map = {'fish': 'fish', 'bugs': 'insect', 'sea': 'sea'}
+                            updated, total = updater.update_critters_urls(data, kind_map[nookipedia_category])
+                        elif nookipedia_category == 'fossils':
+                            updated, total = updater.update_fossils_urls(data)
+                        elif nookipedia_category == 'art':
+                            updated, total = updater.update_artwork_urls(data)
+                        elif nookipedia_category == 'villagers':
+                            updated, total = updater.update_villagers_urls(data)
+                        elif nookipedia_category == 'recipes':
+                            updated, total = updater.update_recipes_urls(data)
+                        else:
+                            # Items categories
+                            updated, total = updater.update_items_urls(data, db_categories)
+
+                        if updated > 0:
+                            total_updated += updated
+                            print(f"   {nookipedia_category}: {updated}/{total} URLs updated")
+
+                    except Exception as e:
+                        print(f"   {nookipedia_category}: failed - {e}")
+                        continue
+
+            print(f"   Nookipedia enrichment complete: {total_updated} URLs added")
+
+        except ImportError as e:
+            print(f"   Nookipedia module not available: {e}")
+        except Exception as e:
+            print(f"   Nookipedia enrichment failed: {e}")    
     def _populate_museum_index(self):
         """Populate the museum index for donations"""
         print("Populating museum index...")
@@ -1902,30 +2099,47 @@ class ACNHDatasetImporter:
         else:
             print(f"\nImport completed with {self.import_stats['errors']} errors")
         
+        # Use sheet info captured at start of import (avoids extra API call)
+        sheet_info = getattr(self, '_current_sheet_info', None)
+        
+        # Log import completion so smart import knows we're up to date
+        self._log_import_completion(
+            sheet_modified_time=sheet_info['modified_time'] if sheet_info else None,
+            records_imported=self.import_stats['imported'],
+            duration=time.time() - self.import_start_time
+        )
+        
         print(f"\nDatabase created: {self.db_path}")
 
 def main():
-    """Main function"""
+    """
+    Main function for initial database setup or manual full import.
+    
+    This is intended for:
+    - First-time database creation
+    - Manual full refresh (bypasses smart check)
+    
+    For periodic updates, the bot uses import_all_datasets_smart() directly.
+    """
     print("ACNH Complete Dataset Importer")
     print("=" * 60)
     
     # Initialize importer
-    importer = ACNHDatasetImporter()
-    
-    # Check if datasets directory exists
-    if not importer.datasets_dir.exists():
-        print(f"Datasets directory not found: {importer.datasets_dir}")
-        print("Please ensure the datasets directory exists with CSV files")
+    try:
+        importer = ACNHDatasetImporter()
+    except ValueError as e:
+        print(f"Configuration error: {e}")
+        print("Please ensure GOOGLE_SHEET and GCP_API_KEY are set in your .env file")
         return 1
     
-    # Initialize database
+    # Initialize database schema
     try:
         importer.init_database()
     except Exception as e:
         print(f"Failed to initialize database: {e}")
         return 1
     
-    # Import all datasets
+    # Import all datasets from Google Sheets API
     try:
         importer.import_all_datasets()
     except Exception as e:

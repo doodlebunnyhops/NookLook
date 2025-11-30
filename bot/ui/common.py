@@ -9,6 +9,7 @@ import asyncio
 import logging
 from typing import Optional
 from .base import RefreshableView, MessageTrackingMixin, TimeoutPreservingView
+from bot.utils.localization import get_ui
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +26,15 @@ class AddToStashButton(discord.ui.Button):
         display_name: The name to show in the stash
         variant_id: Optional variant ID for items with color/pattern variants
         variant_name: Optional variant description (e.g., "Red / Checkered")
+        language: User's preferred language for UI labels (default: 'en')
     """
     
     def __init__(self, ref_table: str, ref_id: int, display_name: str, 
-                 variant_id: int = None, variant_name: str = None, row: int = None):
+                 variant_id: int = None, variant_name: str = None, row: int = None,
+                 language: str = 'en'):
+        ui = get_ui(language)
         super().__init__(
-            label="📦 Add to Stash",
+            label=ui.add_stash,
             style=discord.ButtonStyle.secondary,
             custom_id=f"add_stash_{ref_table}_{ref_id}_{variant_id or 0}",
             row=row
@@ -38,6 +42,7 @@ class AddToStashButton(discord.ui.Button):
         self.ref_table = ref_table
         self.ref_id = ref_id
         self.variant_id = variant_id
+        self.language = language
         # Include variant in display name if provided
         if variant_name:
             self.display_name = f"{display_name} ({variant_name})"
@@ -298,16 +303,19 @@ class RefreshImagesButton(discord.ui.Button):
     
     Args:
         row: Optional row number (0-4) for button placement
+        language: User's preferred language for UI labels (default: 'en')
     """
     
-    def __init__(self, row: int = None):
+    def __init__(self, row: int = None, language: str = 'en'):
+        ui = get_ui(language)
         super().__init__(
-            label="🔄 Refresh Images",
+            label=ui.refresh,
             style=discord.ButtonStyle.secondary,
             custom_id="refresh_images",
             row=row
         )
         self.last_refresh_time = 0
+        self.language = language
     
     async def callback(self, interaction: discord.Interaction):
         """Refresh the current view by regenerating the embed to force Discord to re-fetch images"""
@@ -329,6 +337,10 @@ class RefreshImagesButton(discord.ui.Button):
             # Get the current view
             view = self.view
             
+            # Get localized message - check view's language attribute or use stored language
+            language = getattr(view, 'language', None) or getattr(self, 'language', 'en')
+            ui = get_ui(language)
+            
             # Check if this view has a create_embed method
             if hasattr(view, 'create_embed'):
                 import asyncio
@@ -345,8 +357,8 @@ class RefreshImagesButton(discord.ui.Button):
             
             # Add a subtle indicator that images were refreshed
             original_footer = embed.footer.text if embed.footer else ""
-            if "🔄 Images refreshed" not in original_footer:
-                new_footer = f"{original_footer} | 🔄 Images refreshed" if original_footer else "🔄 Images refreshed"
+            if ui.images_refreshed not in original_footer:
+                new_footer = f"{original_footer} | {ui.images_refreshed}" if original_footer else ui.images_refreshed
                 embed.set_footer(text=new_footer)
             
             # Edit the message with the refreshed embed to force Discord to re-fetch images
@@ -391,6 +403,7 @@ class RefreshableStaticView(MessageTrackingMixin, TimeoutPreservingView, Refresh
     
     Args:
         content_type: Description of the content type (for logging purposes)
+        language: User's preferred language for UI labels (default: 'en')
     
     Example:
         view = RefreshableStaticView("recipe")
@@ -398,14 +411,16 @@ class RefreshableStaticView(MessageTrackingMixin, TimeoutPreservingView, Refresh
         view.message = message
     """
     
-    def __init__(self, content_type: str = "content"):
+    def __init__(self, content_type: str = "content", language: str = 'en'):
         # Use 60-second timeout to give users time to refresh if CDN is slow
         super().__init__(timeout=60, refresh_cooldown=30)
         self.content_type = content_type
+        self.language = language
+        ui = get_ui(language)
         
         # Add refresh button
         self._refresh_button = discord.ui.Button(
-            label="🔄 Refresh Images",
+            label=ui.refresh,
             style=discord.ButtonStyle.secondary
         )
         self._refresh_button.callback = self._refresh_callback
@@ -446,16 +461,19 @@ class NookipediaView(discord.ui.View):
     
     Args:
         nookipedia_url: URL to the Nookipedia article
+        language: User's preferred language for UI labels (default: 'en')
     """
     
-    def __init__(self, nookipedia_url: str):
+    def __init__(self, nookipedia_url: str, language: str = 'en'):
         super().__init__(timeout=120)
         self.nookipedia_url = nookipedia_url
+        self.language = language
+        ui = get_ui(language)
         
         # Create the Nookipedia link button
         if nookipedia_url:
             self.add_item(discord.ui.Button(
-                label="Nookipedia",
+                label=ui.nookipedia,
                 style=discord.ButtonStyle.link,
                 url=nookipedia_url,
                 emoji="📖"
@@ -473,24 +491,26 @@ class NookipediaView(discord.ui.View):
                 item.disabled = True
 
 
-def get_nookipedia_view(nookipedia_url: Optional[str]) -> Optional[NookipediaView]:
+def get_nookipedia_view(nookipedia_url: Optional[str], language: str = 'en') -> Optional[NookipediaView]:
     """Get a Nookipedia view if URL is available, otherwise None
     
     Args:
         nookipedia_url: URL to the Nookipedia article, or None
+        language: User's preferred language for UI labels (default: 'en')
     
     Returns:
         NookipediaView instance if URL is provided, otherwise None
     """
     if nookipedia_url:
-        return NookipediaView(nookipedia_url)
+        return NookipediaView(nookipedia_url, language=language)
     return None
 
 
-def _create_nookipedia_button(nookipedia_url: str) -> discord.ui.Button:
+def _create_nookipedia_button(nookipedia_url: str, language: str = 'en') -> discord.ui.Button:
     """Create a Nookipedia link button without creating an intermediate view"""
+    ui = get_ui(language)
     return discord.ui.Button(
-        label="Nookipedia",
+        label=ui.nookipedia,
         style=discord.ButtonStyle.link,
         url=nookipedia_url,
         emoji="📖"
@@ -502,7 +522,8 @@ def get_combined_view(
     nookipedia_url: Optional[str], 
     add_refresh: bool = False, 
     content_type: str = "content",
-    stash_info: Optional[dict] = None
+    stash_info: Optional[dict] = None,
+    language: str = 'en'
 ) -> Optional[discord.ui.View]:
     """Combine an existing view with Stash, Refresh, and Nookipedia functionality
     
@@ -517,6 +538,7 @@ def get_combined_view(
         add_refresh: Whether to add refresh functionality
         content_type: Content type description for logging (used with RefreshableStaticView)
         stash_info: Optional dict with 'ref_table', 'ref_id', 'display_name' for stash button
+        language: User's preferred language for UI labels (default: 'en')
     
     Returns:
         Combined view with requested functionality, or None if no enhancements needed
@@ -526,7 +548,8 @@ def get_combined_view(
         view = get_combined_view(
             None, recipe.nookipedia_url, 
             add_refresh=True, content_type="recipe",
-            stash_info={'ref_table': 'recipes', 'ref_id': recipe.id, 'display_name': recipe.name}
+            stash_info={'ref_table': 'recipes', 'ref_id': recipe.id, 'display_name': recipe.name},
+            language='ja'
         )
     """
     # Determine if we need to create a view
@@ -537,7 +560,7 @@ def get_combined_view(
     
     # Create a new view if we need one and don't have one
     if not existing_view and (add_refresh or stash_info or nookipedia_url):
-        existing_view = RefreshableStaticView(content_type)
+        existing_view = RefreshableStaticView(content_type, language=language)
         # Remove default refresh button - we'll add it in correct order below
         for item in existing_view.children[:]:
             if isinstance(item, discord.ui.Button) and "Refresh" in (item.label or ""):
@@ -551,7 +574,8 @@ def get_combined_view(
             existing_view.add_item(AddToStashButton(
                 ref_table=stash_info['ref_table'],
                 ref_id=stash_info['ref_id'],
-                display_name=stash_info['display_name']
+                display_name=stash_info['display_name'],
+                language=language
             ))
         
         # 2. Add refresh button second (if requested and not already present)
@@ -562,10 +586,147 @@ def get_combined_view(
                 for item in existing_view.children
             )
             if not has_refresh:
-                existing_view.add_item(RefreshImagesButton())
+                existing_view.add_item(RefreshImagesButton(language=language))
         
         # 3. Add Nookipedia button last (external link, rightmost)
         if nookipedia_url:
-            existing_view.add_item(_create_nookipedia_button(nookipedia_url))
+            existing_view.add_item(_create_nookipedia_button(nookipedia_url, language=language))
     
     return existing_view
+
+
+class LanguageSelectView(discord.ui.View):
+    """View for first-time users to select their preferred language.
+    
+    Shows a multilingual welcome message and a dropdown to select language.
+    """
+    
+    # Welcome message in multiple languages
+    WELCOME_MESSAGE = """🌍 **Welcome to NookLook!** / **NookLookへようこそ！**
+
+Please select your preferred language:
+言語を選択してください:
+请选择您的语言:
+언어를 선택하세요:
+Veuillez choisir votre langue:
+Bitte wählen Sie Ihre Sprache:
+Seleccione su idioma:
+Seleziona la tua lingua:
+Kies uw taal:
+Выберите ваш язык:"""
+
+    def __init__(self, user_id: int, on_complete_callback=None):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.on_complete_callback = on_complete_callback
+        self.selected_language = None
+        
+        # Add language selector
+        self.add_item(LanguageSelect())
+    
+    def create_embed(self) -> discord.Embed:
+        """Create the welcome embed"""
+        embed = discord.Embed(
+            title="🌐 Select Language / 言語選択",
+            description=self.WELCOME_MESSAGE,
+            color=discord.Color.blurple()
+        )
+        embed.set_footer(text="You can change this anytime with /language")
+        return embed
+
+
+class LanguageSelect(discord.ui.Select):
+    """Dropdown for language selection"""
+    
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="English", value="en", emoji="🇬🇧", description="English"),
+            discord.SelectOption(label="日本語", value="ja", emoji="🇯🇵", description="Japanese"),
+            discord.SelectOption(label="简体中文", value="zh", emoji="🇨🇳", description="Chinese (Simplified)"),
+            discord.SelectOption(label="한국어", value="ko", emoji="🇰🇷", description="Korean"),
+            discord.SelectOption(label="Français", value="fr", emoji="🇫🇷", description="French"),
+            discord.SelectOption(label="Deutsch", value="de", emoji="🇩🇪", description="German"),
+            discord.SelectOption(label="Español", value="es", emoji="🇪🇸", description="Spanish"),
+            discord.SelectOption(label="Italiano", value="it", emoji="🇮🇹", description="Italian"),
+            discord.SelectOption(label="Nederlands", value="nl", emoji="🇳🇱", description="Dutch"),
+            discord.SelectOption(label="Русский", value="ru", emoji="🇷🇺", description="Russian"),
+        ]
+        super().__init__(
+            placeholder="Select language / 言語を選択 / 选择语言",
+            options=options,
+            custom_id="language_select"
+        )
+    
+    async def callback(self, interaction: discord.Interaction):
+        """Handle language selection"""
+        from bot.repos.user_repo import UserRepository, SUPPORTED_LANGUAGES
+        from bot.utils.localization import get_ui
+        
+        selected_lang = self.values[0]
+        user_repo = UserRepository()
+        
+        # Save the preference
+        success = await user_repo.set_preferred_language(interaction.user.id, selected_lang)
+        
+        if success:
+            # lang_info = SUPPORTED_LANGUAGES[selected_lang]
+            
+            # # Get localized confirmation message
+            # ui = get_ui(selected_lang)
+            
+            # embed = discord.Embed(
+            #     title=f"✅ {ui.language_set}",
+            #     description=f"**{lang_info['native']}** ({lang_info['name']})\n\n{ui.enjoy_nooklook}",
+            #     color=discord.Color.green()
+            # )
+            # embed.set_footer(text=ui.change_anytime)
+            lang_info = SUPPORTED_LANGUAGES[selected_lang]
+            # Use the newly selected language for the confirmation message
+            ui = get_ui(selected_lang)
+            embed = discord.Embed(
+                title=f"{ui.language_updated}",
+                description=f"{ui.language_set_to} **{lang_info['native']}** ({lang_info['name']}).",
+                color=discord.Color.green()
+            )
+            embed.add_field(
+                name=ui.what_this_means,
+                value=ui.language_benefits,
+                inline=False
+            )
+            await interaction.response.edit_message(embed=embed, view=None)
+            
+            # Update the message and remove the view
+            # await interaction.response.edit_message(embed=embed, view=None)
+            
+            # Call the completion callback if provided
+            view = self.view
+            if hasattr(view, 'on_complete_callback') and view.on_complete_callback:
+                view.selected_language = selected_lang
+                await view.on_complete_callback(interaction, selected_lang)
+        else:
+            ui = get_ui('en')  # Fallback to English for errors
+            await interaction.response.send_message(
+                f"❌ {ui.language_update_failed}",
+                ephemeral=True
+            )
+
+
+async def check_new_user_language(interaction: discord.Interaction, user_repo) -> bool:
+    """Check if user is new and prompt for language selection.
+    
+    Returns True if a language prompt was shown (command should wait),
+    False if user already has preferences set (continue normally).
+    """
+    is_new = await user_repo.is_new_user(interaction.user.id)
+    
+    if is_new:
+        view = LanguageSelectView(interaction.user.id)
+        embed = view.create_embed()
+        #check if interaction can be responded to
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        return True
+    
+    return False

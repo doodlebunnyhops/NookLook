@@ -247,8 +247,8 @@ async def fossil_name_autocomplete(interaction: Interaction, current: str) -> Li
         return []
 
 async def item_name_autocomplete(interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
-    """Autocomplete for item names (base items only, no variants)"""
-    user_id = getattr(interaction.user, 'id', 'unknown')
+    """Autocomplete for item names (base items only, no variants) - supports user's language"""
+    user_id = interaction.user.id  # Always an int from Discord
     logger.debug(f"Item autocomplete called by user {user_id} with query: '{current}'")
 
     try:
@@ -258,20 +258,30 @@ async def item_name_autocomplete(interaction: Interaction, current: str) -> list
             logger.error("Item autocomplete: NooklookService not found on bot instance")
             return []
         
-        if not current or len(current) <= 2:
-            logger.debug(f"Item autocomplete: generating random items for user {user_id} (no cache for items)")
+        # For non-ASCII text (Japanese, Chinese, Korean, Russian, etc.), 
+        # even 1 character is meaningful. For ASCII, require 3+ chars.
+        is_non_ascii = any(ord(c) > 127 for c in current)
+        min_length = 1 if is_non_ascii else 3
+        
+        if not current or len(current) < min_length:
+            logger.debug(f"Item autocomplete: generating random items for user {user_id} (query too short)")
             # Show 25 random items when query is too short - no caching for true randomness
             base_items = await service.get_random_item_suggestions(25)
+            # Return up to 25 choices for autocomplete using item IDs as values
+            choices = [
+                app_commands.Choice(name=item_name, value=str(item_id))
+                for item_name, item_id in base_items[:25]
+            ]
         else:
             logger.debug(f"Item autocomplete: searching database for '{current}' (user {user_id})")
-            # Get base item names and IDs using the service
-            base_items = await service.get_base_item_suggestions(current)
+            # Use localized search if user has a language preference
+            base_items = await service.get_item_suggestions_localized(current, user_id)
+            # Return up to 25 choices - truncate display name if needed
+            choices = []
+            for item_name, item_id in base_items[:25]:
+                display_name = item_name[:100] if len(item_name) > 100 else item_name
+                choices.append(app_commands.Choice(name=display_name, value=str(item_id)))
         
-        # Return up to 25 choices for autocomplete using item IDs as values
-        choices = [
-            app_commands.Choice(name=item_name, value=str(item_id))
-            for item_name, item_id in base_items[:25]
-        ]
         logger.debug(f"Item autocomplete: found {len(choices)} results for '{current}' (user {user_id})")
         return choices
 

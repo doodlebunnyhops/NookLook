@@ -473,3 +473,15 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
     ref_table,          -- Which table this refers to
     ref_id              -- The id in that table
 );
+
+-- =========================================================
+-- IMPORT_LOG: tracks import history for smart imports
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS import_log (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_timestamp        TEXT NOT NULL,          -- When the import was performed (ISO format)
+    sheet_modified_time     TEXT NOT NULL,          -- Google Sheet's last modified time at import
+    records_imported        INTEGER NOT NULL,       -- Number of records imported
+    import_duration_seconds REAL                    -- How long the import took
+);

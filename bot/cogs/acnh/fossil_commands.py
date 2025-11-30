@@ -4,9 +4,10 @@ from discord import app_commands
 import logging
 
 from bot.services.acnh_service import NooklookService
-from bot.ui.common import get_combined_view
+from bot.ui.common import get_combined_view, LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import fossil_name_autocomplete
+from bot.repos.user_repo import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +17,18 @@ class FossilCommands(commands.Cog):
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.user_repo = UserRepository()
     
     @property
     def service(self) -> NooklookService:
         """Get the shared NooklookService from the bot instance"""
         return self.bot.nooklook_service
+    
+    async def _check_new_user(self, interaction: discord.Interaction) -> bool:
+        from bot.ui.common import check_new_user_language
+        if await check_new_user_language(interaction, self.user_repo):
+            return True
+        return False
 
 
     @app_commands.command(name="fossil", description="Look up a specific ACNH fossil")
@@ -32,6 +40,10 @@ class FossilCommands(commands.Cog):
         user_id = getattr(interaction.user, 'id', 'unknown')
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        
+        # Check if this is a new user - show language prompt first
+        if await self._check_new_user(interaction):
+            return
         
         try:
             logger.info(f"fossil command used by:\n\t{interaction.user.display_name} ({user_id})\n\tsearching for: '{name}'")

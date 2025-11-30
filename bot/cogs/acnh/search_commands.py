@@ -7,8 +7,9 @@ import logging
 from bot.services.acnh_service import NooklookService
 from bot.ui.item_views import VariantSelectView
 from bot.ui.search_views import SearchResultsView
-from bot.ui.common import get_combined_view
+from bot.ui.common import get_combined_view, LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
+from bot.repos.user_repo import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +36,22 @@ class SearchCommands(commands.Cog):
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.user_repo = UserRepository()
     
     @property
     def service(self) -> NooklookService:
         """Get the shared NooklookService from the bot instance"""
         return self.bot.nooklook_service
+    
+    async def _check_new_user(self, interaction: discord.Interaction) -> bool:
+        """Check if user is new and show language selection prompt."""
+        is_new = await self.user_repo.is_new_user(interaction.user.id)
+        if is_new:
+            view = LanguageSelectView(interaction.user.id)
+            embed = view.create_embed()
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            return True
+        return False
     
 
     @app_commands.command(name="search", description="Search across all ACNH content")
@@ -65,6 +77,11 @@ class SearchCommands(commands.Cog):
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
+        
+        # Check if this is a new user - show language prompt first
+        if await self._check_new_user(interaction):
+            return  # Language prompt shown, user can run command again after selecting
+        
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         category_str = f" in {category}" if category else ""
         logger.info(f"search command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tquery: '{query}'{category_str}")
@@ -104,7 +121,14 @@ class SearchCommands(commands.Cog):
             
             logger.debug(f"Search: executing search_all with query='{query}', category_filter='{db_category}', recipe_subtype='{recipe_subtype}', item_subcategory='{item_subcategory}' (Discord: '{category}')")
             
-            results = await self.service.search_all(query, category_filter=db_category, recipe_subtype=recipe_subtype, item_subcategory=item_subcategory)
+            # Pass user_id for translation-aware search
+            results = await self.service.search_all(
+                query, 
+                category_filter=db_category, 
+                recipe_subtype=recipe_subtype, 
+                item_subcategory=item_subcategory,
+                user_id=interaction.user.id
+            )
             logger.debug(f"Search: found {len(results) if results else 0} results with category filter")
             
             if not results:
