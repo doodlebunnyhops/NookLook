@@ -19,6 +19,7 @@ Memory Management:
 import discord
 import logging
 import time
+from bot.utils.localization import get_ui
 import asyncio
 from typing import Optional
 
@@ -103,10 +104,14 @@ class TimeoutPreservingView(discord.ui.View):
                 
                 # Update footer to show timeout with user-friendly message
                 if embed:
+                    # Get localized message if view has language attribute
+                    language = getattr(self, 'language', 'en')
+                    ui = get_ui(language)
+                    
                     if embed.footer and embed.footer.text:
-                        embed.set_footer(text=f"{embed.footer.text} | 💤 Use the command again to interact with buttons")
+                        embed.set_footer(text=f"{embed.footer.text} | {ui.buttons_expired}")
                     else:
-                        embed.set_footer(text="💤 Buttons have expired - use the command again to interact")
+                        embed.set_footer(text=ui.buttons_expired)
                     
                     # Edit the message with disabled view
                     await self.message.edit(embed=embed, view=self)
@@ -191,10 +196,14 @@ class RefreshableView(discord.ui.View):
                 await interaction.response.send_message("❌ No content to refresh", ephemeral=True)
                 return
             
+            # Get localized message if view has language attribute
+            language = getattr(self, 'language', 'en')
+            ui = get_ui(language)
+            
             # Add a subtle indicator that images were refreshed
             original_footer = embed.footer.text if embed.footer else ""
-            if "🔄 Images refreshed" not in original_footer:
-                new_footer = f"{original_footer} | 🔄 Images refreshed" if original_footer else "🔄 Images refreshed"
+            if ui.images_refreshed not in original_footer:
+                new_footer = f"{original_footer} | {ui.images_refreshed}" if original_footer else ui.images_refreshed
                 embed.set_footer(text=new_footer)
             
             # Edit the message with the refreshed embed to force Discord to re-fetch images

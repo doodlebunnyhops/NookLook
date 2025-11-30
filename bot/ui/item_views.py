@@ -8,6 +8,7 @@ import discord
 import logging
 from typing import List
 from bot.models.acnh_item import Item
+from bot.utils.localization import get_ui
 from .base import UserRestrictedView, MessageTrackingMixin, TimeoutPreservingView
 from .common import RefreshImagesButton, AddToStashButton
 
@@ -24,6 +25,8 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
     Args:
         item: The ACNH item with variants
         interaction_user: The Discord member who can interact with this view
+        timeout: View timeout in seconds
+        language: User's preferred language for UI labels (default: 'en')
     
     Attributes:
         selected_variant: Currently selected variant to display
@@ -31,9 +34,11 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         user_selected_different_variant: Whether user chose a non-default variant
     """
     
-    def __init__(self, item: Item, interaction_user: discord.Member, timeout: float = 120):
+    def __init__(self, item: Item, interaction_user: discord.Member, timeout: float = 120, language: str = 'en', localized_name: str = None):
         super().__init__(interaction_user=interaction_user, timeout=timeout)
         self.item = item
+        self.language = language
+        self.localized_name = localized_name  # Store localized name for embed title
         self.selected_variant = item.variants[0] if item.variants else None
         self.initial_variant = self.selected_variant  # Track the initial/default variant
         self.user_selected_different_variant = False  # Track if user selected a DIFFERENT variant
@@ -69,6 +74,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             nookipedia_url: Optional URL for Nookipedia link button
         """
         self.nookipedia_url = nookipedia_url
+        ui = get_ui(self.language)
         
         # Determine row based on how many variant selectors exist
         # Each select takes its own row, so action buttons go after all selects
@@ -90,16 +96,17 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             display_name=self.item.name,
             variant_id=variant_id,
             variant_name=variant_name,
-            row=action_row
+            row=action_row,
+            language=self.language
         ))
         
         # 2. Refresh Images button
-        self.add_item(RefreshImagesButton(row=action_row))
+        self.add_item(RefreshImagesButton(row=action_row, language=self.language))
         
         # 3. Nookipedia link button (external, rightmost)
         if nookipedia_url:
             self.add_item(discord.ui.Button(
-                label="Nookipedia",
+                label=ui.nookipedia,
                 style=discord.ButtonStyle.link,
                 url=nookipedia_url,
                 emoji="📖",
@@ -136,6 +143,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             
         total_variants = len(self.item.variants)
         self._variant_selector_count = 0
+        ui = get_ui(self.language)
         
         # If 25 or fewer variants, use single dropdown
         if total_variants <= 25:
@@ -151,7 +159,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                 
                 # Mark the default/initial variant
                 if variant == self.initial_variant:
-                    label += " (Default)"
+                    label += f" ({ui.default})"
                 
                 # Ensure we don't exceed Discord's character limit
                 label = label[:100]
@@ -161,7 +169,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                     value=str(variant.id),
                 ))
             
-            select = VariantSelect(options, self.item, row=0)
+            select = VariantSelect(options, self.item, row=0, language=self.language)
             self.add_item(select)
             self._variant_selector_count = 1
         else:
@@ -195,7 +203,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                     
                     # Mark the default/initial variant
                     if variant == self.initial_variant:
-                        label += " (Default)"
+                        label += f" ({ui.default})"
                     
                     # Ensure we don't exceed Discord's character limit
                     label = label[:100]
@@ -206,7 +214,7 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                     ))
                 
                 # Create select with page indicator, each on its own row
-                select = VariantSelect(options, self.item, page=page+1, total_pages=total_pages, row=page)
+                select = VariantSelect(options, self.item, page=page+1, total_pages=total_pages, row=page, language=self.language)
                 self.add_item(select)
             
             self._variant_selector_count = max_pages
@@ -219,13 +227,18 @@ class VariantSelectView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         # Only show variant view if user selected a DIFFERENT variant than the initial one
         is_variant_view = self.user_selected_different_variant
-        embed = self.item.to_discord_embed(variant, is_variant_view=is_variant_view)
+        embed = self.item.to_discord_embed(variant, is_variant_view=is_variant_view, language=self.language)
         
-        # Add footer with variant count in ACNH style
+        # Update title with localized name if different from English
+        if self.localized_name and self.localized_name != self.item.name:
+            embed.title = f"{self.localized_name} ({self.item.name})"
+        
+        # Add footer with variant count in ACNH style (localized)
         if len(self.item.variants) > 1:
-            # Remove the parentheses from the variation_pattern_summary for footer
-            variant_summary = self.item.variation_pattern_summary.strip("()")
-            embed.set_footer(text=f"This item has {variant_summary}")
+            ui = get_ui(self.language)
+            footer_text = self.item.get_variation_footer(ui)
+            if footer_text:
+                embed.set_footer(text=footer_text)
         
         return embed
     
@@ -247,15 +260,18 @@ class VariantSelect(discord.ui.Select):
         page: Current page number (for multi-page selects)
         total_pages: Total number of pages (for multi-page selects)
         row: Row number for this select (0-4)
+        language: User's preferred language for UI labels (default: 'en')
     """
     
-    def __init__(self, options: List[discord.SelectOption], item: Item, page: int = 1, total_pages: int = 1, row: int = 0):
+    def __init__(self, options: List[discord.SelectOption], item: Item, page: int = 1, total_pages: int = 1, row: int = 0, language: str = 'en'):
+        ui = get_ui(language)
+        
         # Create placeholder text that shows page info for multi-page selectors
         if total_pages > 1:
-            placeholder = f"Choose variant (Page {page}/{total_pages})..."
+            placeholder = ui.choose_variant_page(page, total_pages)
             custom_id = f"variant_select_page_{page}"
         else:
-            placeholder = "Choose a variant..."
+            placeholder = ui.choose_variant
             custom_id = "variant_select"
             
         super().__init__(
