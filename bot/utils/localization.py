@@ -34,6 +34,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'かさ',
         'Wall-mounted': 'かべかけ',
         'Wallpaper': 'かべがみ',
+        'Other': 'その他',
+        'Ceiling Decor': 'てんじょう',
+        'ceiling-decor': 'てんじょう',
+        'Interior Structures': 'けんちく',
+        'interior-structures': 'けんちく',
+        'Equipment': 'そうび',
+        'Savory': 'しょっぱい',
+        'Sweet': 'あまい',
     },
     'zh': {
         'Accessories': '配饰',
@@ -64,6 +72,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': '雨伞',
         'Wall-mounted': '壁挂',
         'Wallpaper': '壁纸',
+        'Other': '其他',
+        'Ceiling Decor': '天花板装饰',
+        'ceiling-decor': '天花板装饰',
+        'Interior Structures': '室内结构',
+        'interior-structures': '室内结构',
+        'Equipment': '装备',
+        'Savory': '咸食',
+        'Sweet': '甜食',
     },
     'ko': {
         'Accessories': '액세서리',
@@ -94,6 +110,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': '우산',
         'Wall-mounted': '벽걸이',
         'Wallpaper': '벽지',
+        'Other': '기타',
+        'Ceiling Decor': '천장 장식',
+        'ceiling-decor': '천장 장식',
+        'Interior Structures': '실내 구조물',
+        'interior-structures': '실내 구조물',
+        'Equipment': '장비',
+        'Savory': '짭은 음식',
+        'Sweet': '달콤한 음식',
     },
     'fr': {
         'Accessories': 'Accessoires',
@@ -124,6 +148,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'Parapluies',
         'Wall-mounted': 'Objets muraux',
         'Wallpaper': 'Papiers peints',
+        'Other': 'Autres',
+        'Ceiling Decor': 'Décor de plafond',
+        'ceiling-decor': 'Décor de plafond',
+        'Interior Structures': 'Structures intérieures',
+        'interior-structures': 'Structures intérieures',
+        'Equipment': 'Équipement',
+        'Savory': 'Salé',
+        'Sweet': 'Sucré',
     },
     'de': {
         'Accessories': 'Accessoires',
@@ -154,6 +186,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'Regenschirme',
         'Wall-mounted': 'Wandobjekte',
         'Wallpaper': 'Tapeten',
+        'Other': 'Sonstiges',
+        'Ceiling Decor': 'Deckendekor',
+        'ceiling-decor': 'Deckendekor',
+        'Interior Structures': 'Innenstrukturen',
+        'interior-structures': 'Innenstrukturen',
+        'Equipment': 'Ausrüstung',
+        'Savory': 'Herzhaft',
+        'Sweet': 'Süß',
     },
     'es': {
         'Accessories': 'Accesorios',
@@ -184,6 +224,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'Paraguas',
         'Wall-mounted': 'Objetos de pared',
         'Wallpaper': 'Papel pintado',
+        'Other': 'Otros',
+        'Ceiling Decor': 'Decoración de techo',
+        'ceiling-decor': 'Decoración de techo',
+        'Interior Structures': 'Estructuras interiores',
+        'interior-structures': 'Estructuras interiores',
+        'Equipment': 'Equipamiento',
+        'Savory': 'Salado',
+        'Sweet': 'Dulce',
     },
     'it': {
         'Accessories': 'Accessori',
@@ -214,6 +262,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'Ombrelli',
         'Wall-mounted': 'Oggetti da parete',
         'Wallpaper': 'Carta da parati',
+        'Other': 'Altro',
+        'Ceiling Decor': 'Decorazioni da soffitto',
+        'ceiling-decor': 'Decorazioni da soffitto',
+        'Interior Structures': 'Strutture interne',
+        'interior-structures': 'Strutture interne',
+        'Equipment': 'Attrezzatura',
+        'Savory': 'Salato',
+        'Sweet': 'Dolce',
     },
     'nl': {
         'Accessories': 'Accessoires',
@@ -244,6 +300,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'Paraplu\'s',
         'Wall-mounted': 'Wandobjecten',
         'Wallpaper': 'Behang',
+        'Other': 'Overig',
+        'Ceiling Decor': 'Plafonddecoratie',
+        'ceiling-decor': 'Plafonddecoratie',
+        'Interior Structures': 'Binnenstructuren',
+        'interior-structures': 'Binnenstructuren',
+        'Equipment': 'Uitrusting',
+        'Savory': 'Hartig',
+        'Sweet': 'Zoet',
     },
     'ru': {
         'Accessories': 'Аксессуары',
@@ -274,6 +338,14 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
         'Umbrellas': 'Зонты',
         'Wall-mounted': 'Настенные предметы',
         'Wallpaper': 'Обои',
+        'Other': 'Другое',
+        'Ceiling Decor': 'Потолочный декор',
+        'ceiling-decor': 'Потолочный декор',
+        'Interior Structures': 'Внутренние структуры',
+        'interior-structures': 'Внутренние структуры',
+        'Equipment': 'Снаряжение',
+        'Savory': 'Солёное',
+        'Sweet': 'Сладкое',
     },
 }
 
@@ -281,162 +353,684 @@ CATEGORY_TRANSLATIONS: Dict[str, Dict[str, str]] = {
 # These are common ACNH item sources
 SOURCE_TRANSLATIONS: Dict[str, Dict[str, str]] = {
     'ja': {
-        'Crafting': 'DIY',
-        'Nook Shopping': 'たぬきショッピング',
-        'Nook\'s Cranny': 'たぬきち商店',
+        # NPCs
         'Able Sisters': 'エイブルシスターズ',
-        'Resident Services': '案内所',
-        'Fishing': 'つり',
-        'Bug Catching': 'ムシとり',
-        'Diving': 'そせん',
-        'Balloon': 'ふうせん',
-        'Message Bottle': 'メッセージボトル',
-        'Villager': 'じゅうみん',
-        'NPC': 'NPC',
-        'Event': 'イベント',
-        'Seasonal': 'きせつ',
-        'Fossils': 'かせき',
-        'Kicks': 'シャンク',
-        'Label': 'ことの',
-        'Redd': 'つねきち',
-        'CJ': 'ジャスティン',
-        'Flick': 'レックス',
-        'Leif': 'レイジ',
-        'Saharah': 'ローラン',
+        'All villagers': 'すべてのじゅうみん',
+        'Blathers': 'フータ',
+        'Brewster': 'マスター',
+        'C.J.': 'ジャスティン',
         'Celeste': 'フーコ',
+        'Cyrus': 'カイゾー',
+        'Daisy Mae': 'ウリ',
+        'Flick': 'レックス',
+        'Franklin': 'フランクリン',
         'Gullivarrr': 'かいぞく',
         'Gulliver': 'ジョニー',
-        'Wisp': 'ゆうたろう',
+        'Harvey': 'パニエル',
+        'HHA': 'ハッピーホームアカデミー',
+        'Isabelle': 'しずえ',
+        'Jack': 'パンプキング',
+        'Jingle': 'ジングル',
+        'K.K.': 'とたけけ',
+        'Kapp\'n': 'かっぺい',
+        'Katrina': 'ハッケミィ',
+        'Kicks': 'シャンク',
+        'Label': 'ことの',
+        'Leif': 'レイジ',
+        'Lottie': 'タクミ',
+        'Luna': 'ゆめみ',
+        'Mom': 'はは',
+        'Niko': 'ニコ',
+        'Nintendo': '任天堂',
         'Pascal': 'ラコスケ',
-        'Mom': 'ははのて',
+        'Pavé': 'ベルリーナ',
+        'Redd': 'つねきち',
+        'Reese': 'リサ',
+        'Rover': 'みしらぬネコ',
+        'Saharah': 'ローラン',
+        'Snowboy': 'ゆきだるま',
+        'Tom Nook': 'たぬきち',
+        'Wardell': 'ナッティー',
+        'Wilbur': 'ロドリー',
+        'Wisp': 'ゆうたろう',
+        'Zipper': 'ぴょんたろう',
+        # Villager types
+        'Big Sister villagers': 'アネキけいじゅうみん',
+        'Cranky villagers': 'コワイけいじゅうみん',
+        'Jock villagers': 'ハキハキけいじゅうみん',
+        # Activities
+        'Assessing fossils': 'かせきのかんてい',
+        'Balloon': 'ふうせん',
+        'Balloons': 'ふうせん',
+        'Beach': 'ビーチ',
         'Birthday': 'たんじょうび',
-        'Wedding': 'ジューンブライド',
-        'Bug-Off': 'ムシとり大会',
-        'Fishing Tourney': 'つり大会',
-        'Treasure Island': 'りそうのじま',
-        'Harvey\'s Island': 'パニーのしま',
-        'Kapp\'n Tour': 'かっぺいツアー',
-        'HHP': 'ハッピーホームパラダイス',
+        'Breeding': 'こうはい',
+        'Bug catching': 'ムシとり',
+        'Clam dig spot': 'アサリほりポイント',
+        'Cooking': 'りょうり',
+        'Crafting': 'DIY',
+        'Dig Spot': 'ほりポイント',
+        'Dive spot': 'ダイブポイント',
+        'Diving': 'そせん',
+        'Dodo Airlines': 'ドードーエアラインズ',
+        'Egg balloon': 'エッグふうせん',
+        'Egg balloons': 'エッグふうせん',
+        'Egg bottles': 'エッグボトル',
+        'Expired turnips': 'くさったカブ',
+        'Fishing': 'つり',
+        'Glowing dig spot': 'ひかるほりポイント',
+        'Gold balloon': 'きんのふうせん',
+        'Group Stretching': 'ラジオたいそう',
+        'High Friendship': 'こうこうかんど',
+        'Hitting a rock': 'いわをたたく',
+        'K.K. concert': 'とたけけライブ',
+        'Kapp\'n islands': 'かっぺいツアー',
+        'Mail': 'てがみ',
+        'May Day Tour': 'メーデーツアー',
+        'NookLink': 'タヌポータル',
+        'Nook Miles Redemption': 'マイルりょうきん',
+        'Nook Shopping': 'たぬきショッピング',
+        'Nook Shopping Daily Selection': 'たぬきショッピング(ひがわり)',
+        'Nook Shopping Posters': 'たぬきショッピング(ポスター)',
+        'Nook Shopping Promotion': 'たぬきショッピング(げんてい)',
+        'Nook Shopping Seasonal': 'たぬきショッピング(きせつ)',
+        'Nook\'s Cranny': 'たぬきショップ',
+        'NotAvailable': '入手不可',
+        'On ground': 'じめんのうえ',
+        'Picking flowers': 'はなつみ',
+        'Recycle box': 'リサイクルボックス',
+        'Redd\'s Co-op Raffle': 'つねきちくじ',
+        'Redd\'s Raffle': 'つねきちくじ',
+        'Seed bag': 'たねぶくろ',
+        'Shaking a hardwood or cedar tree': 'きをゆする',
+        'Starting items': 'はじめのアイテム',
+        'Wishing on shooting stars': 'ほしにねがいを',
+        'Wrapping a present': 'ラッピング',
+        'Wrapping bells': 'ベルをつつむ',
+        # Shops
+        'HHP Apparel Shop': 'HHPアパレルショップ',
+        'HHP Café': 'HHPカフェ',
+        'HHP Office': 'HHPオフィス',
+        'Jolly Redd\'s Treasure Trawler': 'いなりマーケット',
+        'Katrina\'s Cleansing Service': 'ハッケミィおはらい',
+        'Kicks\' Co-op': 'シャンクきょうどう',
+        'Redd\'s Co-op Raffle': 'つねきちきょうどうくじ',
+        'Saharah\'s Co-op': 'ローランきょうどう',
+        # Trees
+        'Apple Tree': 'リンゴのき',
+        'Cedar Tree': 'スギのき',
+        'Cherry Tree': 'サクランボのき',
+        'Orange Tree': 'オレンジのき',
+        'Peach Tree': 'モモのき',
+        'Pear Tree': 'ナシのき',
+        # Recipe books
+        'Basic Cooking Recipes': 'きほんのりょうりレシピ',
+        'Be a Chef! DIY Recipes+': 'シェフになろう！DIYレシピ+',
+        'Cozy Turkey Day DIY': 'サンクスギビングDIY',
+        'Custom Fencing in a Flash': 'カスタムさくレシピ',
+        'DIY for Beginners': 'はじめてのDIYレシピ',
+        # Misc activities  
+        'Breaking 100 axes': 'オノを100かいこわす',
+        'Burying bells in a glowing spot': 'ひかるほりポイントにベル',
+        'Catching a barred knifejaw': 'イシダイをつる',
+        'Catching a blue marlin': 'カジキをつる',
+        'Catching a dab': 'カレイをつる',
+        'Catching a horse mackerel': 'アジをつる',
+        'Catching a olive flounder': 'ヒラメをつる',
+        'Catching a red snapper': 'タイをつる',
+        'Catching a salmon': 'サケをつる',
+        'Catching a sea bass': 'スズキをつる',
+        'Catching a squid': 'イカをつる',
+        'Catching an anchovy': 'アンチョビをつる',
+        'Catching with a net': 'アミでとる',
+        'Check Toy Day stockings the day after Toy Day': 'トイデーのよくじつ',
+        'Chopping a bamboo tree': 'タケをきる',
+        'Chopping a tree': 'きをきる',
+        'Collecting earth eggs': 'じめんのたまごあつめ',
+        'Collecting leaf eggs': 'はっぱのたまごあつめ',
+        'Collecting sky eggs': 'そらとぶたまごあつめ',
+        'Collecting stone eggs': 'いわのたまごあつめ',
+        'Collecting water eggs': 'さかなのたまごあつめ',
+        'Collecting wood eggs': 'ウッディなたまごあつめ',
+        'Completing bug Critterpedia': 'ムシずかんコンプリート',
+        'Completing fish Critterpedia': 'さかなずかんコンプリート',
+        'Delivering item for a villager': 'じゅうみんのおとどけもの',
+        'Digging up a carrot plant': 'ニンジンをほる',
+        'Digging up a fully grown bush': 'ていぼくをほる',
+        'Digging up a potato plant': 'ジャガイモをほる',
+        'Digging up a pumpkin plant': 'カボチャをほる',
+        'Digging up a sugarcane plant': 'サトウキビをほる',
+        'Digging up a tomato plant': 'トマトをほる',
+        'Digging up a wheat plant': 'コムギをほる',
+        'Digging up clams': 'アサリをほる',
+        'Don\'t return lost item': 'おとしものをかえさない',
+        'Don\'t return treasure quest item': 'たからさがしをかえさない',
+        'Donating all art': 'びじゅつひんコンプリート',
+        'Donating all bugs': 'ムシコンプリート',
+        'Donating all fish': 'さかなコンプリート',
+        'Donating all fossils': 'かせきコンプリート',
+        'Donating all sea creatures': 'うみのさちコンプリート',
+        'Helping Gulliver 30 times': 'ジョニー30かいてつだう',
+        'Picking carrots': 'ニンジンしゅうかく',
+        'Picking potatoes': 'ジャガイモしゅうかく',
+        'Picking pumpkins': 'カボチャしゅうかく',
+        'Picking sugarcane': 'サトウキビしゅうかく',
+        'Picking tomatoes': 'トマトしゅうかく',
+        'Picking wheat': 'コムギしゅうかく',
+        'Planting a bamboo shoot': 'タケのこをうえる',
+        'Planting a cedar sapling': 'スギのなえをうえる',
+        'Planting a cherry': 'サクランボをうえる',
+        'Planting a coconut': 'ヤシのみをうえる',
+        'Planting a peach': 'モモをうえる',
+        'Planting a pear': 'ナシをうえる',
+        'Planting a sapling': 'なえをうえる',
+        'Planting an apple': 'リンゴをうえる',
+        'Planting an orange': 'オレンジをうえる',
+        'Use a fountain firework': 'ふんすいはなびをつかう',
+        # Status conditions
+        '5-star town status': '5つぼしのしま',
+        'while stung': 'ハチにさされたとき',
+        # Donation unlocks
+        'unlocked after 100 donations': '100こきふでかいほう',
+        'unlocked after 20 donations': '20こきふでかいほう',
+        'unlocked after 40 donations': '40こきふでかいほう',
+        'unlocked after 50 donations': '50こきふでかいほう',
+        'unlocked after 5 donations': '5こきふでかいほう',
+        'unlocked after 80 donations': '80こきふでかいほう',
     },
     'zh': {
+        # NPCs
+        'Able Sisters': '服装店',
+        'All villagers': '所有居民',
+        'Blathers': '傅达',
+        'Brewster': '巴猎',
+        'C.J.': '俞司廷',
+        'Celeste': '傅珂',
+        'Cyrus': '健兆',
+        'Daisy Mae': '曹卖',
+        'Flick': '龙克斯',
+        'Franklin': '富兰克林',
+        'Gullivarrr': '海盗吕游',
+        'Gulliver': '吕游',
+        'Harvey': '巴猎',
+        'HHA': '快乐家协会',
+        'Isabelle': '西施惠',
+        'Jack': '南瓜王',
+        'Jingle': '麋鹿',
+        'K.K.': 'K.K.',
+        'Kapp\'n': '航平',
+        'Katrina': '夏悟姐',
+        'Kicks': '薛革',
+        'Label': '绢儿',
+        'Leif': '然然',
+        'Lottie': '莉咏',
+        'Luna': '梦美',
+        'Mom': '妈妈',
+        'Niko': '阿升',
+        'Nintendo': '任天堂',
+        'Pascal': '阿獭',
+        'Pavé': '孔雀哥哥',
+        'Redd': '狐利',
+        'Reese': '丽莎',
+        'Rover': '巧虎',
+        'Saharah': '骆岚',
+        'Snowboy': '雪人',
+        'Tom Nook': '狸克',
+        'Wardell': '华乐迪',
+        'Wilbur': '莫里',
+        'Wisp': '幽幽',
+        'Zipper': '蹦蹦',
+        # Activities
+        'Balloon': '气球',
+        'Balloons': '气球',
+        'Beach': '海滩',
+        'Birthday': '生日',
+        'Bug catching': '捕虫',
+        'Cooking': '烹饪',
         'Crafting': 'DIY',
+        'Diving': '潜水',
+        'Fishing': '钓鱼',
+        'Mail': '邮件',
+        'Nook Miles Redemption': '里程兑换',
         'Nook Shopping': '狸端机',
         'Nook\'s Cranny': '狸猫商店',
-        'Able Sisters': '服装店',
-        'Resident Services': '服务处',
-        'Fishing': '钓鱼',
-        'Bug Catching': '捉虫',
-        'Diving': '潜水',
-        'Balloon': '气球',
-        'Message Bottle': '漂流瓶',
-        'Villager': '居民',
-        'Event': '活动',
-        'Seasonal': '季节',
+        'NotAvailable': '不可获得',
     },
     'ko': {
+        # NPCs
+        'Able Sisters': '에이블 시스터즈',
+        'All villagers': '모든 주민',
+        'Blathers': '부엉',
+        'Brewster': '마스터',
+        'C.J.': '저스틴',
+        'Celeste': '부코',
+        'Cyrus': '리포',
+        'Daisy Mae': '무파',
+        'Flick': '레오',
+        'Franklin': '프랭클린',
+        'Gullivarrr': '해적 조니',
+        'Gulliver': '조니',
+        'Harvey': '하비',
+        'HHA': '해피홈아카데미',
+        'Isabelle': '여울',
+        'Jack': '호박왕',
+        'Jingle': '징글',
+        'K.K.': 'K.K.',
+        'Kapp\'n': '갓파',
+        'Katrina': '칠성이',
+        'Kicks': '슈샹크',
+        'Label': '고순이',
+        'Leif': '레이지',
+        'Lottie': '타쿠미',
+        'Luna': '몽몽',
+        'Mom': '엄마',
+        'Niko': '니코',
+        'Nintendo': '닌텐도',
+        'Pascal': '라코스케',
+        'Pavé': '파베',
+        'Redd': '여우네',
+        'Reese': '리사',
+        'Rover': '냥로그',
+        'Saharah': '사막',
+        'Snowboy': '눈사람',
+        'Tom Nook': '너굴',
+        'Wardell': '워델',
+        'Wilbur': '윌버',
+        'Wisp': '부우',
+        'Zipper': '토빗',
+        # Activities
+        'Balloon': '풍선',
+        'Balloons': '풍선',
+        'Beach': '해변',
+        'Birthday': '생일',
+        'Bug catching': '곤충 채집',
+        'Cooking': '요리',
         'Crafting': 'DIY',
+        'Diving': '잠수',
+        'Fishing': '낚시',
+        'Mail': '우편',
+        'Nook Miles Redemption': '마일 교환',
         'Nook Shopping': '너굴 쇼핑',
         'Nook\'s Cranny': '너굴 상점',
-        'Able Sisters': '에이블 시스터즈',
-        'Resident Services': '안내소',
-        'Fishing': '낚시',
-        'Bug Catching': '곤충 채집',
-        'Diving': '잠수',
-        'Balloon': '풍선',
-        'Message Bottle': '유리병 편지',
-        'Villager': '주민',
-        'Event': '이벤트',
-        'Seasonal': '계절',
+        'NotAvailable': '획득 불가',
     },
     'fr': {
-        'Crafting': 'Bricolage',
-        'Nook Shopping': 'Nook Shopping',
-        'Nook\'s Cranny': 'Boutique Nook',
+        # NPCs
         'Able Sisters': 'Boutique des sœurs Doigts de fée',
-        'Resident Services': 'Bureau des résidents',
-        'Fishing': 'Pêche',
-        'Bug Catching': 'Chasse aux insectes',
-        'Diving': 'Plongée',
+        'All villagers': 'Tous les habitants',
+        'Blathers': 'Thibou',
+        'Brewster': 'Robusto',
+        'C.J.': 'Casimar',
+        'Celeste': 'Céleste',
+        'Cyrus': 'Serge',
+        'Daisy Mae': 'Porcelette',
+        'Flick': 'Djason',
+        'Franklin': 'Dindo',
+        'Gullivarrr': 'Gulliver (pirate)',
+        'Gulliver': 'Gulliver',
+        'Harvey': 'Joe',
+        'HHA': 'AJD',
+        'Isabelle': 'Marie',
+        'Jack': 'Jack',
+        'Jingle': 'Yoann',
+        'K.K.': 'Kéké',
+        'Kapp\'n': 'Amiral',
+        'Katrina': 'Astrid',
+        'Kicks': 'Blaise',
+        'Label': 'Layette',
+        'Leif': 'Racine',
+        'Lottie': 'Lou',
+        'Luna': 'Serena',
+        'Mom': 'Maman',
+        'Niko': 'Niko',
+        'Nintendo': 'Nintendo',
+        'Pascal': 'Pascal',
+        'Pavé': 'Pavé',
+        'Redd': 'Rounard',
+        'Reese': 'Risette',
+        'Rover': 'Charly',
+        'Saharah': 'Sahara',
+        'Snowboy': 'Yétiti',
+        'Tom Nook': 'Tom Nook',
+        'Wardell': 'Renato',
+        'Wilbur': 'Rodrigue',
+        'Wisp': 'Spectre',
+        'Zipper': 'Albin',
+        # Villager types
+        'Big Sister villagers': 'Grandes sœurs',
+        'Cranky villagers': 'Grognons',
+        'Jock villagers': 'Sportifs',
+        # Activities
         'Balloon': 'Ballon',
-        'Message Bottle': 'Bouteille à la mer',
-        'Villager': 'Habitant',
-        'Event': 'Événement',
-        'Seasonal': 'Saisonnier',
+        'Balloons': 'Ballons',
+        'Beach': 'Plage',
+        'Birthday': 'Anniversaire',
+        'Bug catching': 'Chasse aux insectes',
+        'Cooking': 'Cuisine',
+        'Crafting': 'Bricolage',
+        'Diving': 'Plongée',
+        'Fishing': 'Pêche',
+        'Mail': 'Courrier',
+        'Nook Miles Redemption': 'Échange de Miles Nook',
+        'Nook Shopping': 'Nook Shopping',
+        'Nook Shopping Daily Selection': 'Nook Shopping (quotidien)',
+        'Nook Shopping Seasonal': 'Nook Shopping (saisonnier)',
+        'Nook\'s Cranny': 'Boutique Nook',
+        'NotAvailable': 'Non disponible',
+        'Recycle box': 'Bac de recyclage',
     },
     'de': {
-        'Crafting': 'Heimwerken',
-        'Nook Shopping': 'Nook Shopping',
-        'Nook\'s Cranny': 'Nooks Laden',
+        # NPCs
         'Able Sisters': 'Schneiderei',
-        'Resident Services': 'Servicecenter',
-        'Fishing': 'Angeln',
-        'Bug Catching': 'Insektenfang',
-        'Diving': 'Tauchen',
+        'All villagers': 'Alle Bewohner',
+        'Blathers': 'Eugen',
+        'Brewster': 'Kofi',
+        'C.J.': 'Lomeus',
+        'Celeste': 'Eufemia',
+        'Cyrus': 'Björn',
+        'Daisy Mae': 'Jorna',
+        'Flick': 'Carlson',
+        'Franklin': 'Frank',
+        'Gullivarrr': 'Gullivarrr',
+        'Gulliver': 'Gulliver',
+        'Harvey': 'Harwey',
+        'HHA': 'HHA',
+        'Isabelle': 'Melinda',
+        'Jack': 'Jens',
+        'Jingle': 'Renato',
+        'K.K.': 'K.K.',
+        'Kapp\'n': 'Käpten',
+        'Katrina': 'Smeralda',
+        'Kicks': 'Schuhbert',
+        'Label': 'Tina',
+        'Leif': 'Gerd',
+        'Lottie': 'Lotte',
+        'Luna': 'Serenada',
+        'Mom': 'Mama',
+        'Niko': 'Niko',
+        'Nintendo': 'Nintendo',
+        'Pascal': 'Johannes',
+        'Pavé': 'Pavé',
+        'Redd': 'Reiner',
+        'Reese': 'Rosina',
+        'Rover': 'Kater',
+        'Saharah': 'Saharah',
+        'Snowboy': 'Schneemann',
+        'Tom Nook': 'Tom Nook',
+        'Wardell': 'Oleg',
+        'Wilbur': 'Bodo',
+        'Wisp': 'Buhu',
+        'Zipper': 'Ohs',
+        # Villager types
+        'Big Sister villagers': 'Große Schwestern',
+        'Cranky villagers': 'Mürrische',
+        'Jock villagers': 'Sportler',
+        # Activities
         'Balloon': 'Ballon',
-        'Message Bottle': 'Flaschenpost',
-        'Villager': 'Bewohner',
-        'Event': 'Event',
-        'Seasonal': 'Saisonal',
+        'Balloons': 'Ballons',
+        'Beach': 'Strand',
+        'Birthday': 'Geburtstag',
+        'Bug catching': 'Insektenfang',
+        'Cooking': 'Kochen',
+        'Crafting': 'Heimwerken',
+        'Diving': 'Tauchen',
+        'Fishing': 'Angeln',
+        'Mail': 'Post',
+        'Nook Miles Redemption': 'Nook-Meilen-Tausch',
+        'Nook Shopping': 'Nook Shopping',
+        'Nook Shopping Daily Selection': 'Nook Shopping (täglich)',
+        'Nook Shopping Seasonal': 'Nook Shopping (saisonal)',
+        'Nook\'s Cranny': 'Nooks Laden',
+        'NotAvailable': 'Nicht verfügbar',
+        'Recycle box': 'Recyclingbox',
     },
     'es': {
-        'Crafting': 'Bricolaje',
-        'Nook Shopping': 'Nook Shopping',
-        'Nook\'s Cranny': 'Tienda Nook',
+        # NPCs
         'Able Sisters': 'Hermanas Manitas',
-        'Resident Services': 'Oficina de Gestión',
-        'Fishing': 'Pesca',
-        'Bug Catching': 'Caza de bichos',
-        'Diving': 'Buceo',
+        'All villagers': 'Todos los vecinos',
+        'Blathers': 'Sócrates',
+        'Brewster': 'Fígaro',
+        'C.J.': 'C.J.',
+        'Celeste': 'Estela',
+        'Cyrus': 'Al',
+        'Daisy Mae': 'Juliana',
+        'Flick': 'Kamilo',
+        'Franklin': 'Beniján',
+        'Gullivarrr': 'Gullivarrr',
+        'Gulliver': 'Gulliver',
+        'Harvey': 'Harvey',
+        'HHA': 'ACV',
+        'Isabelle': 'Canela',
+        'Jack': 'Caco',
+        'Jingle': 'Renaldo',
+        'K.K.': 'Totakeke',
+        'Kapp\'n': 'Capitán',
+        'Katrina': 'Katrina',
+        'Kicks': 'Betunio',
+        'Label': 'Trini',
+        'Leif': 'Gandulio',
+        'Lottie': 'Nuria',
+        'Luna': 'Alakama',
+        'Mom': 'Mamá',
+        'Niko': 'Niko',
+        'Nintendo': 'Nintendo',
+        'Pascal': 'Pascal',
+        'Pavé': 'Pavé',
+        'Redd': 'Ladino',
+        'Reese': 'Paca',
+        'Rover': 'Feli',
+        'Saharah': 'Saharah',
+        'Snowboy': 'Muñeco de nieve',
+        'Tom Nook': 'Tom Nook',
+        'Wardell': 'Nando',
+        'Wilbur': 'Wilbur',
+        'Wisp': 'Buh',
+        'Zipper': 'Coti',
+        # Villager types
+        'Big Sister villagers': 'Hermanas mayores',
+        'Cranky villagers': 'Gruñones',
+        'Jock villagers': 'Deportistas',
+        # Activities
         'Balloon': 'Globo',
-        'Message Bottle': 'Botella con mensaje',
-        'Villager': 'Vecino',
-        'Event': 'Evento',
-        'Seasonal': 'Estacional',
+        'Balloons': 'Globos',
+        'Beach': 'Playa',
+        'Birthday': 'Cumpleaños',
+        'Bug catching': 'Caza de bichos',
+        'Cooking': 'Cocina',
+        'Crafting': 'Bricolaje',
+        'Diving': 'Buceo',
+        'Fishing': 'Pesca',
+        'Mail': 'Correo',
+        'Nook Miles Redemption': 'Canje de millas Nook',
+        'Nook Shopping': 'Nook Shopping',
+        'Nook Shopping Daily Selection': 'Nook Shopping (diario)',
+        'Nook Shopping Seasonal': 'Nook Shopping (estacional)',
+        'Nook\'s Cranny': 'Tienda Nook',
+        'NotAvailable': 'No disponible',
+        'Recycle box': 'Caja de reciclaje',
     },
     'it': {
-        'Crafting': 'Fai da te',
-        'Nook Shopping': 'Nook Shopping',
-        'Nook\'s Cranny': 'Bottega di Nook',
+        # NPCs
         'Able Sisters': 'Ago e Filo',
-        'Resident Services': 'Ufficio Servizi',
-        'Fishing': 'Pesca',
-        'Bug Catching': 'Caccia agli insetti',
-        'Diving': 'Immersione',
+        'All villagers': 'Tutti gli abitanti',
+        'Blathers': 'Blatero',
+        'Brewster': 'Bartolo',
+        'C.J.': 'Camelot',
+        'Celeste': 'Celeste',
+        'Cyrus': 'Alpaca',
+        'Daisy Mae': 'Brunella',
+        'Flick': 'Volpolo',
+        'Franklin': 'Sfondone',
+        'Gullivarrr': 'Gullivarrr',
+        'Gulliver': 'Gulliver',
+        'Harvey': 'Fiorilio',
+        'HHA': 'ACA',
+        'Isabelle': 'Fuffi',
+        'Jack': 'Fifone',
+        'Jingle': 'Jingle',
+        'K.K.': 'K.K.',
+        'Kapp\'n': 'Remo',
+        'Katrina': 'Katrina',
+        'Kicks': 'Sciuscià',
+        'Label': 'Beatrice',
+        'Leif': 'Florindo',
+        'Lottie': 'Ivana',
+        'Luna': 'Sonia',
+        'Mom': 'Mamma',
+        'Niko': 'Niko',
+        'Nintendo': 'Nintendo',
+        'Pascal': 'Pascal',
+        'Pavé': 'Pavé',
+        'Redd': 'Volpolo',
+        'Reese': 'Merino',
+        'Rover': 'Romeo',
+        'Saharah': 'Sahara',
+        'Snowboy': 'Pupazzo di neve',
+        'Tom Nook': 'Tom Nook',
+        'Wardell': 'Foffo',
+        'Wilbur': 'Wilbur',
+        'Wisp': 'Svanilio',
+        'Zipper': 'Ovidio',
+        # Villager types
+        'Big Sister villagers': 'Sorelle maggiori',
+        'Cranky villagers': 'Burberi',
+        'Jock villagers': 'Sportivi',
+        # Activities
         'Balloon': 'Palloncino',
-        'Message Bottle': 'Bottiglia con messaggio',
-        'Villager': 'Abitante',
-        'Event': 'Evento',
-        'Seasonal': 'Stagionale',
+        'Balloons': 'Palloncini',
+        'Beach': 'Spiaggia',
+        'Birthday': 'Compleanno',
+        'Bug catching': 'Caccia agli insetti',
+        'Cooking': 'Cucina',
+        'Crafting': 'Fai da te',
+        'Diving': 'Immersione',
+        'Fishing': 'Pesca',
+        'Mail': 'Posta',
+        'Nook Miles Redemption': 'Riscatto Miglia Nook',
+        'Nook Shopping': 'Nook Shopping',
+        'Nook Shopping Daily Selection': 'Nook Shopping (giornaliero)',
+        'Nook Shopping Seasonal': 'Nook Shopping (stagionale)',
+        'Nook\'s Cranny': 'Bottega di Nook',
+        'NotAvailable': 'Non disponibile',
+        'Recycle box': 'Cassonetto riciclaggio',
     },
     'nl': {
+        # NPCs
+        'Able Sisters': 'Able-zusters',
+        'All villagers': 'Alle bewoners',
+        'Blathers': 'Blansen',
+        'Brewster': 'Röster',
+        'C.J.': 'C.J.',
+        'Celeste': 'Celeste',
+        'Cyrus': 'Cyrus',
+        'Daisy Mae': 'Lizette',
+        'Flick': 'Flink',
+        'Franklin': 'Franklin',
+        'Gullivarrr': 'Gullivarrr',
+        'Gulliver': 'Gulliver',
+        'Harvey': 'Harvey',
+        'HHA': 'HHA',
+        'Isabelle': 'Isabelle',
+        'Jack': 'Jason',
+        'Jingle': 'Jansen',
+        'K.K.': 'K.K.',
+        'Kapp\'n': 'Käpp\'n',
+        'Katrina': 'Katrina',
+        'Kicks': 'Schoensen',
+        'Label': 'Lara',
+        'Leif': 'Leif',
+        'Lottie': 'Karlijn',
+        'Luna': 'Serena',
+        'Mom': 'Mama',
+        'Niko': 'Niko',
+        'Nintendo': 'Nintendo',
+        'Pascal': 'Pascal',
+        'Pavé': 'Pavé',
+        'Redd': 'Ransen',
+        'Reese': 'Rosalie',
+        'Rover': 'Robert',
+        'Saharah': 'Saharah',
+        'Snowboy': 'Sneeuwpop',
+        'Tom Nook': 'Tom Nook',
+        'Wardell': 'Wardell',
+        'Wilbur': 'Wilbur',
+        'Wisp': 'Geertje',
+        'Zipper': 'Zipper',
+        # Activities
+        'Balloon': 'Ballon',
+        'Balloons': 'Ballonnen',
+        'Beach': 'Strand',
+        'Birthday': 'Verjaardag',
+        'Bug catching': 'Insecten vangen',
+        'Cooking': 'Koken',
         'Crafting': 'Knutselen',
+        'Diving': 'Duiken',
+        'Fishing': 'Vissen',
+        'Mail': 'Post',
+        'Nook Miles Redemption': 'Nook Miles inwisselen',
         'Nook Shopping': 'Nook Shopping',
         'Nook\'s Cranny': 'Nooks Winkel',
-        'Able Sisters': 'Able-zusters',
-        'Resident Services': 'Servicebalie',
-        'Fishing': 'Vissen',
-        'Bug Catching': 'Insecten vangen',
-        'Diving': 'Duiken',
-        'Balloon': 'Ballon',
-        'Message Bottle': 'Fles met bericht',
-        'Villager': 'Bewoner',
-        'Event': 'Evenement',
-        'Seasonal': 'Seizoensgebonden',
+        'NotAvailable': 'Niet beschikbaar',
+        'Recycle box': 'Recyclebak',
     },
     'ru': {
+        # NPCs
+        'Able Sisters': 'Сёстры Эйбл',
+        'All villagers': 'Все жители',
+        'Blathers': 'Блезерс',
+        'Brewster': 'Брюстер',
+        'C.J.': 'К.Д.',
+        'Celeste': 'Селеста',
+        'Cyrus': 'Сайрус',
+        'Daisy Mae': 'Дэйзи Мэй',
+        'Flick': 'Флик',
+        'Franklin': 'Франклин',
+        'Gullivarrr': 'Пират Гулливер',
+        'Gulliver': 'Гулливер',
+        'Harvey': 'Харви',
+        'HHA': 'ДСК',
+        'Isabelle': 'Изабель',
+        'Jack': 'Джек',
+        'Jingle': 'Джингл',
+        'K.K.': 'К.К.',
+        'Kapp\'n': 'Капитан',
+        'Katrina': 'Катрина',
+        'Kicks': 'Кикс',
+        'Label': 'Лейбл',
+        'Leif': 'Лейф',
+        'Lottie': 'Лотти',
+        'Luna': 'Луна',
+        'Mom': 'Мама',
+        'Niko': 'Нико',
+        'Nintendo': 'Nintendo',
+        'Pascal': 'Паскаль',
+        'Pavé': 'Павлин',
+        'Redd': 'Редд',
+        'Reese': 'Риз',
+        'Rover': 'Ровер',
+        'Saharah': 'Сахара',
+        'Snowboy': 'Снеговик',
+        'Tom Nook': 'Том Нук',
+        'Wardell': 'Уорделл',
+        'Wilbur': 'Уилбур',
+        'Wisp': 'Дух',
+        'Zipper': 'Зиппер',
+        # Activities
+        'Balloon': 'Шарик',
+        'Balloons': 'Шарики',
+        'Beach': 'Пляж',
+        'Birthday': 'День рождения',
+        'Bug catching': 'Ловля насекомых',
+        'Cooking': 'Готовка',
         'Crafting': 'Крафт',
+        'Diving': 'Дайвинг',
+        'Fishing': 'Рыбалка',
+        'Mail': 'Почта',
+        'Nook Miles Redemption': 'Обмен миль Нука',
         'Nook Shopping': 'Нук Шоппинг',
         'Nook\'s Cranny': 'Лавка Нука',
-        'Able Sisters': 'Сёстры Эйбл',
-        'Resident Services': 'Ратуша',
-        'Fishing': 'Рыбалка',
-        'Bug Catching': 'Ловля насекомых',
-        'Diving': 'Дайвинг',
-        'Balloon': 'Шарик',
-        'Message Bottle': 'Бутылка с посланием',
-        'Villager': 'Житель',
-        'Event': 'Событие',
-        'Seasonal': 'Сезонный',
+        'NotAvailable': 'Недоступно',
+        'Recycle box': 'Коробка переработки',
     },
 }
 
@@ -469,20 +1063,17 @@ def translate_category(category: str, language: str) -> str:
     return category
 
 
-def translate_source(source: str, language: str) -> str:
-    """Translate a source name to the user's language.
+def _translate_single_source(source: str, lang_sources: Dict[str, str]) -> str:
+    """Translate a single source component.
     
     Args:
-        source: English source name from database (may be any case)
-        language: Target language code
+        source: Single source string (no semicolons)
+        lang_sources: Dictionary of translations for the language
     
     Returns:
         Translated source or original if no translation found
     """
-    if language == 'en' or not source:
-        return source
-    
-    lang_sources = SOURCE_TRANSLATIONS.get(language, {})
+    source = source.strip()
     
     # Try exact match first
     if source in lang_sources:
@@ -494,7 +1085,45 @@ def translate_source(source: str, language: str) -> str:
         if eng_src.lower() == source_lower:
             return translated
     
+    # Handle parenthetical modifiers like "(unlocked after 20 donations)"
+    # or "(while stung)" by checking if inner text is translatable
+    if source.startswith('(') and source.endswith(')'):
+        inner = source[1:-1]
+        if inner in lang_sources:
+            return f"({lang_sources[inner]})"
+        inner_lower = inner.lower()
+        for eng_src, translated in lang_sources.items():
+            if eng_src.lower() == inner_lower:
+                return f"({translated})"
+    
     return source
+
+
+def translate_source(source: str, language: str) -> str:
+    """Translate a source name to the user's language.
+    
+    Handles compound sources separated by semicolons, translating each
+    component individually.
+    
+    Args:
+        source: English source name from database (may contain semicolons)
+        language: Target language code
+    
+    Returns:
+        Translated source or original if no translation found
+    """
+    if language == 'en' or not source:
+        return source
+    
+    lang_sources = SOURCE_TRANSLATIONS.get(language, {})
+    
+    # Handle compound sources (e.g., "Crafting; Nook's Cranny; Franklin")
+    if ';' in source:
+        parts = source.split(';')
+        translated_parts = [_translate_single_source(part, lang_sources) for part in parts]
+        return '; '.join(translated_parts)
+    
+    return _translate_single_source(source, lang_sources)
 
 
 # UI strings organized by language
@@ -541,6 +1170,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'No Results',
         'search_results': 'Search Results',
         'lookup_results': 'Lookup Results',
+        'result_x_of_n': 'Result {current} of {total}',
+        'search_result_for': "for '{query}'",
+        'results_range': 'Results {start}-{end}',
+        'jump_to_range': 'Jump to range...',
+        'select_result': 'Select result...',
+        'prev': 'Prev',
+        'next': 'Next',
+        
+        # Type names (singular)
+        'type_item': 'Item',
+        'type_critter': 'Critter',
+        'type_recipe': 'Recipe',
+        'type_villager': 'Villager',
+        'type_fossil': 'Fossil',
+        'type_artwork': 'Artwork',
+        
+        # Artwork labels
+        'genuine': 'Genuine',
+        'fake': 'Fake',
+        'real_artwork_info': 'Real Artwork Info',
+        'artwork_title': 'Title',
+        'artwork_artist': 'Artist',
         
         # Footer messages
         'images_refreshed': 'Images refreshed',
@@ -607,6 +1258,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': '結果なし',
         'search_results': '検索結果',
         'lookup_results': '検索結果',
+        'result_x_of_n': '結果 {current}/{total}',
+        'search_result_for': "'{query}' の検索",
+        'results_range': '結果 {start}-{end}',
+        'jump_to_range': '範囲を選択...',
+        'select_result': '結果を選択...',
+        'prev': '前へ',
+        'next': '次へ',
+        
+        # Type names (singular)
+        'type_item': 'アイテム',
+        'type_critter': 'いきもの',
+        'type_recipe': 'レシピ',
+        'type_villager': 'どうぶつ',
+        'type_fossil': 'かせき',
+        'type_artwork': 'びじゅつひん',
+        
+        # Artwork labels
+        'genuine': 'ほんもの',
+        'fake': 'にせもの',
+        'real_artwork_info': '本物の美術品情報',
+        'artwork_title': 'タイトル',
+        'artwork_artist': '作者',
         
         # Footer messages
         'images_refreshed': '画像を更新しました',
@@ -673,6 +1346,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': '无结果',
         'search_results': '搜索结果',
         'lookup_results': '查找结果',
+        'result_x_of_n': '结果 {current}/{total}',
+        'search_result_for': "'{query}' 的搜索",
+        'results_range': '结果 {start}-{end}',
+        'jump_to_range': '跳转到范围...',
+        'select_result': '选择结果...',
+        'prev': '上一个',
+        'next': '下一个',
+        
+        # Type names (singular)
+        'type_item': '物品',
+        'type_critter': '生物',
+        'type_recipe': '食谱',
+        'type_villager': '居民',
+        'type_fossil': '化石',
+        'type_artwork': '艺术品',
+        
+        # Artwork labels
+        'genuine': '真品',
+        'fake': '赝品',
+        'real_artwork_info': '真实艺术品信息',
+        'artwork_title': '标题',
+        'artwork_artist': '艺术家',
         
         # Footer messages
         'images_refreshed': '图片已刷新',
@@ -739,6 +1434,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': '결과 없음',
         'search_results': '검색 결과',
         'lookup_results': '조회 결과',
+        'result_x_of_n': '결과 {current}/{total}',
+        'search_result_for': "'{query}' 검색",
+        'results_range': '결과 {start}-{end}',
+        'jump_to_range': '범위 선택...',
+        'select_result': '결과 선택...',
+        'prev': '이전',
+        'next': '다음',
+        
+        # Type names (singular)
+        'type_item': '아이템',
+        'type_critter': '생물',
+        'type_recipe': '레시피',
+        'type_villager': '주민',
+        'type_fossil': '화석',
+        'type_artwork': '미술품',
+        
+        # Artwork labels
+        'genuine': '진품',
+        'fake': '위작',
+        'real_artwork_info': '실제 미술품 정보',
+        'artwork_title': '제목',
+        'artwork_artist': '작가',
         
         # Footer messages
         'images_refreshed': '이미지가 새로고침되었습니다',
@@ -805,6 +1522,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'Aucun résultat',
         'search_results': 'Résultats de recherche',
         'lookup_results': 'Résultats',
+        'result_x_of_n': 'Résultat {current} sur {total}',
+        'search_result_for': "pour '{query}'",
+        'results_range': 'Résultats {start}-{end}',
+        'jump_to_range': 'Aller à...',
+        'select_result': 'Sélectionner...',
+        'prev': 'Préc',
+        'next': 'Suiv',
+        
+        # Type names (singular)
+        'type_item': 'Objet',
+        'type_critter': 'Créature',
+        'type_recipe': 'Recette',
+        'type_villager': 'Habitant',
+        'type_fossil': 'Fossile',
+        'type_artwork': 'Œuvre d\'art',
+        
+        # Artwork labels
+        'genuine': 'Authentique',
+        'fake': 'Faux',
+        'real_artwork_info': 'Info œuvre réelle',
+        'artwork_title': 'Titre',
+        'artwork_artist': 'Artiste',
         
         # Footer messages
         'images_refreshed': 'Images actualisées',
@@ -871,6 +1610,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'Keine Ergebnisse',
         'search_results': 'Suchergebnisse',
         'lookup_results': 'Ergebnisse',
+        'result_x_of_n': 'Ergebnis {current} von {total}',
+        'search_result_for': "für '{query}'",
+        'results_range': 'Ergebnisse {start}-{end}',
+        'jump_to_range': 'Gehe zu...',
+        'select_result': 'Auswählen...',
+        'prev': 'Zurück',
+        'next': 'Weiter',
+        
+        # Type names (singular)
+        'type_item': 'Gegenstand',
+        'type_critter': 'Lebewesen',
+        'type_recipe': 'Rezept',
+        'type_villager': 'Bewohner',
+        'type_fossil': 'Fossil',
+        'type_artwork': 'Kunstwerk',
+        
+        # Artwork labels
+        'genuine': 'Echt',
+        'fake': 'Fälschung',
+        'real_artwork_info': 'Infos zum echten Kunstwerk',
+        'artwork_title': 'Titel',
+        'artwork_artist': 'Künstler',
         
         # Footer messages
         'images_refreshed': 'Bilder aktualisiert',
@@ -937,6 +1698,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'Sin resultados',
         'search_results': 'Resultados de búsqueda',
         'lookup_results': 'Resultados',
+        'result_x_of_n': 'Resultado {current} de {total}',
+        'search_result_for': "para '{query}'",
+        'results_range': 'Resultados {start}-{end}',
+        'jump_to_range': 'Ir a...',
+        'select_result': 'Seleccionar...',
+        'prev': 'Anterior',
+        'next': 'Siguiente',
+        
+        # Type names (singular)
+        'type_item': 'Objeto',
+        'type_critter': 'Criatura',
+        'type_recipe': 'Receta',
+        'type_villager': 'Vecino',
+        'type_fossil': 'Fósil',
+        'type_artwork': 'Obra de arte',
+        
+        # Artwork labels
+        'genuine': 'Auténtico',
+        'fake': 'Falso',
+        'real_artwork_info': 'Información de la obra real',
+        'artwork_title': 'Título',
+        'artwork_artist': 'Artista',
         
         # Footer messages
         'images_refreshed': 'Imágenes actualizadas',
@@ -1003,6 +1786,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'Nessun risultato',
         'search_results': 'Risultati della ricerca',
         'lookup_results': 'Risultati',
+        'result_x_of_n': 'Risultato {current} di {total}',
+        'search_result_for': "per '{query}'",
+        'results_range': 'Risultati {start}-{end}',
+        'jump_to_range': 'Vai a...',
+        'select_result': 'Seleziona...',
+        'prev': 'Prec',
+        'next': 'Succ',
+        
+        # Type names (singular)
+        'type_item': 'Oggetto',
+        'type_critter': 'Creatura',
+        'type_recipe': 'Ricetta',
+        'type_villager': 'Abitante',
+        'type_fossil': 'Fossile',
+        'type_artwork': 'Opera d\'arte',
+        
+        # Artwork labels
+        'genuine': 'Autentico',
+        'fake': 'Falso',
+        'real_artwork_info': 'Info opera reale',
+        'artwork_title': 'Titolo',
+        'artwork_artist': 'Artista',
         
         # Footer messages
         'images_refreshed': 'Immagini aggiornate',
@@ -1069,6 +1874,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'Geen resultaten',
         'search_results': 'Zoekresultaten',
         'lookup_results': 'Resultaten',
+        'result_x_of_n': 'Resultaat {current} van {total}',
+        'search_result_for': "voor '{query}'",
+        'results_range': 'Resultaten {start}-{end}',
+        'jump_to_range': 'Ga naar...',
+        'select_result': 'Selecteer...',
+        'prev': 'Vorige',
+        'next': 'Volgende',
+        
+        # Type names (singular)
+        'type_item': 'Voorwerp',
+        'type_critter': 'Wezen',
+        'type_recipe': 'Recept',
+        'type_villager': 'Bewoner',
+        'type_fossil': 'Fossiel',
+        'type_artwork': 'Kunstwerk',
+        
+        # Artwork labels
+        'genuine': 'Echt',
+        'fake': 'Nep',
+        'real_artwork_info': 'Informatie echt kunstwerk',
+        'artwork_title': 'Titel',
+        'artwork_artist': 'Kunstenaar',
         
         # Footer messages
         'images_refreshed': 'Afbeeldingen vernieuwd',
@@ -1135,6 +1962,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'no_results': 'Нет результатов',
         'search_results': 'Результаты поиска',
         'lookup_results': 'Результаты',
+        'result_x_of_n': 'Результат {current} из {total}',
+        'search_result_for': "по запросу '{query}'",
+        'results_range': 'Результаты {start}-{end}',
+        'jump_to_range': 'Перейти к...',
+        'select_result': 'Выбрать...',
+        'prev': 'Назад',
+        'next': 'Далее',
+        
+        # Type names (singular)
+        'type_item': 'Предмет',
+        'type_critter': 'Существо',
+        'type_recipe': 'Рецепт',
+        'type_villager': 'Житель',
+        'type_fossil': 'Окаменелость',
+        'type_artwork': 'Произведение искусства',
+        
+        # Artwork labels
+        'genuine': 'Подлинник',
+        'fake': 'Подделка',
+        'real_artwork_info': 'Инфо о настоящем произведении',
+        'artwork_title': 'Название',
+        'artwork_artist': 'Художник',
         
         # Footer messages
         'images_refreshed': 'Изображения обновлены',
@@ -1433,6 +2282,99 @@ class LocalizedUI:
         """Get localized 'Choose variant (Page X/Y)...' placeholder."""
         template = self._get('choose_variant_page')
         return template.format(page=page, total=total)
+    
+    # Search result footer
+    def format_result_footer(self, current: int, total: int, query: str) -> str:
+        """Format the search result footer text.
+        
+        Args:
+            current: Current result number (1-based)
+            total: Total number of results
+            query: The search query
+        
+        Returns:
+            Localized footer like "Result 1 of 5 for 'chair'"
+        """
+        result_part = self._get('result_x_of_n').format(current=current, total=total)
+        query_part = self._get('search_result_for').format(query=query)
+        return f"{result_part} {query_part}"
+    
+    def format_single_result_footer(self, query: str) -> str:
+        """Format footer for a single search result.
+        
+        Args:
+            query: The search query
+        
+        Returns:
+            Localized footer like "Search result for 'chair'"
+        """
+        return f"{self._get('search_results')} {self._get('search_result_for').format(query=query)}"
+    
+    # Navigation buttons
+    @property
+    def prev_button(self) -> str:
+        return self._get('prev')
+    
+    @property
+    def next_button(self) -> str:
+        return self._get('next')
+    
+    # Result selectors
+    def format_results_range(self, start: int, end: int) -> str:
+        """Format 'Results X-Y' for pagination selector."""
+        return self._get('results_range').format(start=start, end=end)
+    
+    @property
+    def jump_to_range(self) -> str:
+        return self._get('jump_to_range')
+    
+    @property
+    def select_result(self) -> str:
+        return self._get('select_result')
+    
+    # Type names
+    def get_type_name(self, class_name: str) -> str:
+        """Get localized type name from Python class name.
+        
+        Args:
+            class_name: Python class name (e.g., 'Item', 'Critter', 'Recipe')
+        
+        Returns:
+            Localized type name
+        """
+        type_map = {
+            'Item': 'type_item',
+            'Critter': 'type_critter',
+            'Recipe': 'type_recipe',
+            'Villager': 'type_villager',
+            'Fossil': 'type_fossil',
+            'Artwork': 'type_artwork',
+        }
+        key = type_map.get(class_name, None)
+        if key:
+            return self._get(key)
+        return class_name  # Fallback to original class name
+    
+    # Artwork labels
+    @property
+    def genuine(self) -> str:
+        return self._get('genuine')
+    
+    @property
+    def fake(self) -> str:
+        return self._get('fake')
+    
+    @property
+    def real_artwork_info(self) -> str:
+        return self._get('real_artwork_info')
+    
+    @property
+    def artwork_title(self) -> str:
+        return self._get('artwork_title')
+    
+    @property
+    def artwork_artist(self) -> str:
+        return self._get('artwork_artist')
     
     # Preference dialogs
     @property

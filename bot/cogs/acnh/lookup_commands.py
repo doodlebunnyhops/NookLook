@@ -6,10 +6,11 @@ import logging
 from bot.services.acnh_service import NooklookService
 from bot.ui.item_views import VariantSelectView
 from bot.ui.search_views import PaginatedResultView
-from bot.ui.common import get_combined_view, LanguageSelectView
+from bot.ui.common import get_combined_view
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import item_name_autocomplete
 from bot.repos.user_repo import UserRepository
+from bot.ui.common import check_new_user_language
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,7 @@ class LookupCommands(commands.Cog):
         Returns True if prompt was shown (caller should return early),
         False if user has settings (continue normally).
         """
-        is_new = await self.user_repo.is_new_user(interaction.user.id)
-        if is_new:
-            view = LanguageSelectView(interaction.user.id)
-            embed = view.create_embed()
-            # Use followup since we already deferred
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-            return True
-        return False
+        return await check_new_user_language(interaction, self.user_repo)
     
     @app_commands.command(name="lookup", description="Look up a specific ACNH item")
     @app_commands.allowed_contexts(private_channels=True,guilds=True,dms=True)

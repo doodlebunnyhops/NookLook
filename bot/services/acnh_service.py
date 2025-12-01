@@ -152,6 +152,13 @@ class NooklookService:
             'items', item_id, language, fallback_name
         )
     
+    async def get_localized_artwork_name(self, artwork_id: int, user_id: int, fallback_name: str) -> str:
+        """Get artwork name in user's preferred language"""
+        language = await self.get_user_language(user_id)
+        return await self.translation_service.get_localized_name_or_fallback(
+            'artwork', artwork_id, language, fallback_name
+        )
+    
     async def get_item_suggestions_localized(self, query: str, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
         """
         Get item suggestions for autocomplete in user's language.
@@ -229,19 +236,61 @@ class NooklookService:
         return await self.repo.get_artwork_by_id(artwork_id)
     
     async def get_artwork_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
-        """Get artwork name suggestions for autocomplete"""
+        """Get artwork name suggestions for autocomplete (English labels)"""
         try:
             return await self.repo.get_artwork_suggestions(search_term, limit)
         except Exception as e:
             logger.error(f"Error getting artwork suggestions: {e}")
             return []
     
+    async def get_artwork_suggestions_localized(self, search_term: str, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
+        """Get artwork name suggestions with localized Genuine/Fake labels"""
+        from bot.utils.localization import get_ui
+        try:
+            language = await self.get_user_language(user_id)
+            ui = get_ui(language)
+            
+            # Get raw artwork data from repo
+            raw_results = await self.repo.get_artwork_suggestions_raw(search_term, limit)
+            
+            # Format with localized labels
+            suggestions = []
+            for name, artwork_id, genuine in raw_results:
+                authenticity = f" ({ui.genuine})" if genuine else f" ({ui.fake})"
+                display_name = f"{name}{authenticity}"
+                suggestions.append((display_name, artwork_id))
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error getting localized artwork suggestions: {e}")
+            return []
+    
     async def get_random_artwork_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
-        """Get random artwork suggestions for autocomplete when query is too short"""
+        """Get random artwork suggestions for autocomplete when query is too short (English labels)"""
         try:
             return await self.repo.get_random_artwork(limit)
         except Exception as e:
             logger.error(f"Error getting random artwork suggestions: {e}")
+            return []
+    
+    async def get_random_artwork_suggestions_localized(self, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random artwork suggestions with localized Genuine/Fake labels"""
+        from bot.utils.localization import get_ui
+        try:
+            language = await self.get_user_language(user_id)
+            ui = get_ui(language)
+            
+            # Get raw artwork data from repo
+            raw_results = await self.repo.get_random_artwork_raw(limit)
+            
+            # Format with localized labels
+            suggestions = []
+            for name, artwork_id, genuine in raw_results:
+                authenticity = f" ({ui.genuine})" if genuine else f" ({ui.fake})"
+                display_name = f"{name}{authenticity}"
+                suggestions.append((display_name, artwork_id))
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error getting random localized artwork suggestions: {e}")
             return []
     
     async def get_critter_by_id(self, critter_id: int) -> Optional[Critter]:

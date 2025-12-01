@@ -562,8 +562,9 @@ def get_combined_view(
     if not existing_view and (add_refresh or stash_info or nookipedia_url):
         existing_view = RefreshableStaticView(content_type, language=language)
         # Remove default refresh button - we'll add it in correct order below
+        # Check for the 🔄 emoji since the label is localized
         for item in existing_view.children[:]:
-            if isinstance(item, discord.ui.Button) and "Refresh" in (item.label or ""):
+            if isinstance(item, discord.ui.Button) and "🔄" in (item.label or ""):
                 existing_view.remove_item(item)
     
     if existing_view:

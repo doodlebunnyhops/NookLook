@@ -8,6 +8,7 @@ from bot.ui.common import get_combined_view, LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import artwork_name_autocomplete
 from bot.repos.user_repo import UserRepository
+from bot.utils.localization import get_ui
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,11 @@ class ArtworkCommands(commands.Cog):
         
         logger.info(f"artwork command used by:\n\t{interaction.user.display_name} ({interaction.user.id})\n\tsearching for: '{name}'")
         
+        # Get user's preferred language
+        user_id = interaction.user.id
+        user_language = await self.service.get_user_language(user_id)
+        ui = get_ui(user_language)
+        
         try:
             # Convert name to artwork ID if it's numeric (from autocomplete)
             if name.isdigit():
@@ -77,22 +83,33 @@ class ArtworkCommands(commands.Cog):
                 return
             logger.info(f"found artwork: {artwork.name}")
             
-            # Create the artwork embed
-            embed = artwork.to_discord_embed()
-            # embed = await safe_embed_images(embed, 'artwork')
+            # Get localized artwork name if available
+            localized_name = await self.service.get_localized_artwork_name(
+                artwork.id, user_id, artwork.name
+            )
             
-            # Add artwork category info in footer
-            authenticity = "Genuine" if artwork.genuine else "Fake"
-            category_text = f"🎨 {authenticity} Artwork"
+            # Create the artwork embed with localization
+            embed = artwork.to_discord_embed(language=user_language)
+            
+            # Update title with localized name if different
+            if localized_name != artwork.name:
+                authenticity = ui.genuine if artwork.genuine else ui.fake
+                embed.title = f"{localized_name} ({artwork.name}) ({authenticity})"
+            
+            # Add artwork category info in footer (localized)
+            authenticity = ui.genuine if artwork.genuine else ui.fake
+            category_text = f"🎨 {authenticity} {ui.get_type_name('Artwork')}"
             if artwork.art_category:
-                category_text += f" • {artwork.art_category}"
+                translated_category = ui.translate_category(artwork.art_category)
+                category_text += f" • {translated_category}"
             embed.set_footer(text=category_text)
             
             # Add Nookipedia and refresh button
             view = get_combined_view(
                 None, artwork.nookipedia_url, 
                 add_refresh=True, content_type="artwork",
-                stash_info={'ref_table': 'artwork', 'ref_id': artwork.id, 'display_name': artwork.name}
+                stash_info={'ref_table': 'artwork', 'ref_id': artwork.id, 'display_name': artwork.name},
+                language=user_language
             )
             
             if view:

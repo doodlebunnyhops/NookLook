@@ -7,9 +7,10 @@ import logging
 from bot.services.acnh_service import NooklookService
 from bot.ui.item_views import VariantSelectView
 from bot.ui.search_views import SearchResultsView
-from bot.ui.common import get_combined_view, LanguageSelectView
+from bot.ui.common import get_combined_view
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.repos.user_repo import UserRepository
+from bot.ui.common import check_new_user_language
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +46,7 @@ class SearchCommands(commands.Cog):
     
     async def _check_new_user(self, interaction: discord.Interaction) -> bool:
         """Check if user is new and show language selection prompt."""
-        is_new = await self.user_repo.is_new_user(interaction.user.id)
-        if is_new:
-            view = LanguageSelectView(interaction.user.id)
-            embed = view.create_embed()
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-            return True
-        return False
+        return await check_new_user_language(interaction, self.user_repo)
     
 
     @app_commands.command(name="search", description="Search across all ACNH content")
@@ -81,6 +76,9 @@ class SearchCommands(commands.Cog):
         # Check if this is a new user - show language prompt first
         if await self._check_new_user(interaction):
             return  # Language prompt shown, user can run command again after selecting
+        
+        # Get user's preferred language
+        user_language = await self.service.get_user_language(user_id)
         
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         category_str = f" in {category}" if category else ""
@@ -155,9 +153,16 @@ class SearchCommands(commands.Cog):
             if len(results) == 1:
                 result = results[0]
                 
+                # Get localized name for items
+                localized_name = None
+                if hasattr(result, 'id') and _get_ref_table_for_result(result) == 'items':
+                    localized_name = await self.service.get_localized_item_name(
+                        result.id, user_id, result.name
+                    )
+                
                 # If it's an item with variants, show variant selector
                 if hasattr(result, 'variants') and len(result.variants) > 1:
-                    view = VariantSelectView(result, interaction.user)
+                    view = VariantSelectView(result, interaction.user, language=user_language, localized_name=localized_name)
                     embed = view.create_embed()
                     # Add action buttons in correct order: Stash → Refresh → Nookipedia
                     view.add_action_buttons(result.nookipedia_url)
@@ -165,13 +170,25 @@ class SearchCommands(commands.Cog):
                     # Send and store message reference for timeout handling
                     view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
                 else:
-                    # Show regular embed
-                    embed = result.to_embed() if hasattr(result, 'to_embed') else discord.Embed(
-                        title=getattr(result, 'name', 'Unknown'),
-                        color=0x95a5a6
-                    )
-                    embed.title = f"{embed.title}"
-                    embed.set_footer(text=f"Search result for '{query}'")
+                    # Show regular embed - use to_discord_embed with language for Items
+                    if hasattr(result, 'to_discord_embed'):
+                        embed = result.to_discord_embed(language=user_language)
+                        # Update title with localized name if available
+                        if localized_name and localized_name != result.name:
+                            embed.title = f"{localized_name} ({result.name})"
+                    elif hasattr(result, 'to_embed'):
+                        embed = result.to_embed()
+                    else:
+                        embed = discord.Embed(
+                            title=getattr(result, 'name', 'Unknown'),
+                            color=0x95a5a6
+                        )
+                    
+                    # Localized footer
+                    from bot.utils.localization import get_ui
+                    ui = get_ui(user_language)
+                    embed.set_footer(text=ui.format_single_result_footer(query))
+                    
                     category_info = f" in {category}" if category else ""
                     logger.info(f"Search found 1 result for '{query}'{category_info}: {getattr(result, 'name', 'Unknown')}")
                     
@@ -180,13 +197,26 @@ class SearchCommands(commands.Cog):
                     view = get_combined_view(
                         None, result.nookipedia_url,
                         add_refresh=True,
-                        stash_info={"ref_table": ref_table, "ref_id": result.id, "display_name": result.name}
+                        stash_info={"ref_table": ref_table, "ref_id": result.id, "display_name": result.name},
+                        language=user_language
                     )
                     await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             
             # Multiple results - show navigation view
             else:
-                view = SearchResultsView(results, query, interaction.user)
+                # Fetch localized names for items in results
+                # Use composite key (ref_table, id) to avoid ID collisions between content types
+                localized_names = {}
+                for result in results:
+                    ref_table = _get_ref_table_for_result(result)
+                    if hasattr(result, 'id') and ref_table == 'items':
+                        localized_name = await self.service.get_localized_item_name(
+                            result.id, user_id, result.name
+                        )
+                        if localized_name != result.name:
+                            localized_names[('items', result.id)] = localized_name
+                
+                view = SearchResultsView(results, query, interaction.user, language=user_language, localized_names=localized_names)
                 embed = view.create_embed()
                 category_info = f" in {category}" if category else ""
                 logger.info(f"Search found {len(results)} results for '{query}'{category_info}")

@@ -949,17 +949,21 @@ class Artwork:
             extra_json=data.get('extra_json')
         )
     
-    def to_discord_embed(self) -> discord.Embed:
-        """Create Discord embed for this artwork"""
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
+        """Create Discord embed for this artwork
+        
+        Args:
+            language: User's preferred language for UI labels (default: 'en')
+        """
+        ui = get_ui(language)
+        
         # Choose color and emoji based on authenticity
         if self.genuine:
             color = discord.Color.from_rgb(52, 152, 219)  # Blue for genuine
-            # emoji = "🎨"
-            authenticity = "Genuine"
+            authenticity = ui.genuine
         else:
             color = discord.Color.from_rgb(231, 76, 60)  # Red for fake
-            # emoji = "🎭"
-            authenticity = "Fake"
+            authenticity = ui.fake
         
         embed = discord.Embed(
             title=f"{self.name} ({authenticity})",
@@ -969,19 +973,21 @@ class Artwork:
         # Basic info
         info_lines = []
         if self.art_category:
-            info_lines.append(f"**Category:** {self.art_category}")
+            translated_category = ui.translate_category(self.art_category)
+            info_lines.append(f"{ui.category}: {translated_category}")
         
         if self.buy_price:
-            info_lines.append(f"**Buy Price:** {self.buy_price:,} Bells")
+            info_lines.append(f"{ui.buy_price}: {self.buy_price:,} {ui.bells}")
         
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"{ui.sell_price}: {self.sell_price:,} {ui.bells}")
         
         if self.source:
-            source_text = self.source
+            translated_source = ui.translate_source(self.source)
+            source_text = translated_source
             if self.source_notes:
                 source_text += f" ({self.source_notes})"
-            info_lines.append(f"**Source:** {source_text}")
+            info_lines.append(f"{ui.source}: {source_text}")
         
         embed.description = "\n".join(info_lines)
         
@@ -989,27 +995,19 @@ class Artwork:
         if self.real_artwork_title or self.artist:
             real_info = []
             if self.real_artwork_title:
-                real_info.append(f"**Title:** {self.real_artwork_title}")
+                real_info.append(f"{ui.artwork_title}: {self.real_artwork_title}")
             if self.artist:
-                real_info.append(f"**Artist:** {self.artist}")
+                real_info.append(f"{ui.artwork_artist}: {self.artist}")
             
             embed.add_field(
-                name="Real Artwork Info",
+                name=ui.real_artwork_info,
                 value="\n".join(real_info),
                 inline=False
             )
         
-        # Add description if available
-        # if self.description:
-        #     embed.add_field(
-        #         name="Description",
-        #         value=self.description,
-        #         inline=False
-        #     )
-        
         # Add item hex if available (no TI codes as requested)
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Set image with fallback handling
         if self.image_url:
@@ -1017,9 +1015,9 @@ class Artwork:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this artwork to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language=language)
 
 @dataclass(slots=True)
 class Fossil:

@@ -98,48 +98,35 @@ async def recipe_name_autocomplete(interaction: Interaction, current: str) -> Li
         return []
 
 async def artwork_name_autocomplete(interaction: Interaction, current: str) -> List[app_commands.Choice[str]]:
-    """Autocomplete for artwork names with caching"""
-    user_id = getattr(interaction.user, 'id', 'unknown')
+    """Autocomplete for artwork names with localized Genuine/Fake labels"""
+    user_id = interaction.user.id
     logger.debug(f"Artwork autocomplete called by user {user_id} with query: '{current}'")
     
     try:
-        # Normalize query for consistent caching
-        query = current.lower().strip()
-        cache_key = f"artwork:{query}"
-        
-        # Check cache first
-        cached_result = autocomplete_cache.get(cache_key)
-        if cached_result:
-            logger.debug(f"Artwork autocomplete: returning {len(cached_result)} cached results for '{query}'")
-            return cached_result
-            
         # Get service from bot instance
         service = getattr(interaction.client, 'nooklook_service', None)
         if not service:
             logger.error("Artwork autocomplete: NooklookService not found on bot instance")
             return []
         
-        # Get artwork suggestions
+        # Normalize query
+        query = current.lower().strip()
+        
+        # Get artwork suggestions with localized labels
         if not query or len(query) <= 2:
-            cache_key = "artwork:random"
-            cached_result = autocomplete_cache.get(cache_key)
-            if cached_result:
-                logger.debug(f"Artwork autocomplete: returning {len(cached_result)} cached random results")
-                return cached_result
-            suggestions = await service.get_random_artwork_suggestions(25)
+            logger.debug(f"Artwork autocomplete: getting random artwork for user {user_id}")
+            suggestions = await service.get_random_artwork_suggestions_localized(user_id, 25)
         else:
-            logger.debug(f"Artwork autocomplete: searching database for '{current}'")
-            suggestions = await service.get_artwork_suggestions(current)
+            logger.debug(f"Artwork autocomplete: searching database for '{current}' (user {user_id})")
+            suggestions = await service.get_artwork_suggestions_localized(current, user_id)
         
         # Convert to choices
         choices = [
-            app_commands.Choice(name=name, value=str(artwork_id))
+            app_commands.Choice(name=name[:100], value=str(artwork_id))
             for name, artwork_id in suggestions[:25]
         ]
         
-        logger.info(f"Artwork autocomplete: found {len(choices)} results for '{current}', caching...")
-        # Cache the result
-        autocomplete_cache.set(cache_key, choices)
+        logger.debug(f"Artwork autocomplete: found {len(choices)} results for '{current}' (user {user_id})")
         return choices
 
     except Exception as e:

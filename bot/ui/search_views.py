@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 class ResultPageSelect(discord.ui.Select):
     """Dropdown to jump to a page/range of results"""
     
-    def __init__(self, total_results: int, current_index: int, results_per_page: int = 10):
+    def __init__(self, total_results: int, current_index: int, results_per_page: int = 10, language: str = 'en'):
+        from bot.utils.localization import get_ui
+        ui = get_ui(language)
+        
         self.results_per_page = results_per_page
         total_pages = (total_results + results_per_page - 1) // results_per_page
         current_page = current_index // results_per_page
@@ -31,13 +34,13 @@ class ResultPageSelect(discord.ui.Select):
             start = page * results_per_page + 1
             end = min((page + 1) * results_per_page, total_results)
             options.append(discord.SelectOption(
-                label=f"Results {start}-{end}",
+                label=ui.format_results_range(start, end),
                 value=str(page),
                 default=(page == current_page)
             ))
         
         super().__init__(
-            placeholder=f"Jump to range...",
+            placeholder=ui.jump_to_range,
             options=options,
             custom_id="result_page_select",
             row=0
@@ -60,7 +63,27 @@ class ResultPageSelect(discord.ui.Select):
 class ResultItemSelect(discord.ui.Select):
     """Dropdown to jump to a specific result within the current page"""
     
-    def __init__(self, results: List[Any], current_index: int, results_per_page: int = 10, row: int = 0):
+    def _get_ref_table(self, result: Any) -> str:
+        """Get the database table name for a result type"""
+        if isinstance(result, Item):
+            return 'items'
+        elif isinstance(result, Critter):
+            return 'critters'
+        elif isinstance(result, Recipe):
+            return 'recipes'
+        elif isinstance(result, Villager):
+            return 'villagers'
+        elif isinstance(result, Fossil):
+            return 'fossils'
+        elif isinstance(result, Artwork):
+            return 'artwork'
+        return None
+    
+    def __init__(self, results: List[Any], current_index: int, results_per_page: int = 10, row: int = 0, language: str = 'en', localized_names: dict = None):
+        from bot.utils.localization import get_ui
+        ui = get_ui(language)
+        localized_names = localized_names or {}
+        
         current_page = current_index // results_per_page
         page_start = current_page * results_per_page
         page_end = min(page_start + results_per_page, len(results))
@@ -68,14 +91,28 @@ class ResultItemSelect(discord.ui.Select):
         options = []
         for i in range(page_start, page_end):
             result = results[i]
-            name = getattr(result, 'name', f'Result {i + 1}')
+            # Use localized name if available, otherwise original name
+            # Use composite key (ref_table, id) to avoid ID collisions between content types
+            item_id = getattr(result, 'id', None)
+            ref_table = self._get_ref_table(result) if item_id else None
+            localized_name = localized_names.get((ref_table, item_id)) if ref_table and item_id else None
+            original_name = getattr(result, 'name', f'Result {i + 1}')
+            name = localized_name if localized_name else original_name
+
+            #if artwork add fake/real to name
+            if isinstance(result, Artwork):
+                authenticity = ui.genuine if result.genuine else ui.fake
+                name = f"{name} ({authenticity})"
+
             if len(name) > 85:
                 name = name[:82] + "..."
             
-            # Add type indicator
-            type_name = type(result).__name__
+            # Add type indicator and original name if different
+            type_name = ui.get_type_name(type(result).__name__)
             description = f"{type_name}"
-            if hasattr(result, 'category') and result.category:
+            if localized_name and localized_name != original_name:
+                description += f" • {original_name}"
+            elif hasattr(result, 'category') and result.category:
                 description += f" • {result.category}"
             
             options.append(discord.SelectOption(
@@ -86,7 +123,7 @@ class ResultItemSelect(discord.ui.Select):
             ))
         
         super().__init__(
-            placeholder=f"Select result...",
+            placeholder=ui.select_result,
             options=options,
             custom_id="result_item_select",
             row=row
@@ -115,16 +152,19 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         results: List of search result objects (Item, Critter, Recipe, etc.)
         query: The search query that produced these results
         interaction_user: The Discord member who can interact with this view
+        language: User's preferred language for UI labels (default: 'en')
     
     Attributes:
         current_index: Index of currently displayed result (0-based)
     """
     
-    def __init__(self, results: List[Any], query: str, interaction_user: discord.Member):
+    def __init__(self, results: List[Any], query: str, interaction_user: discord.Member, language: str = 'en', localized_names: dict = None):
         super().__init__(interaction_user=interaction_user, timeout=120)
         self.results = results
         self.query = query
         self.current_index = 0
+        self.language = language
+        self.localized_names = localized_names or {}  # item_id -> localized name mapping
         
         # Add all components
         self._add_components()
@@ -146,12 +186,12 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             # Add page/range selector if more than one page worth of results
             has_page_select = total > 10
             if has_page_select:
-                self.add_item(ResultPageSelect(total, self.current_index))
+                self.add_item(ResultPageSelect(total, self.current_index, language=self.language))
             
             # Add individual result selector for current page
             # Row 1 if there's a page select, row 0 if not
             item_row = 1 if has_page_select else 0
-            self.add_item(ResultItemSelect(self.results, self.current_index, row=item_row))
+            self.add_item(ResultItemSelect(self.results, self.current_index, row=item_row, language=self.language, localized_names=self.localized_names))
             
             # Add navigation buttons on their own row
             self.add_navigation_buttons()
@@ -204,17 +244,20 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                 ref_table=ref_table,
                 ref_id=current_result.id,
                 display_name=getattr(current_result, 'name', 'Unknown'),
-                row=action_row
+                row=action_row,
+                language=self.language
             ))
         
         # Add Refresh Images button
-        self.add_item(RefreshImagesButton(row=action_row))
+        self.add_item(RefreshImagesButton(row=action_row, language=self.language))
         
         # Add Nookipedia link button (external link, always last)
         nookipedia_url = getattr(current_result, 'nookipedia_url', None)
         if nookipedia_url:
+            from bot.utils.localization import get_ui
+            ui = get_ui(self.language)
             self.add_item(discord.ui.Button(
-                label="Nookipedia",
+                label=ui.nookipedia,
                 style=discord.ButtonStyle.link,
                 url=nookipedia_url,
                 emoji="📖",
@@ -223,6 +266,9 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
     
     def add_navigation_buttons(self):
         """Add buttons for navigating through search results"""
+        from bot.utils.localization import get_ui
+        ui = get_ui(self.language)
+        
         total = len(self.results)
         # Use row 2 for buttons (row 0 = page select, row 1 = item select)
         button_row = 2 if total > 10 else 1
@@ -240,7 +286,7 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         # Previous button
         prev_btn = discord.ui.Button(
-            label="◀️ Prev",
+            label=f"◀️ {ui.prev_button}",
             style=discord.ButtonStyle.primary,
             custom_id="prev_result",
             disabled=(self.current_index == 0),
@@ -251,7 +297,7 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         # Next button
         next_btn = discord.ui.Button(
-            label="Next ▶️",
+            label=f"▶️ {ui.next_button}",
             style=discord.ButtonStyle.primary,
             custom_id="next_result",
             disabled=(self.current_index >= total - 1),
@@ -273,10 +319,13 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
     
     def create_embed(self) -> discord.Embed:
         """Create embed for current search result"""
+        from bot.utils.localization import get_ui
+        ui = get_ui(self.language)
+        
         if not self.results:
             return discord.Embed(
-                title="Search Results",
-                description=f"No results found for '{self.query}'",
+                title=ui.search_results,
+                description=f"{ui.no_results} '{self.query}'",
                 color=0xe74c3c
             )
         
@@ -284,7 +333,12 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         
         # Create embed based on result type
         if isinstance(result, Item):
-            embed = result.to_embed()
+            # Items support language parameter
+            embed = result.to_discord_embed(language=self.language)
+            # Update title with localized name if available (use composite key)
+            localized_name = self.localized_names.get(('items', result.id))
+            if localized_name and localized_name != result.name:
+                embed.title = f"{localized_name} ({result.name})"
         elif isinstance(result, Critter):
             embed = result.to_embed()
         elif isinstance(result, Recipe):
@@ -294,7 +348,7 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         elif isinstance(result, Fossil):
             embed = result.to_embed()
         elif isinstance(result, Artwork):
-            embed = result.to_embed()
+            embed = result.to_embed(language=self.language)
         else:
             # Fallback generic embed
             embed = discord.Embed(
@@ -302,13 +356,13 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
                 color=0x95a5a6
             )
         
-        # Add footer with result navigation
+        # Add localized footer with result navigation
         if len(self.results) > 1:
             embed.set_footer(
-                text=f"Result {self.current_index + 1} of {len(self.results)} for '{self.query}'"
+                text=ui.format_result_footer(self.current_index + 1, len(self.results), self.query)
             )
         else:
-            embed.set_footer(text=f"Search result for '{self.query}'")
+            embed.set_footer(text=ui.format_single_result_footer(self.query))
         
         return embed
     
