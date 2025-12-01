@@ -8,6 +8,7 @@ from bot.ui.common import get_combined_view, LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import recipe_name_autocomplete
 from bot.repos.user_repo import UserRepository
+from bot.utils.localization import get_ui
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ class RecipeCommands(commands.Cog):
         logger.info(f"recipe command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
         
         try:
+            # Get user's language preference
+            user_language = await self.service.get_user_language(user_id)
+            
             # Convert name to recipe ID if it's numeric (from autocomplete)
             if name.isdigit():
                 recipe_id = int(name)
@@ -76,22 +80,29 @@ class RecipeCommands(commands.Cog):
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
-            # Create the recipe embed
-            embed = recipe.to_discord_embed()
-            # embed = await safe_embed_images(embed, 'recipe')
+            # Get translated ingredient names if not English
+            ingredient_translations = None
+            if recipe.ingredients and user_language != 'en':
+                ingredient_names = [name for name, _ in recipe.ingredients]
+                ingredient_translations = await self.service.get_ingredient_translations(
+                    ingredient_names, user_language
+                )
             
-            # Add recipe type info in footer
-            recipe_type = "Food Recipe" if recipe.is_food() else "DIY Recipe"
-            # embed.set_footer(text=f"{recipe_type} • {recipe.category or 'Unknown Category'}")
+            # Create the recipe embed with localization
+            embed = recipe.to_discord_embed(
+                language=user_language,
+                ingredient_translations=ingredient_translations
+            )
             
             # Add Nookipedia and refresh button
             view = get_combined_view(
                 None, recipe.nookipedia_url, 
                 add_refresh=True, content_type="recipe",
-                stash_info={'ref_table': 'recipes', 'ref_id': recipe.id, 'display_name': recipe.name}
+                stash_info={'ref_table': 'recipes', 'ref_id': recipe.id, 'display_name': recipe.name},
+                language=user_language
             )
             
-            logger.info(f"found recipe: {recipe.name} ({recipe_type})")
+            # logger.info(f"found recipe: {recipe.name} ({recipe_type})")
             if view:
                 view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             else:

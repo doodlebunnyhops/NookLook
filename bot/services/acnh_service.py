@@ -221,6 +221,27 @@ class NooklookService:
         """Get a specific recipe by ID with ingredients"""
         return await self.repo.get_recipe_by_id(recipe_id)
     
+    async def get_ingredient_translations(self, ingredient_names: List[str], language: str) -> Dict[str, str]:
+        """Get translated names for recipe ingredients.
+        
+        Args:
+            ingredient_names: List of English ingredient names
+            language: Target language code
+            
+        Returns:
+            Dict mapping English names to translated names (or original if no translation)
+        """
+        if language == 'en' or not ingredient_names:
+            return {name: name for name in ingredient_names}
+        
+        translations = {}
+        for name in ingredient_names:
+            # Look up the item by name and get its translation
+            translated = await self.repo.get_ingredient_translation(name, language)
+            translations[name] = translated or name
+        
+        return translations
+    
     async def get_recipe_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
         """Get recipe name suggestions for autocomplete"""
         try:

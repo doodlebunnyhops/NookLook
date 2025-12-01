@@ -667,41 +667,51 @@ class Recipe:
             return False
         return self.category.lower() in ['savory', 'sweet']
     
-    def to_discord_embed(self) -> discord.Embed:
-        """Create Discord embed for this recipe"""
+    def to_discord_embed(self, language: str = 'en', ingredient_translations: Dict[str, str] = None) -> discord.Embed:
+        """Create Discord embed for this recipe
+        
+        Args:
+            language: User's preferred language for UI labels (default: 'en')
+            ingredient_translations: Optional dict mapping English ingredient names to translated names
+        """
+        ui = get_ui(language)
+        
         # Choose emoji and color based on recipe type
         if self.is_food():
             emoji = "🍳" if self.category and "savory" in self.category.lower() else "🧁"
             color = discord.Color.from_rgb(255, 193, 7)  # Food yellow
-            recipe_type = "Food Recipe"
+            recipe_type = ui.food_recipe
         else:
             emoji = "🛠️"
             color = discord.Color.orange()
-            recipe_type = "DIY Recipe"
+            recipe_type = ui.diy_recipe
         
         embed = discord.Embed(
             title=f"{self.name}",
             color=color
         )
-        embed.set_footer(text=f"{emoji} {recipe_type} • {self.category or 'Unknown Category'}")
+        
+        # Translate category
+        category_display = ui.translate_category(self.category) if self.category else ui.unknown_category
+        embed.set_footer(text=f"{emoji} {recipe_type} • {category_display}")
         
         # Basic info
         info_lines = []
 
         if recipe_type:
-            info_lines.append(f"**Type:** {recipe_type}")
+            info_lines.append(f"**{ui.category}:** {recipe_type}")
 
         if self.category:
-            info_lines.append(f"**Category:** {self.category}")
+            info_lines.append(f"**{ui.category}:** {category_display}")
         
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"**{ui.sell_price}:** {self.sell_price:,} {ui.bells}")
         
         if self.source:
-            source_text = self.source
+            source_text = ui.translate_source(self.source)
             if self.source_notes:
                 source_text += f" ({self.source_notes})"
-            info_lines.append(f"**Source:** {source_text}")
+            info_lines.append(f"**{ui.source}:** {source_text}")
         
         embed.description = "\n".join(info_lines)
         
@@ -709,17 +719,21 @@ class Recipe:
         if self.ingredients:
             ingredient_lines = []
             for ingredient_name, quantity in self.ingredients:
-                ingredient_lines.append(f"• {quantity}x {ingredient_name}")
+                # Use translated name if available, otherwise use original
+                display_name = ingredient_name
+                if ingredient_translations and ingredient_name in ingredient_translations:
+                    display_name = ingredient_translations[ingredient_name]
+                ingredient_lines.append(f"• {quantity}x {display_name}")
             
             embed.add_field(
-                name="Ingredients", 
+                name=ui.ingredients, 
                 value="\n".join(ingredient_lines), 
                 inline=False
             )
         
         # Add item hex if available
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Set image with fallback handling
         if self.image_url:
@@ -727,9 +741,9 @@ class Recipe:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this recipe to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language=language)
 
 @dataclass(slots=True)
 class Villager:

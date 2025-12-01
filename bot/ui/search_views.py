@@ -342,7 +342,7 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         elif isinstance(result, Critter):
             embed = result.to_embed(language=self.language)
         elif isinstance(result, Recipe):
-            embed = result.to_embed()
+            embed = result.to_embed(language=self.language)
         elif isinstance(result, Villager):
             embed = result.to_embed()
         elif isinstance(result, Fossil):

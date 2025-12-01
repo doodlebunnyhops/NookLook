@@ -1957,6 +1957,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'museum_fossil': 'Museum Fossil',
         'size': 'Size',
         
+        # Recipe labels
+        'diy_recipe': 'DIY Recipe',
+        'food_recipe': 'Food Recipe',
+        'ingredients': 'Ingredients',
+        'unknown_category': 'Unknown Category',
+        
         # Critter labels
         'location': 'Location',
         'shadow_size': 'Shadow Size',
@@ -2094,6 +2100,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'points': 'ポイント',
         'museum_fossil': '博物館の化石',
         'size': 'サイズ',
+        
+        # Recipe labels
+        'diy_recipe': 'DIYレシピ',
+        'food_recipe': '料理レシピ',
+        'ingredients': '材料',
+        'unknown_category': '不明なカテゴリー',
         
         # Critter labels
         'location': '生息地',
@@ -2233,6 +2245,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'museum_fossil': '博物馆化石',
         'size': '尺寸',
         
+        # Recipe labels
+        'diy_recipe': 'DIY配方',
+        'food_recipe': '料理配方',
+        'ingredients': '材料',
+        'unknown_category': '未知分类',
+        
         # Critter labels
         'location': '位置',
         'shadow_size': '阴影大小',
@@ -2370,6 +2388,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'points': '포인트',
         'museum_fossil': '박물관 화석',
         'size': '크기',
+        
+        # Recipe labels
+        'diy_recipe': 'DIY 레시피',
+        'food_recipe': '요리 레시피',
+        'ingredients': '재료',
+        'unknown_category': '알 수 없는 카테고리',
         
         # Critter labels
         'location': '위치',
@@ -2509,6 +2533,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'museum_fossil': 'Fossile du musée',
         'size': 'Taille',
         
+        # Recipe labels
+        'diy_recipe': 'Recette de bricolage',
+        'food_recipe': 'Recette de cuisine',
+        'ingredients': 'Ingrédients',
+        'unknown_category': 'Catégorie inconnue',
+        
         # Critter labels
         'location': 'Emplacement',
         'shadow_size': 'Taille de l\'ombre',
@@ -2646,6 +2676,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'points': 'Punkte',
         'museum_fossil': 'Museumsfossil',
         'size': 'Größe',
+        
+        # Recipe labels
+        'diy_recipe': 'Heimwerker-Rezept',
+        'food_recipe': 'Kochrezept',
+        'ingredients': 'Zutaten',
+        'unknown_category': 'Unbekannte Kategorie',
         
         # Critter labels
         'location': 'Fundort',
@@ -2785,6 +2821,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'museum_fossil': 'Fósil de museo',
         'size': 'Tamaño',
         
+        # Recipe labels
+        'diy_recipe': 'Receta de bricolaje',
+        'food_recipe': 'Receta de cocina',
+        'ingredients': 'Ingredientes',
+        'unknown_category': 'Categoría desconocida',
+        
         # Critter labels
         'location': 'Ubicación',
         'shadow_size': 'Tamaño de sombra',
@@ -2922,6 +2964,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'points': 'punti',
         'museum_fossil': 'Fossile del museo',
         'size': 'Dimensione',
+        
+        # Recipe labels
+        'diy_recipe': 'Ricetta fai da te',
+        'food_recipe': 'Ricetta di cucina',
+        'ingredients': 'Ingredienti',
+        'unknown_category': 'Categoria sconosciuta',
         
         # Critter labels
         'location': 'Posizione',
@@ -3061,6 +3109,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'museum_fossil': 'Museumfossiel',
         'size': 'Grootte',
         
+        # Recipe labels
+        'diy_recipe': 'Doe-het-zelf recept',
+        'food_recipe': 'Kookrecept',
+        'ingredients': 'Ingrediënten',
+        'unknown_category': 'Onbekende categorie',
+        
         # Critter labels
         'location': 'Locatie',
         'shadow_size': 'Schaduwgrootte',
@@ -3198,6 +3252,12 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'points': 'очков',
         'museum_fossil': 'Музейная окаменелость',
         'size': 'Размер',
+        
+        # Recipe labels
+        'diy_recipe': 'Рецепт DIY',
+        'food_recipe': 'Рецепт еды',
+        'ingredients': 'Ингредиенты',
+        'unknown_category': 'Неизвестная категория',
         
         # Critter labels
         'location': 'Место',
@@ -3659,6 +3719,23 @@ class LocalizedUI:
     @property
     def size(self) -> str:
         return self._get('size')
+    
+    # Recipe labels
+    @property
+    def diy_recipe(self) -> str:
+        return self._get('diy_recipe')
+    
+    @property
+    def food_recipe(self) -> str:
+        return self._get('food_recipe')
+    
+    @property
+    def ingredients(self) -> str:
+        return self._get('ingredients')
+    
+    @property
+    def unknown_category(self) -> str:
+        return self._get('unknown_category')
     
     # Critter labels
     @property

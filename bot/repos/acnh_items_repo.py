@@ -476,6 +476,40 @@ class NooklookRepository:
         
         return [(row['ingredient_name'], row['quantity']) for row in results]
     
+    async def get_ingredient_translation(self, ingredient_name: str, language: str) -> Optional[str]:
+        """Get translated name for an ingredient by looking up the item.
+        
+        Args:
+            ingredient_name: English ingredient name
+            language: Target language code (e.g., 'ja', 'fr')
+            
+        Returns:
+            Translated name or None if not found
+        """
+        from bot.repos.user_repo import SUPPORTED_LANGUAGES
+        
+        lang_info = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES.get('en'))
+        if not lang_info:
+            return None
+        
+        field = lang_info['field']
+        
+        # Look up item by name (case-insensitive) and get its translation
+        query = f"""
+            SELECT it.{field} as translated_name
+            FROM item_translations it
+            JOIN items i ON it.ref_table = 'items' AND it.ref_id = i.id
+            WHERE lower(i.name) = lower(?)
+            LIMIT 1
+        """
+        
+        result = await self.db.execute_query_one(query, (ingredient_name,))
+        
+        if result and result['translated_name']:
+            return result['translated_name']
+        
+        return None
+    
     async def browse_villagers(self, species: str = None, personality: str = None, 
                               offset: int = 0, limit: int = 10) -> Tuple[List[Villager], int]:
         """Browse villagers with filtering - returns (villagers, total_count)"""
