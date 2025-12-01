@@ -346,7 +346,7 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
         elif isinstance(result, Villager):
             embed = result.to_embed()
         elif isinstance(result, Fossil):
-            embed = result.to_embed()
+            embed = result.to_embed(language=self.language)
         elif isinstance(result, Artwork):
             embed = result.to_embed(language=self.language)
         else:

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
-from bot.utils.localization import get_ui, translate_critter_detail
+from bot.utils.localization import get_ui, translate_critter_detail, translate_fossil_detail
 
 @dataclass(slots=True)
 class ItemVariant:
@@ -1091,8 +1091,10 @@ class Fossil:
             extra_json=data.get('extra_json')
         )
     
-    def to_discord_embed(self) -> discord.Embed:
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
         """Create Discord embed for this fossil"""
+        ui = get_ui(language)
+        
         embed = discord.Embed(
             title=f"{self.name}",
             color=discord.Color.from_rgb(139, 69, 19)  # Brown for fossils
@@ -1101,37 +1103,29 @@ class Fossil:
         # Basic info
         info_lines = []
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"**{ui.sell_price}:** {self.sell_price:,} {ui.bells}")
         
         if self.fossil_group:
-            info_lines.append(f"**Fossil Group:** {self.fossil_group}")
+            info_lines.append(f"**{ui.fossil_group}:** {self.fossil_group}")
         
         if self.size:
-            info_lines.append(f"**Size:** {self.size}")
+            info_lines.append(f"**{ui.size}:** {self.size}")
         
         if self.source:
-            info_lines.append(f"**Source:** {self.source}")
+            info_lines.append(f"**{ui.source}:** {self.source}")
         
         embed.description = "\n".join(info_lines)
         
-        # Add description if available
-        # if self.description:
-        #     embed.add_field(
-        #         name="Description",
-        #         value=self.description,
-        #         inline=False
-        #     )
-        
-        # Add museum info if available
+        # Add museum info if available (with translations for room and interaction)
         museum_info = []
         if self.museum:
-            museum_info.append(f"**Museum:** {self.museum}")
+            museum_info.append(f"**{ui.museum}:** {translate_fossil_detail(self.museum, language)}")
         if self.interact:
-            museum_info.append(f"**Interaction:** {self.interact}")
+            museum_info.append(f"**{ui.interaction}:** {translate_fossil_detail(self.interact, language)}")
         
         if museum_info:
             embed.add_field(
-                name="🏛️ Museum Info",
+                name=f"🏛️ {ui.museum_info}",
                 value="\n".join(museum_info),
                 inline=True
             )
@@ -1139,14 +1133,14 @@ class Fossil:
         # Add HHA info if available
         if self.hha_base_points:
             embed.add_field(
-                name="🏠 HHA Points",
-                value=f"{self.hha_base_points:,} points",
+                name=f"🏠 {ui.hha_points}",
+                value=f"{self.hha_base_points:,} {ui.points}",
                 inline=True
             )
         
         # Add item hex if available
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Set image with fallback handling
         if self.image_url:
@@ -1154,6 +1148,6 @@ class Fossil:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this fossil to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language=language)

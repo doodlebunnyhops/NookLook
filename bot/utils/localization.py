@@ -1035,6 +1035,92 @@ SOURCE_TRANSLATIONS: Dict[str, Dict[str, str]] = {
 }
 
 
+# Fossil details translations (English -> localized)
+# These are fossil-specific attributes from the database
+FOSSIL_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
+    'en': {
+        'No': 'No',
+        'Yes': 'Yes',
+        'Room 1': 'Room 1',
+        'Room 2': 'Room 2',
+        'Room 3': 'Room 3',
+        'Assessing fossils': 'Assessing fossils',
+    },
+    'ja': {
+        'No': 'なし',
+        'Yes': 'あり',
+        'Room 1': '部屋1',
+        'Room 2': '部屋2',
+        'Room 3': '部屋3',
+        'Assessing fossils': 'かせきのかんてい',
+    },
+    'zh': {
+        'No': '否',
+        'Yes': '是',
+        'Room 1': '房间1',
+        'Room 2': '房间2',
+        'Room 3': '房间3',
+        'Assessing fossils': '鉴定化石',
+    },
+    'ko': {
+        'No': '아니오',
+        'Yes': '예',
+        'Room 1': '방 1',
+        'Room 2': '방 2',
+        'Room 3': '방 3',
+        'Assessing fossils': '화석 감정',
+    },
+    'fr': {
+        'No': 'Non',
+        'Yes': 'Oui',
+        'Room 1': 'Salle 1',
+        'Room 2': 'Salle 2',
+        'Room 3': 'Salle 3',
+        'Assessing fossils': 'Évaluation des fossiles',
+    },
+    'de': {
+        'No': 'Nein',
+        'Yes': 'Ja',
+        'Room 1': 'Raum 1',
+        'Room 2': 'Raum 2',
+        'Room 3': 'Raum 3',
+        'Assessing fossils': 'Fossilien bewerten',
+    },
+    'es': {
+        'No': 'No',
+        'Yes': 'Sí',
+        'Room 1': 'Sala 1',
+        'Room 2': 'Sala 2',
+        'Room 3': 'Sala 3',
+        'Assessing fossils': 'Evaluando fósiles',
+    },
+    'it': {
+        'No': 'No',
+        'Yes': 'Sì',
+        'Room 1': 'Sala 1',
+        'Room 2': 'Sala 2',
+        'Room 3': 'Sala 3',
+        'Assessing fossils': 'Valutazione fossili',
+    },
+    'nl': {
+        'No': 'Nee',
+        'Yes': 'Ja',
+        'Room 1': 'Kamer 1',
+        'Room 2': 'Kamer 2',
+        'Room 3': 'Kamer 3',
+        'Assessing fossils': 'Fossielen beoordelen',
+    },
+    'ru': {
+        'No': 'Нет',
+        'Yes': 'Да',
+        'Room 1': 'Комната 1',
+        'Room 2': 'Комната 2',
+        'Room 3': 'Комната 3',
+        'Assessing fossils': 'Оценка окаменелостей',
+    },
+}
+
+
 # Critter details translations (English -> localized)
 # These are critter-specific attributes from the database
 CRITTER_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
@@ -1644,6 +1730,36 @@ CRITTER_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
 }
 
 
+def translate_fossil_detail(value: str, language: str) -> str:
+    """Translate a fossil detail value to the user's language.
+    
+    Used for interaction (Yes/No) and museum room values.
+    
+    Args:
+        value: English value from database
+        language: Target language code
+    
+    Returns:
+        Translated value or original if no translation found
+    """
+    if language == 'en' or not value:
+        return value
+    
+    lang_details = FOSSIL_DETAILS_TRANSLATIONS.get(language, {})
+    
+    # Try exact match first
+    if value in lang_details:
+        return lang_details[value]
+    
+    # Try case-insensitive match
+    value_lower = value.lower()
+    for eng_val, translated in lang_details.items():
+        if eng_val.lower() == value_lower:
+            return translated
+    
+    return value
+
+
 def translate_critter_detail(value: str, language: str) -> str:
     """Translate a critter detail value to the user's language.
     
@@ -1832,6 +1948,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Title',
         'artwork_artist': 'Artist',
         
+        # Fossil labels
+        'fossil_group': 'Fossil Group',
+        'museum_info': 'Museum Info',
+        'museum': 'Museum',
+        'interaction': 'Interaction',
+        'points': 'points',
+        'museum_fossil': 'Museum Fossil',
+        'size': 'Size',
+        
         # Critter labels
         'location': 'Location',
         'shadow_size': 'Shadow Size',
@@ -1960,6 +2085,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': '本物の美術品情報',
         'artwork_title': 'タイトル',
         'artwork_artist': '作者',
+        
+        # Fossil labels
+        'fossil_group': '化石グループ',
+        'museum_info': '博物館情報',
+        'museum': '博物館',
+        'interaction': 'インタラクション',
+        'points': 'ポイント',
+        'museum_fossil': '博物館の化石',
+        'size': 'サイズ',
         
         # Critter labels
         'location': '生息地',
@@ -2090,6 +2224,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': '标题',
         'artwork_artist': '艺术家',
         
+        # Fossil labels
+        'fossil_group': '化石组',
+        'museum_info': '博物馆信息',
+        'museum': '博物馆',
+        'interaction': '互动',
+        'points': '点',
+        'museum_fossil': '博物馆化石',
+        'size': '尺寸',
+        
         # Critter labels
         'location': '位置',
         'shadow_size': '阴影大小',
@@ -2218,6 +2361,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': '실제 미술품 정보',
         'artwork_title': '제목',
         'artwork_artist': '작가',
+        
+        # Fossil labels
+        'fossil_group': '화석 그룹',
+        'museum_info': '박물관 정보',
+        'museum': '박물관',
+        'interaction': '인터랙션',
+        'points': '포인트',
+        'museum_fossil': '박물관 화석',
+        'size': '크기',
         
         # Critter labels
         'location': '위치',
@@ -2348,6 +2500,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Titre',
         'artwork_artist': 'Artiste',
         
+        # Fossil labels
+        'fossil_group': 'Groupe de fossiles',
+        'museum_info': 'Infos musée',
+        'museum': 'Musée',
+        'interaction': 'Interaction',
+        'points': 'points',
+        'museum_fossil': 'Fossile du musée',
+        'size': 'Taille',
+        
         # Critter labels
         'location': 'Emplacement',
         'shadow_size': 'Taille de l\'ombre',
@@ -2476,6 +2637,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': 'Infos zum echten Kunstwerk',
         'artwork_title': 'Titel',
         'artwork_artist': 'Künstler',
+        
+        # Fossil labels
+        'fossil_group': 'Fossilgruppe',
+        'museum_info': 'Museumsinfo',
+        'museum': 'Museum',
+        'interaction': 'Interaktion',
+        'points': 'Punkte',
+        'museum_fossil': 'Museumsfossil',
+        'size': 'Größe',
         
         # Critter labels
         'location': 'Fundort',
@@ -2606,6 +2776,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Título',
         'artwork_artist': 'Artista',
         
+        # Fossil labels
+        'fossil_group': 'Grupo de fósiles',
+        'museum_info': 'Info del museo',
+        'museum': 'Museo',
+        'interaction': 'Interacción',
+        'points': 'puntos',
+        'museum_fossil': 'Fósil de museo',
+        'size': 'Tamaño',
+        
         # Critter labels
         'location': 'Ubicación',
         'shadow_size': 'Tamaño de sombra',
@@ -2734,6 +2913,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': 'Info opera reale',
         'artwork_title': 'Titolo',
         'artwork_artist': 'Artista',
+        
+        # Fossil labels
+        'fossil_group': 'Gruppo di fossili',
+        'museum_info': 'Info museo',
+        'museum': 'Museo',
+        'interaction': 'Interazione',
+        'points': 'punti',
+        'museum_fossil': 'Fossile del museo',
+        'size': 'Dimensione',
         
         # Critter labels
         'location': 'Posizione',
@@ -2864,6 +3052,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Titel',
         'artwork_artist': 'Kunstenaar',
         
+        # Fossil labels
+        'fossil_group': 'Fossielgroep',
+        'museum_info': 'Museum info',
+        'museum': 'Museum',
+        'interaction': 'Interactie',
+        'points': 'punten',
+        'museum_fossil': 'Museumfossiel',
+        'size': 'Grootte',
+        
         # Critter labels
         'location': 'Locatie',
         'shadow_size': 'Schaduwgrootte',
@@ -2992,6 +3189,15 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': 'Инфо о настоящем произведении',
         'artwork_title': 'Название',
         'artwork_artist': 'Художник',
+        
+        # Fossil labels
+        'fossil_group': 'Группа окаменелостей',
+        'museum_info': 'Инфо о музее',
+        'museum': 'Музей',
+        'interaction': 'Взаимодействие',
+        'points': 'очков',
+        'museum_fossil': 'Музейная окаменелость',
+        'size': 'Размер',
         
         # Critter labels
         'location': 'Место',
@@ -3424,6 +3630,35 @@ class LocalizedUI:
     @property
     def artwork_artist(self) -> str:
         return self._get('artwork_artist')
+    
+    # Fossil labels
+    @property
+    def fossil_group(self) -> str:
+        return self._get('fossil_group')
+    
+    @property
+    def museum_info(self) -> str:
+        return self._get('museum_info')
+    
+    @property
+    def museum(self) -> str:
+        return self._get('museum')
+    
+    @property
+    def interaction(self) -> str:
+        return self._get('interaction')
+    
+    @property
+    def points(self) -> str:
+        return self._get('points')
+    
+    @property
+    def museum_fossil(self) -> str:
+        return self._get('museum_fossil')
+    
+    @property
+    def size(self) -> str:
+        return self._get('size')
     
     # Critter labels
     @property
