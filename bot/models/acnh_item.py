@@ -1112,7 +1112,7 @@ class Fossil:
             info_lines.append(f"**{ui.size}:** {self.size}")
         
         if self.source:
-            info_lines.append(f"**{ui.source}:** {self.source}")
+            info_lines.append(f"**{ui.source}:** {translate_fossil_detail(self.source, language)}")
         
         embed.description = "\n".join(info_lines)
         
