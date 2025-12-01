@@ -9,6 +9,7 @@ from bot.ui.common import LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import critter_name_autocomplete
 from bot.repos.user_repo import UserRepository
+from bot.utils.localization import get_ui, translate_critter_detail, translate_critter_detail
 
 logger = logging.getLogger(__name__)
 
@@ -78,24 +79,30 @@ class CritterCommands(commands.Cog):
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
-            # Create the critter embed
-            embed = critter.to_discord_embed()
-            # embed = await safe_embed_images(embed, 'critter')
+            # Get user's preferred language
+            language = await self.service.get_user_language(user_id)
+            ui = get_ui(language)
             
-            # Add critter type info in footer
-            critter_type = {
-                'fish': 'Fish',
-                'insect': 'Bug', 
-                'sea': 'Sea Creature'
-            }.get(critter.kind, critter.kind.title())
+            # Create the critter embed with localization
+            embed = critter.to_discord_embed(language=language)
+            
+            # Get localized critter name if available
+            localized_name = await self.service.get_localized_critter_name(
+                critter.id, user_id, critter.name
+            )
+            if localized_name != critter.name:
+                embed.title = f"{localized_name} ({critter.name})"
+            
+            # Add critter type info in footer (localized)
+            critter_type = critter.get_type_display(language)
             
             footer_text = f"{critter_type}"
             if critter.location:
-                footer_text += f" • {critter.location}"
+                footer_text += f" • {translate_critter_detail(critter.location, language) or critter.location}"
             embed.set_footer(text=footer_text)
             
             # Create view with buttons in correct order: Availability → Stash → Refresh → Nookipedia
-            view = CritterAvailabilityView(critter, interaction.user)
+            view = CritterAvailabilityView(critter, interaction.user, language=language)
             view.add_details_action_buttons(critter.nookipedia_url)
             
             logger.info(f"found critter: {critter.name}")

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
-from bot.utils.localization import get_ui
+from bot.utils.localization import get_ui, translate_critter_detail
 
 @dataclass(slots=True)
 class ItemVariant:
@@ -536,15 +536,26 @@ class Critter:
     
     @property
     def type_display(self) -> str:
-        """Get user-friendly type display"""
+        """Get user-friendly type display (English default)"""
         return {
             'fish': 'Fish',
             'insect': 'Bug',
             'sea': 'Sea Creature'
         }.get(self.kind, self.kind.title())
     
-    def to_discord_embed(self) -> discord.Embed:
+    def get_type_display(self, language: str = 'en') -> str:
+        """Get user-friendly type display in the specified language"""
+        ui = get_ui(language)
+        return {
+            'fish': ui.type_fish,
+            'insect': ui.type_bug,
+            'sea': ui.type_sea_creature
+        }.get(self.kind, self.kind.title())
+    
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
         """Create Discord embed for this critter"""
+        ui = get_ui(language)
+        
         embed = discord.Embed(
             title=f"{self.name}",
             color=discord.Color.blue()
@@ -553,34 +564,34 @@ class Critter:
         # Basic info
         info_lines = []
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"**{ui.sell_price}:** {self.sell_price:,} {ui.bells}")
         
         if self.location:
-            info_lines.append(f"**Location:** {self.location}")
+            info_lines.append(f"**{ui.location}:** {translate_critter_detail(self.location, language)}")
             
         if self.shadow_size:
-            info_lines.append(f"**Shadow Size:** {self.shadow_size}")
+            info_lines.append(f"**{ui.shadow_size}:** {translate_critter_detail(self.shadow_size, language)}")
             
         if self.time_of_day:
-            info_lines.append(f"**Time:** {self.time_of_day}")
+            info_lines.append(f"**{ui.time_label}:** {translate_critter_detail(self.time_of_day, language)}")
         
         embed.description = "\n".join(info_lines)
         
         # Add item hex if available
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Add catch info if available  
         if self.catch_difficulty or self.vision or self.movement_speed:
             catch_info = []
             if self.catch_difficulty:
-                catch_info.append(f"**Difficulty:** {self.catch_difficulty}")
+                catch_info.append(f"**{ui.difficulty}:** {translate_critter_detail(self.catch_difficulty, language)}")
             if self.vision:
-                catch_info.append(f"**Vision:** {self.vision}")
+                catch_info.append(f"**{ui.vision}:** {translate_critter_detail(self.vision, language)}")
             if self.movement_speed:
-                catch_info.append(f"**Movement:** {self.movement_speed}")
+                catch_info.append(f"**{ui.movement}:** {translate_critter_detail(self.movement_speed, language)}")
             
-            embed.add_field(name="Catch Info", value="\n".join(catch_info), inline=True)
+            embed.add_field(name=ui.catch_info, value="\n".join(catch_info), inline=True)
         
         # Set image with fallback handling
         if self.icon_url:
@@ -590,9 +601,9 @@ class Critter:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this critter to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language)
 
 @dataclass(slots=True)
 class Recipe:

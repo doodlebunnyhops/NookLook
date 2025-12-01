@@ -1035,6 +1035,645 @@ SOURCE_TRANSLATIONS: Dict[str, Dict[str, str]] = {
 }
 
 
+# Critter details translations (English -> localized)
+# These are critter-specific attributes from the database
+CRITTER_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
+    'ja': {
+        # Location
+        'Disguised on shoreline': '海岸に擬態',
+        'Disguised under trees': '木の下に擬態',
+        'Flying': '飛んでいる',
+        'Flying near blue/purple/black flowers': '青/紫/黒の花の近くを飛んでいる',
+        'Flying near flowers': '花の近くを飛んでいる',
+        'Flying near light sources': '光源の近くを飛んでいる',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'ゴミ（長靴、タイヤ、空き缶、使用済み噴水花火）や腐ったカブの近くを飛んでいる',
+        'Flying near water': '水辺を飛んでいる',
+        'From hitting rocks': '岩を叩いて出現',
+        'On beach rocks': '浜辺の岩の上',
+        'On flowers': '花の上',
+        'On hardwood/cedar trees': '広葉樹/針葉樹の上',
+        'On palm trees': 'ヤシの木の上',
+        'On rivers/ponds': '川/池の上',
+        'On rocks/bushes': '岩/低木の上',
+        'On rotten turnips or candy': '腐ったカブやアメの上',
+        'On the ground': '地面の上',
+        'On tree stumps': '切り株の上',
+        'On trees (any kind)': '木の上（種類問わず）',
+        'On villagers': '住民の上',
+        'On white flowers': '白い花の上',
+        'Pier': '桟橋',
+        'Pond': '池',
+        'Pushing snowballs': '雪玉を転がしている',
+        'River': '川',
+        'River (clifftop)': '川（崖の上）',
+        'River (mouth)': '河口',
+        'Sea': '海',
+        'Sea (rainy days)': '海（雨の日）',
+        'Shaking trees': '木を揺らして出現',
+        'Shaking trees (hardwood or cedar only)': '木を揺らして出現（広葉樹または針葉樹のみ）',
+        'Underground (dig where noise is loudest)': '地中（音が一番大きい場所を掘る）',
+        # Time
+        'All day': '終日',
+        'All Day': '終日',
+        # Weather
+        'Any except rain': '雨以外',
+        'Any weather': 'どんな天気でも',
+        'Rain only': '雨の日のみ',
+        # Shadow Size
+        'Large': '大',
+        'Long': '細長',
+        'Medium': '中',
+        'Small': '小',
+        'X-Large': '特大',
+        'X-Large w/Fin': '特大（ヒレ付き）',
+        'X-Small': '極小',
+        'XX-Large': '超特大',
+        # Catch Difficulty
+        'Easy': 'かんたん',
+        'Hard': 'むずかしい',
+        'Very Easy': 'とてもかんたん',
+        'Very Hard': 'とてもむずかしい',
+        # Vision
+        'Narrow': '狭い',
+        'Very Narrow': 'とても狭い',
+        'Very Wide': 'とても広い',
+        'Wide': '広い',
+        # Movement
+        'Fast': '速い',
+        'Slow': '遅い',
+        'Stationary': '静止',
+        'Very fast': 'とても速い',
+        'Very slow': 'とても遅い',
+    },
+    'zh': {
+        # Location
+        'Disguised on shoreline': '伪装在海岸线上',
+        'Disguised under trees': '伪装在树下',
+        'Flying': '飞行中',
+        'Flying near blue/purple/black flowers': '在蓝/紫/黑色花朵附近飞行',
+        'Flying near flowers': '在花朵附近飞行',
+        'Flying near light sources': '在光源附近飞行',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': '在垃圾（靴子、轮胎、罐子、用过的烟花）或烂萝卜附近飞行',
+        'Flying near water': '在水边飞行',
+        'From hitting rocks': '敲击岩石出现',
+        'On beach rocks': '在海滩岩石上',
+        'On flowers': '在花朵上',
+        'On hardwood/cedar trees': '在阔叶树/雪松树上',
+        'On palm trees': '在棕榈树上',
+        'On rivers/ponds': '在河流/池塘上',
+        'On rocks/bushes': '在岩石/灌木上',
+        'On rotten turnips or candy': '在烂萝卜或糖果上',
+        'On the ground': '在地面上',
+        'On tree stumps': '在树桩上',
+        'On trees (any kind)': '在树上（任何类型）',
+        'On villagers': '在村民身上',
+        'On white flowers': '在白花上',
+        'Pier': '码头',
+        'Pond': '池塘',
+        'Pushing snowballs': '推雪球',
+        'River': '河流',
+        'River (clifftop)': '河流（悬崖顶）',
+        'River (mouth)': '河口',
+        'Sea': '大海',
+        'Sea (rainy days)': '大海（雨天）',
+        'Shaking trees': '摇晃树木出现',
+        'Shaking trees (hardwood or cedar only)': '摇晃树木出现（仅阔叶树或雪松）',
+        'Underground (dig where noise is loudest)': '地下（在声音最大的地方挖掘）',
+        # Time
+        'All day': '全天',
+        'All Day': '全天',
+        # Weather
+        'Any except rain': '除雨天外',
+        'Any weather': '任何天气',
+        'Rain only': '仅雨天',
+        # Shadow Size
+        'Large': '大',
+        'Long': '细长',
+        'Medium': '中',
+        'Small': '小',
+        'X-Large': '特大',
+        'X-Large w/Fin': '特大（带鳍）',
+        'X-Small': '特小',
+        'XX-Large': '超特大',
+        # Catch Difficulty
+        'Easy': '简单',
+        'Hard': '困难',
+        'Very Easy': '非常简单',
+        'Very Hard': '非常困难',
+        # Vision
+        'Narrow': '窄',
+        'Very Narrow': '非常窄',
+        'Very Wide': '非常宽',
+        'Wide': '宽',
+        # Movement
+        'Fast': '快',
+        'Slow': '慢',
+        'Stationary': '静止',
+        'Very fast': '非常快',
+        'Very slow': '非常慢',
+    },
+    'ko': {
+        # Location
+        'Disguised on shoreline': '해안선에 위장',
+        'Disguised under trees': '나무 아래에 위장',
+        'Flying': '비행 중',
+        'Flying near blue/purple/black flowers': '파란/보라/검은 꽃 근처를 비행',
+        'Flying near flowers': '꽃 근처를 비행',
+        'Flying near light sources': '광원 근처를 비행',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': '쓰레기(장화, 타이어, 캔, 사용한 분수 불꽃놀이) 또는 썩은 순무 근처를 비행',
+        'Flying near water': '물가를 비행',
+        'From hitting rocks': '바위를 쳐서 출현',
+        'On beach rocks': '해변 바위 위',
+        'On flowers': '꽃 위',
+        'On hardwood/cedar trees': '활엽수/삼나무 위',
+        'On palm trees': '야자수 위',
+        'On rivers/ponds': '강/연못 위',
+        'On rocks/bushes': '바위/덤불 위',
+        'On rotten turnips or candy': '썩은 순무 또는 사탕 위',
+        'On the ground': '땅 위',
+        'On tree stumps': '그루터기 위',
+        'On trees (any kind)': '나무 위 (모든 종류)',
+        'On villagers': '주민 위',
+        'On white flowers': '흰 꽃 위',
+        'Pier': '부두',
+        'Pond': '연못',
+        'Pushing snowballs': '눈덩이 굴리기',
+        'River': '강',
+        'River (clifftop)': '강 (절벽 위)',
+        'River (mouth)': '하구',
+        'Sea': '바다',
+        'Sea (rainy days)': '바다 (비 오는 날)',
+        'Shaking trees': '나무 흔들어 출현',
+        'Shaking trees (hardwood or cedar only)': '나무 흔들어 출현 (활엽수 또는 삼나무만)',
+        'Underground (dig where noise is loudest)': '지하 (소리가 가장 큰 곳을 파세요)',
+        # Time
+        'All day': '하루 종일',
+        'All Day': '하루 종일',
+        # Weather
+        'Any except rain': '비 제외',
+        'Any weather': '모든 날씨',
+        'Rain only': '비 오는 날만',
+        # Shadow Size
+        'Large': '대형',
+        'Long': '길쭉',
+        'Medium': '중형',
+        'Small': '소형',
+        'X-Large': '특대형',
+        'X-Large w/Fin': '특대형 (지느러미)',
+        'X-Small': '극소형',
+        'XX-Large': '초특대형',
+        # Catch Difficulty
+        'Easy': '쉬움',
+        'Hard': '어려움',
+        'Very Easy': '매우 쉬움',
+        'Very Hard': '매우 어려움',
+        # Vision
+        'Narrow': '좁음',
+        'Very Narrow': '매우 좁음',
+        'Very Wide': '매우 넓음',
+        'Wide': '넓음',
+        # Movement
+        'Fast': '빠름',
+        'Slow': '느림',
+        'Stationary': '정지',
+        'Very fast': '매우 빠름',
+        'Very slow': '매우 느림',
+    },
+    'fr': {
+        # Location
+        'Disguised on shoreline': 'Camouflé sur le rivage',
+        'Disguised under trees': 'Camouflé sous les arbres',
+        'Flying': 'En vol',
+        'Flying near blue/purple/black flowers': 'Vole près des fleurs bleues/violettes/noires',
+        'Flying near flowers': 'Vole près des fleurs',
+        'Flying near light sources': 'Vole près des sources de lumière',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'Vole près des déchets (bottes, pneus, canettes, feux d\'artifice usagés) ou navets pourris',
+        'Flying near water': 'Vole près de l\'eau',
+        'From hitting rocks': 'En frappant les rochers',
+        'On beach rocks': 'Sur les rochers de plage',
+        'On flowers': 'Sur les fleurs',
+        'On hardwood/cedar trees': 'Sur les feuillus/cèdres',
+        'On palm trees': 'Sur les palmiers',
+        'On rivers/ponds': 'Sur les rivières/étangs',
+        'On rocks/bushes': 'Sur les rochers/buissons',
+        'On rotten turnips or candy': 'Sur les navets pourris ou bonbons',
+        'On the ground': 'Au sol',
+        'On tree stumps': 'Sur les souches',
+        'On trees (any kind)': 'Sur les arbres (tout type)',
+        'On villagers': 'Sur les villageois',
+        'On white flowers': 'Sur les fleurs blanches',
+        'Pier': 'Ponton',
+        'Pond': 'Étang',
+        'Pushing snowballs': 'En poussant des boules de neige',
+        'River': 'Rivière',
+        'River (clifftop)': 'Rivière (falaise)',
+        'River (mouth)': 'Embouchure',
+        'Sea': 'Mer',
+        'Sea (rainy days)': 'Mer (jours de pluie)',
+        'Shaking trees': 'En secouant les arbres',
+        'Shaking trees (hardwood or cedar only)': 'En secouant les arbres (feuillus ou cèdres uniquement)',
+        'Underground (dig where noise is loudest)': 'Souterrain (creusez où le bruit est le plus fort)',
+        # Time
+        'All day': 'Toute la journée',
+        'All Day': 'Toute la journée',
+        # Weather
+        'Any except rain': 'Tout sauf la pluie',
+        'Any weather': 'Tout temps',
+        'Rain only': 'Pluie uniquement',
+        # Shadow Size
+        'Large': 'Grand',
+        'Long': 'Long',
+        'Medium': 'Moyen',
+        'Small': 'Petit',
+        'X-Large': 'Très grand',
+        'X-Large w/Fin': 'Très grand avec aileron',
+        'X-Small': 'Très petit',
+        'XX-Large': 'Énorme',
+        # Catch Difficulty
+        'Easy': 'Facile',
+        'Hard': 'Difficile',
+        'Very Easy': 'Très facile',
+        'Very Hard': 'Très difficile',
+        # Vision
+        'Narrow': 'Étroit',
+        'Very Narrow': 'Très étroit',
+        'Very Wide': 'Très large',
+        'Wide': 'Large',
+        # Movement
+        'Fast': 'Rapide',
+        'Slow': 'Lent',
+        'Stationary': 'Immobile',
+        'Very fast': 'Très rapide',
+        'Very slow': 'Très lent',
+    },
+    'de': {
+        # Location
+        'Disguised on shoreline': 'Getarnt am Ufer',
+        'Disguised under trees': 'Getarnt unter Bäumen',
+        'Flying': 'Fliegend',
+        'Flying near blue/purple/black flowers': 'Fliegt bei blauen/lila/schwarzen Blumen',
+        'Flying near flowers': 'Fliegt bei Blumen',
+        'Flying near light sources': 'Fliegt bei Lichtquellen',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'Fliegt bei Müll (Stiefel, Reifen, Dosen, Springbrunnen-Feuerwerk) oder faulen Rüben',
+        'Flying near water': 'Fliegt am Wasser',
+        'From hitting rocks': 'Beim Steineklopfen',
+        'On beach rocks': 'Auf Strandfelsen',
+        'On flowers': 'Auf Blumen',
+        'On hardwood/cedar trees': 'Auf Laub-/Nadelbäumen',
+        'On palm trees': 'Auf Palmen',
+        'On rivers/ponds': 'Auf Flüssen/Teichen',
+        'On rocks/bushes': 'Auf Steinen/Büschen',
+        'On rotten turnips or candy': 'Auf faulen Rüben oder Süßigkeiten',
+        'On the ground': 'Auf dem Boden',
+        'On tree stumps': 'Auf Baumstümpfen',
+        'On trees (any kind)': 'Auf Bäumen (jede Art)',
+        'On villagers': 'Auf Bewohnern',
+        'On white flowers': 'Auf weißen Blumen',
+        'Pier': 'Steg',
+        'Pond': 'Teich',
+        'Pushing snowballs': 'Beim Schneeball-Schieben',
+        'River': 'Fluss',
+        'River (clifftop)': 'Fluss (Klippenrand)',
+        'River (mouth)': 'Flussmündung',
+        'Sea': 'Meer',
+        'Sea (rainy days)': 'Meer (Regentage)',
+        'Shaking trees': 'Beim Bäumeschütteln',
+        'Shaking trees (hardwood or cedar only)': 'Beim Bäumeschütteln (nur Laub-/Nadelbäume)',
+        'Underground (dig where noise is loudest)': 'Unterirdisch (grabe wo das Geräusch am lautesten ist)',
+        # Time
+        'All day': 'Ganztägig',
+        'All Day': 'Ganztägig',
+        # Weather
+        'Any except rain': 'Außer bei Regen',
+        'Any weather': 'Jedes Wetter',
+        'Rain only': 'Nur bei Regen',
+        # Shadow Size
+        'Large': 'Groß',
+        'Long': 'Lang',
+        'Medium': 'Mittel',
+        'Small': 'Klein',
+        'X-Large': 'Sehr groß',
+        'X-Large w/Fin': 'Sehr groß mit Flosse',
+        'X-Small': 'Sehr klein',
+        'XX-Large': 'Riesig',
+        # Catch Difficulty
+        'Easy': 'Leicht',
+        'Hard': 'Schwer',
+        'Very Easy': 'Sehr leicht',
+        'Very Hard': 'Sehr schwer',
+        # Vision
+        'Narrow': 'Eng',
+        'Very Narrow': 'Sehr eng',
+        'Very Wide': 'Sehr weit',
+        'Wide': 'Weit',
+        # Movement
+        'Fast': 'Schnell',
+        'Slow': 'Langsam',
+        'Stationary': 'Stationär',
+        'Very fast': 'Sehr schnell',
+        'Very slow': 'Sehr langsam',
+    },
+    'es': {
+        # Location
+        'Disguised on shoreline': 'Camuflado en la orilla',
+        'Disguised under trees': 'Camuflado bajo los árboles',
+        'Flying': 'Volando',
+        'Flying near blue/purple/black flowers': 'Volando cerca de flores azules/moradas/negras',
+        'Flying near flowers': 'Volando cerca de flores',
+        'Flying near light sources': 'Volando cerca de fuentes de luz',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'Volando cerca de basura (botas, neumáticos, latas, fuegos artificiales usados) o nabos podridos',
+        'Flying near water': 'Volando cerca del agua',
+        'From hitting rocks': 'Al golpear rocas',
+        'On beach rocks': 'En rocas de playa',
+        'On flowers': 'En flores',
+        'On hardwood/cedar trees': 'En árboles de hoja caduca/cedros',
+        'On palm trees': 'En palmeras',
+        'On rivers/ponds': 'En ríos/estanques',
+        'On rocks/bushes': 'En rocas/arbustos',
+        'On rotten turnips or candy': 'En nabos podridos o caramelos',
+        'On the ground': 'En el suelo',
+        'On tree stumps': 'En tocones de árboles',
+        'On trees (any kind)': 'En árboles (cualquier tipo)',
+        'On villagers': 'En los vecinos',
+        'On white flowers': 'En flores blancas',
+        'Pier': 'Muelle',
+        'Pond': 'Estanque',
+        'Pushing snowballs': 'Empujando bolas de nieve',
+        'River': 'Río',
+        'River (clifftop)': 'Río (acantilado)',
+        'River (mouth)': 'Desembocadura',
+        'Sea': 'Mar',
+        'Sea (rainy days)': 'Mar (días de lluvia)',
+        'Shaking trees': 'Sacudiendo árboles',
+        'Shaking trees (hardwood or cedar only)': 'Sacudiendo árboles (solo hoja caduca o cedros)',
+        'Underground (dig where noise is loudest)': 'Bajo tierra (cava donde el ruido sea más fuerte)',
+        # Time
+        'All day': 'Todo el día',
+        'All Day': 'Todo el día',
+        # Weather
+        'Any except rain': 'Cualquiera excepto lluvia',
+        'Any weather': 'Cualquier clima',
+        'Rain only': 'Solo lluvia',
+        # Shadow Size
+        'Large': 'Grande',
+        'Long': 'Largo',
+        'Medium': 'Mediano',
+        'Small': 'Pequeño',
+        'X-Large': 'Muy grande',
+        'X-Large w/Fin': 'Muy grande con aleta',
+        'X-Small': 'Muy pequeño',
+        'XX-Large': 'Enorme',
+        # Catch Difficulty
+        'Easy': 'Fácil',
+        'Hard': 'Difícil',
+        'Very Easy': 'Muy fácil',
+        'Very Hard': 'Muy difícil',
+        # Vision
+        'Narrow': 'Estrecho',
+        'Very Narrow': 'Muy estrecho',
+        'Very Wide': 'Muy amplio',
+        'Wide': 'Amplio',
+        # Movement
+        'Fast': 'Rápido',
+        'Slow': 'Lento',
+        'Stationary': 'Estacionario',
+        'Very fast': 'Muy rápido',
+        'Very slow': 'Muy lento',
+    },
+    'it': {
+        # Location
+        'Disguised on shoreline': 'Mimetizzato sulla riva',
+        'Disguised under trees': 'Mimetizzato sotto gli alberi',
+        'Flying': 'In volo',
+        'Flying near blue/purple/black flowers': 'Vola vicino a fiori blu/viola/neri',
+        'Flying near flowers': 'Vola vicino ai fiori',
+        'Flying near light sources': 'Vola vicino a fonti di luce',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'Vola vicino ai rifiuti (stivali, pneumatici, lattine, fuochi d\'artificio usati) o rape marce',
+        'Flying near water': 'Vola vicino all\'acqua',
+        'From hitting rocks': 'Colpendo le rocce',
+        'On beach rocks': 'Sulle rocce della spiaggia',
+        'On flowers': 'Sui fiori',
+        'On hardwood/cedar trees': 'Su latifoglie/cedri',
+        'On palm trees': 'Sulle palme',
+        'On rivers/ponds': 'Su fiumi/stagni',
+        'On rocks/bushes': 'Su rocce/cespugli',
+        'On rotten turnips or candy': 'Su rape marce o caramelle',
+        'On the ground': 'A terra',
+        'On tree stumps': 'Sui ceppi',
+        'On trees (any kind)': 'Sugli alberi (qualsiasi tipo)',
+        'On villagers': 'Sui villici',
+        'On white flowers': 'Sui fiori bianchi',
+        'Pier': 'Molo',
+        'Pond': 'Stagno',
+        'Pushing snowballs': 'Spingendo palle di neve',
+        'River': 'Fiume',
+        'River (clifftop)': 'Fiume (cima della scogliera)',
+        'River (mouth)': 'Foce del fiume',
+        'Sea': 'Mare',
+        'Sea (rainy days)': 'Mare (giorni di pioggia)',
+        'Shaking trees': 'Scuotendo gli alberi',
+        'Shaking trees (hardwood or cedar only)': 'Scuotendo gli alberi (solo latifoglie o cedri)',
+        'Underground (dig where noise is loudest)': 'Sottoterra (scava dove il rumore è più forte)',
+        # Time
+        'All day': 'Tutto il giorno',
+        'All Day': 'Tutto il giorno',
+        # Weather
+        'Any except rain': 'Qualsiasi tranne pioggia',
+        'Any weather': 'Qualsiasi tempo',
+        'Rain only': 'Solo pioggia',
+        # Shadow Size
+        'Large': 'Grande',
+        'Long': 'Lungo',
+        'Medium': 'Medio',
+        'Small': 'Piccolo',
+        'X-Large': 'Molto grande',
+        'X-Large w/Fin': 'Molto grande con pinna',
+        'X-Small': 'Molto piccolo',
+        'XX-Large': 'Enorme',
+        # Catch Difficulty
+        'Easy': 'Facile',
+        'Hard': 'Difficile',
+        'Very Easy': 'Molto facile',
+        'Very Hard': 'Molto difficile',
+        # Vision
+        'Narrow': 'Stretto',
+        'Very Narrow': 'Molto stretto',
+        'Very Wide': 'Molto ampio',
+        'Wide': 'Ampio',
+        # Movement
+        'Fast': 'Veloce',
+        'Slow': 'Lento',
+        'Stationary': 'Fermo',
+        'Very fast': 'Molto veloce',
+        'Very slow': 'Molto lento',
+    },
+    'nl': {
+        # Location
+        'Disguised on shoreline': 'Gecamoufleerd op de kustlijn',
+        'Disguised under trees': 'Gecamoufleerd onder bomen',
+        'Flying': 'Vliegend',
+        'Flying near blue/purple/black flowers': 'Vliegend bij blauwe/paarse/zwarte bloemen',
+        'Flying near flowers': 'Vliegend bij bloemen',
+        'Flying near light sources': 'Vliegend bij lichtbronnen',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'Vliegend bij afval (laarzen, banden, blikjes, gebruikt vuurwerk) of rotte rapen',
+        'Flying near water': 'Vliegend bij water',
+        'From hitting rocks': 'Door rotsen te slaan',
+        'On beach rocks': 'Op strandrotsen',
+        'On flowers': 'Op bloemen',
+        'On hardwood/cedar trees': 'Op loofbomen/ceders',
+        'On palm trees': 'Op palmbomen',
+        'On rivers/ponds': 'Op rivieren/vijvers',
+        'On rocks/bushes': 'Op rotsen/struiken',
+        'On rotten turnips or candy': 'Op rotte rapen of snoep',
+        'On the ground': 'Op de grond',
+        'On tree stumps': 'Op boomstronken',
+        'On trees (any kind)': 'Op bomen (elk type)',
+        'On villagers': 'Op bewoners',
+        'On white flowers': 'Op witte bloemen',
+        'Pier': 'Pier',
+        'Pond': 'Vijver',
+        'Pushing snowballs': 'Sneeuwballen duwen',
+        'River': 'Rivier',
+        'River (clifftop)': 'Rivier (kliftop)',
+        'River (mouth)': 'Riviermonding',
+        'Sea': 'Zee',
+        'Sea (rainy days)': 'Zee (regendagen)',
+        'Shaking trees': 'Bomen schudden',
+        'Shaking trees (hardwood or cedar only)': 'Bomen schudden (alleen loofbomen of ceders)',
+        'Underground (dig where noise is loudest)': 'Ondergronds (graaf waar het geluid het luidst is)',
+        # Time
+        'All day': 'De hele dag',
+        'All Day': 'De hele dag',
+        # Weather
+        'Any except rain': 'Behalve regen',
+        'Any weather': 'Elk weer',
+        'Rain only': 'Alleen regen',
+        # Shadow Size
+        'Large': 'Groot',
+        'Long': 'Lang',
+        'Medium': 'Gemiddeld',
+        'Small': 'Klein',
+        'X-Large': 'Extra groot',
+        'X-Large w/Fin': 'Extra groot met vin',
+        'X-Small': 'Extra klein',
+        'XX-Large': 'Enorm',
+        # Catch Difficulty
+        'Easy': 'Makkelijk',
+        'Hard': 'Moeilijk',
+        'Very Easy': 'Zeer makkelijk',
+        'Very Hard': 'Zeer moeilijk',
+        # Vision
+        'Narrow': 'Smal',
+        'Very Narrow': 'Zeer smal',
+        'Very Wide': 'Zeer breed',
+        'Wide': 'Breed',
+        # Movement
+        'Fast': 'Snel',
+        'Slow': 'Langzaam',
+        'Stationary': 'Stilstaand',
+        'Very fast': 'Zeer snel',
+        'Very slow': 'Zeer langzaam',
+    },
+    'ru': {
+        # Location
+        'Disguised on shoreline': 'Маскируется на берегу',
+        'Disguised under trees': 'Маскируется под деревьями',
+        'Flying': 'Летает',
+        'Flying near blue/purple/black flowers': 'Летает у синих/фиолетовых/чёрных цветов',
+        'Flying near flowers': 'Летает у цветов',
+        'Flying near light sources': 'Летает у источников света',
+        'Flying near trash (boots, tires, cans, used fountain fireworks) or rotten turnips': 'Летает у мусора (ботинки, шины, банки, использованные фейерверки) или гнилой репы',
+        'Flying near water': 'Летает у воды',
+        'From hitting rocks': 'При ударе по камням',
+        'On beach rocks': 'На пляжных камнях',
+        'On flowers': 'На цветах',
+        'On hardwood/cedar trees': 'На лиственных/кедровых деревьях',
+        'On palm trees': 'На пальмах',
+        'On rivers/ponds': 'На реках/прудах',
+        'On rocks/bushes': 'На камнях/кустах',
+        'On rotten turnips or candy': 'На гнилой репе или конфетах',
+        'On the ground': 'На земле',
+        'On tree stumps': 'На пнях',
+        'On trees (any kind)': 'На деревьях (любого типа)',
+        'On villagers': 'На жителях',
+        'On white flowers': 'На белых цветах',
+        'Pier': 'Причал',
+        'Pond': 'Пруд',
+        'Pushing snowballs': 'Толкая снежки',
+        'River': 'Река',
+        'River (clifftop)': 'Река (вершина утёса)',
+        'River (mouth)': 'Устье реки',
+        'Sea': 'Море',
+        'Sea (rainy days)': 'Море (дождливые дни)',
+        'Shaking trees': 'Трясти деревья',
+        'Shaking trees (hardwood or cedar only)': 'Трясти деревья (только лиственные или кедры)',
+        'Underground (dig where noise is loudest)': 'Под землёй (копайте где звук громче всего)',
+        # Time
+        'All day': 'Весь день',
+        'All Day': 'Весь день',
+        # Weather
+        'Any except rain': 'Любая кроме дождя',
+        'Any weather': 'Любая погода',
+        'Rain only': 'Только дождь',
+        # Shadow Size
+        'Large': 'Большой',
+        'Long': 'Длинный',
+        'Medium': 'Средний',
+        'Small': 'Маленький',
+        'X-Large': 'Очень большой',
+        'X-Large w/Fin': 'Очень большой с плавником',
+        'X-Small': 'Очень маленький',
+        'XX-Large': 'Огромный',
+        # Catch Difficulty
+        'Easy': 'Легко',
+        'Hard': 'Сложно',
+        'Very Easy': 'Очень легко',
+        'Very Hard': 'Очень сложно',
+        # Vision
+        'Narrow': 'Узкий',
+        'Very Narrow': 'Очень узкий',
+        'Very Wide': 'Очень широкий',
+        'Wide': 'Широкий',
+        # Movement
+        'Fast': 'Быстрый',
+        'Slow': 'Медленный',
+        'Stationary': 'Неподвижный',
+        'Very fast': 'Очень быстрый',
+        'Very slow': 'Очень медленный',
+    },
+}
+
+
+def translate_critter_detail(value: str, language: str) -> str:
+    """Translate a critter detail value to the user's language.
+    
+    Used for location, time, weather, shadow size, catch difficulty, vision, and movement.
+    
+    Args:
+        value: English value from database
+        language: Target language code
+    
+    Returns:
+        Translated value or original if no translation found
+    """
+    if language == 'en' or not value:
+        return value
+    
+    lang_details = CRITTER_DETAILS_TRANSLATIONS.get(language, {})
+    
+    # Try exact match first
+    if value in lang_details:
+        return lang_details[value]
+    
+    # Try case-insensitive match
+    value_lower = value.lower()
+    for eng_val, translated in lang_details.items():
+        if eng_val.lower() == value_lower:
+            return translated
+    
+    return value
+
+
 def translate_category(category: str, language: str) -> str:
     """Translate a category name to the user's language.
     
@@ -1193,6 +1832,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Title',
         'artwork_artist': 'Artist',
         
+        # Critter labels
+        'location': 'Location',
+        'shadow_size': 'Shadow Size',
+        'time_label': 'Time',
+        'catch_info': 'Catch Info',
+        'difficulty': 'Difficulty',
+        'vision': 'Vision',
+        'movement': 'Movement',
+        'type_fish': 'Fish',
+        'type_bug': 'Bug',
+        'type_sea_creature': 'Sea Creature',
+        
+        # Availability view
+        'availability': 'Availability',
+        'hemisphere': 'Hemisphere',
+        'month': 'Month',
+        'northern_hemisphere': 'Northern Hemisphere',
+        'southern_hemisphere': 'Southern Hemisphere',
+        'available': 'Available',
+        'not_available_in': 'Not Available in {month}',
+        'full_year_overview': 'Full Year Overview',
+        'additional_info': 'Additional Info',
+        'weather': 'Weather',
+        'view_availability': 'View Availability',
+        'back_to_details': 'Back to Details',
+        'choose_hemisphere': 'Choose hemisphere...',
+        'choose_month': 'Choose month...',
+        # Month names
+        'january': 'January',
+        'february': 'February',
+        'march': 'March',
+        'april': 'April',
+        'may': 'May',
+        'june': 'June',
+        'july': 'July',
+        'august': 'August',
+        'september': 'September',
+        'october': 'October',
+        'november': 'November',
+        'december': 'December',
+        
         # Footer messages
         'images_refreshed': 'Images refreshed',
         'buttons_expired': 'Buttons have expired - use the command again to interact',
@@ -1280,6 +1960,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': '本物の美術品情報',
         'artwork_title': 'タイトル',
         'artwork_artist': '作者',
+        
+        # Critter labels
+        'location': '生息地',
+        'shadow_size': '魚影',
+        'time_label': '時間',
+        'catch_info': '捕獲情報',
+        'difficulty': '難易度',
+        'vision': '視野',
+        'movement': '動き',
+        'type_fish': 'さかな',
+        'type_bug': 'ムシ',
+        'type_sea_creature': 'うみのさち',
+        
+        # Availability view
+        'availability': '出現時期',
+        'hemisphere': '半球',
+        'month': '月',
+        'northern_hemisphere': '北半球',
+        'southern_hemisphere': '南半球',
+        'available': '出現',
+        'not_available_in': '{month}には出現しません',
+        'full_year_overview': '年間カレンダー',
+        'additional_info': '追加情報',
+        'weather': '天気',
+        'view_availability': '出現時期を見る',
+        'back_to_details': '詳細に戻る',
+        'choose_hemisphere': '半球を選択...',
+        'choose_month': '月を選択...',
+        # Month names
+        'january': '1月',
+        'february': '2月',
+        'march': '3月',
+        'april': '4月',
+        'may': '5月',
+        'june': '6月',
+        'july': '7月',
+        'august': '8月',
+        'september': '9月',
+        'october': '10月',
+        'november': '11月',
+        'december': '12月',
         
         # Footer messages
         'images_refreshed': '画像を更新しました',
@@ -1369,6 +2090,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': '标题',
         'artwork_artist': '艺术家',
         
+        # Critter labels
+        'location': '位置',
+        'shadow_size': '阴影大小',
+        'time_label': '时间',
+        'catch_info': '捕捉信息',
+        'difficulty': '难度',
+        'vision': '视野',
+        'movement': '移动',
+        'type_fish': '鱼类',
+        'type_bug': '虫类',
+        'type_sea_creature': '海洋生物',
+        
+        # Availability view
+        'availability': '出现时间',
+        'hemisphere': '半球',
+        'month': '月份',
+        'northern_hemisphere': '北半球',
+        'southern_hemisphere': '南半球',
+        'available': '可捕捉',
+        'not_available_in': '{month}不出现',
+        'full_year_overview': '全年概览',
+        'additional_info': '额外信息',
+        'weather': '天气',
+        'view_availability': '查看出现时间',
+        'back_to_details': '返回详情',
+        'choose_hemisphere': '选择半球...',
+        'choose_month': '选择月份...',
+        # Month names
+        'january': '1月',
+        'february': '2月',
+        'march': '3月',
+        'april': '4月',
+        'may': '5月',
+        'june': '6月',
+        'july': '7月',
+        'august': '8月',
+        'september': '9月',
+        'october': '10月',
+        'november': '11月',
+        'december': '12月',
+        
         # Footer messages
         'images_refreshed': '图片已刷新',
         'buttons_expired': '按钮已过期 - 请重新使用命令',
@@ -1456,6 +2218,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': '실제 미술품 정보',
         'artwork_title': '제목',
         'artwork_artist': '작가',
+        
+        # Critter labels
+        'location': '위치',
+        'shadow_size': '그림자 크기',
+        'time_label': '시간',
+        'catch_info': '포획 정보',
+        'difficulty': '난이도',
+        'vision': '시야',
+        'movement': '이동',
+        'type_fish': '물고기',
+        'type_bug': '곤충',
+        'type_sea_creature': '해산물',
+        
+        # Availability view
+        'availability': '출현 시기',
+        'hemisphere': '반구',
+        'month': '월',
+        'northern_hemisphere': '북반구',
+        'southern_hemisphere': '남반구',
+        'available': '출현',
+        'not_available_in': '{month}에는 출현하지 않습니다',
+        'full_year_overview': '연간 개요',
+        'additional_info': '추가 정보',
+        'weather': '날씨',
+        'view_availability': '출현 시기 보기',
+        'back_to_details': '상세 정보로',
+        'choose_hemisphere': '반구 선택...',
+        'choose_month': '월 선택...',
+        # Month names
+        'january': '1월',
+        'february': '2월',
+        'march': '3월',
+        'april': '4월',
+        'may': '5월',
+        'june': '6월',
+        'july': '7월',
+        'august': '8월',
+        'september': '9월',
+        'october': '10월',
+        'november': '11월',
+        'december': '12월',
         
         # Footer messages
         'images_refreshed': '이미지가 새로고침되었습니다',
@@ -1545,6 +2348,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Titre',
         'artwork_artist': 'Artiste',
         
+        # Critter labels
+        'location': 'Emplacement',
+        'shadow_size': 'Taille de l\'ombre',
+        'time_label': 'Horaire',
+        'catch_info': 'Infos de capture',
+        'difficulty': 'Difficulté',
+        'vision': 'Vision',
+        'movement': 'Mouvement',
+        'type_fish': 'Poisson',
+        'type_bug': 'Insecte',
+        'type_sea_creature': 'Créature marine',
+        
+        # Availability view
+        'availability': 'Disponibilité',
+        'hemisphere': 'Hémisphère',
+        'month': 'Mois',
+        'northern_hemisphere': 'Hémisphère Nord',
+        'southern_hemisphere': 'Hémisphère Sud',
+        'available': 'Disponible',
+        'not_available_in': 'Pas disponible en {month}',
+        'full_year_overview': "Aperçu de l'année",
+        'additional_info': 'Infos supplémentaires',
+        'weather': 'Météo',
+        'view_availability': 'Voir la disponibilité',
+        'back_to_details': 'Retour aux détails',
+        'choose_hemisphere': "Choisir l'hémisphère...",
+        'choose_month': 'Choisir le mois...',
+        # Month names
+        'january': 'Janvier',
+        'february': 'Février',
+        'march': 'Mars',
+        'april': 'Avril',
+        'may': 'Mai',
+        'june': 'Juin',
+        'july': 'Juillet',
+        'august': 'Août',
+        'september': 'Septembre',
+        'october': 'Octobre',
+        'november': 'Novembre',
+        'december': 'Décembre',
+        
         # Footer messages
         'images_refreshed': 'Images actualisées',
         'buttons_expired': 'Les boutons ont expiré - utilisez à nouveau la commande',
@@ -1632,6 +2476,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': 'Infos zum echten Kunstwerk',
         'artwork_title': 'Titel',
         'artwork_artist': 'Künstler',
+        
+        # Critter labels
+        'location': 'Fundort',
+        'shadow_size': 'Schattengröße',
+        'time_label': 'Zeit',
+        'catch_info': 'Fang-Info',
+        'difficulty': 'Schwierigkeit',
+        'vision': 'Sicht',
+        'movement': 'Bewegung',
+        'type_fish': 'Fisch',
+        'type_bug': 'Insekt',
+        'type_sea_creature': 'Meerestier',
+        
+        # Availability view
+        'availability': 'Verfügbarkeit',
+        'hemisphere': 'Hemisphäre',
+        'month': 'Monat',
+        'northern_hemisphere': 'Nordhalbkugel',
+        'southern_hemisphere': 'Südhalbkugel',
+        'available': 'Verfügbar',
+        'not_available_in': 'Nicht verfügbar im {month}',
+        'full_year_overview': 'Jahresübersicht',
+        'additional_info': 'Weitere Infos',
+        'weather': 'Wetter',
+        'view_availability': 'Verfügbarkeit anzeigen',
+        'back_to_details': 'Zurück zu Details',
+        'choose_hemisphere': 'Hemisphäre wählen...',
+        'choose_month': 'Monat wählen...',
+        # Month names
+        'january': 'Januar',
+        'february': 'Februar',
+        'march': 'März',
+        'april': 'April',
+        'may': 'Mai',
+        'june': 'Juni',
+        'july': 'Juli',
+        'august': 'August',
+        'september': 'September',
+        'october': 'Oktober',
+        'november': 'November',
+        'december': 'Dezember',
         
         # Footer messages
         'images_refreshed': 'Bilder aktualisiert',
@@ -1721,6 +2606,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Título',
         'artwork_artist': 'Artista',
         
+        # Critter labels
+        'location': 'Ubicación',
+        'shadow_size': 'Tamaño de sombra',
+        'time_label': 'Horario',
+        'catch_info': 'Info de captura',
+        'difficulty': 'Dificultad',
+        'vision': 'Visión',
+        'movement': 'Movimiento',
+        'type_fish': 'Pez',
+        'type_bug': 'Insecto',
+        'type_sea_creature': 'Criatura marina',
+        
+        # Availability view
+        'availability': 'Disponibilidad',
+        'hemisphere': 'Hemisferio',
+        'month': 'Mes',
+        'northern_hemisphere': 'Hemisferio Norte',
+        'southern_hemisphere': 'Hemisferio Sur',
+        'available': 'Disponible',
+        'not_available_in': 'No disponible en {month}',
+        'full_year_overview': 'Resumen anual',
+        'additional_info': 'Info adicional',
+        'weather': 'Clima',
+        'view_availability': 'Ver disponibilidad',
+        'back_to_details': 'Volver a detalles',
+        'choose_hemisphere': 'Elegir hemisferio...',
+        'choose_month': 'Elegir mes...',
+        # Month names
+        'january': 'Enero',
+        'february': 'Febrero',
+        'march': 'Marzo',
+        'april': 'Abril',
+        'may': 'Mayo',
+        'june': 'Junio',
+        'july': 'Julio',
+        'august': 'Agosto',
+        'september': 'Septiembre',
+        'october': 'Octubre',
+        'november': 'Noviembre',
+        'december': 'Diciembre',
+        
         # Footer messages
         'images_refreshed': 'Imágenes actualizadas',
         'buttons_expired': 'Los botones han caducado - usa el comando de nuevo',
@@ -1808,6 +2734,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': 'Info opera reale',
         'artwork_title': 'Titolo',
         'artwork_artist': 'Artista',
+        
+        # Critter labels
+        'location': 'Posizione',
+        'shadow_size': 'Dimensione ombra',
+        'time_label': 'Orario',
+        'catch_info': 'Info cattura',
+        'difficulty': 'Difficoltà',
+        'vision': 'Visione',
+        'movement': 'Movimento',
+        'type_fish': 'Pesce',
+        'type_bug': 'Insetto',
+        'type_sea_creature': 'Creatura marina',
+        
+        # Availability view
+        'availability': 'Disponibilità',
+        'hemisphere': 'Emisfero',
+        'month': 'Mese',
+        'northern_hemisphere': 'Emisfero Nord',
+        'southern_hemisphere': 'Emisfero Sud',
+        'available': 'Disponibile',
+        'not_available_in': 'Non disponibile a {month}',
+        'full_year_overview': "Panoramica dell'anno",
+        'additional_info': 'Info aggiuntive',
+        'weather': 'Meteo',
+        'view_availability': 'Vedi disponibilità',
+        'back_to_details': 'Torna ai dettagli',
+        'choose_hemisphere': "Scegli l'emisfero...",
+        'choose_month': 'Scegli il mese...',
+        # Month names
+        'january': 'Gennaio',
+        'february': 'Febbraio',
+        'march': 'Marzo',
+        'april': 'Aprile',
+        'may': 'Maggio',
+        'june': 'Giugno',
+        'july': 'Luglio',
+        'august': 'Agosto',
+        'september': 'Settembre',
+        'october': 'Ottobre',
+        'november': 'Novembre',
+        'december': 'Dicembre',
         
         # Footer messages
         'images_refreshed': 'Immagini aggiornate',
@@ -1897,6 +2864,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'artwork_title': 'Titel',
         'artwork_artist': 'Kunstenaar',
         
+        # Critter labels
+        'location': 'Locatie',
+        'shadow_size': 'Schaduwgrootte',
+        'time_label': 'Tijd',
+        'catch_info': 'Vangst info',
+        'difficulty': 'Moeilijkheid',
+        'vision': 'Zicht',
+        'movement': 'Beweging',
+        'type_fish': 'Vis',
+        'type_bug': 'Insect',
+        'type_sea_creature': 'Zeedier',
+        
+        # Availability view
+        'availability': 'Beschikbaarheid',
+        'hemisphere': 'Halfrond',
+        'month': 'Maand',
+        'northern_hemisphere': 'Noordelijk halfrond',
+        'southern_hemisphere': 'Zuidelijk halfrond',
+        'available': 'Beschikbaar',
+        'not_available_in': 'Niet beschikbaar in {month}',
+        'full_year_overview': 'Jaaroverzicht',
+        'additional_info': 'Extra info',
+        'weather': 'Weer',
+        'view_availability': 'Bekijk beschikbaarheid',
+        'back_to_details': 'Terug naar details',
+        'choose_hemisphere': 'Kies halfrond...',
+        'choose_month': 'Kies maand...',
+        # Month names
+        'january': 'Januari',
+        'february': 'Februari',
+        'march': 'Maart',
+        'april': 'April',
+        'may': 'Mei',
+        'june': 'Juni',
+        'july': 'Juli',
+        'august': 'Augustus',
+        'september': 'September',
+        'october': 'Oktober',
+        'november': 'November',
+        'december': 'December',
+        
         # Footer messages
         'images_refreshed': 'Afbeeldingen vernieuwd',
         'buttons_expired': 'Knoppen zijn verlopen - gebruik het commando opnieuw',
@@ -1984,6 +2992,47 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'real_artwork_info': 'Инфо о настоящем произведении',
         'artwork_title': 'Название',
         'artwork_artist': 'Художник',
+        
+        # Critter labels
+        'location': 'Место',
+        'shadow_size': 'Размер тени',
+        'time_label': 'Время',
+        'catch_info': 'Инфо о ловле',
+        'difficulty': 'Сложность',
+        'vision': 'Зрение',
+        'movement': 'Движение',
+        'type_fish': 'Рыба',
+        'type_bug': 'Насекомое',
+        'type_sea_creature': 'Морское существо',
+        
+        # Availability view
+        'availability': 'Доступность',
+        'hemisphere': 'Полушарие',
+        'month': 'Месяц',
+        'northern_hemisphere': 'Северное полушарие',
+        'southern_hemisphere': 'Южное полушарие',
+        'available': 'Доступно',
+        'not_available_in': 'Недоступно в {month}',
+        'full_year_overview': 'Годовой обзор',
+        'additional_info': 'Доп. информация',
+        'weather': 'Погода',
+        'view_availability': 'Посмотреть доступность',
+        'back_to_details': 'Назад к деталям',
+        'choose_hemisphere': 'Выберите полушарие...',
+        'choose_month': 'Выберите месяц...',
+        # Month names
+        'january': 'Январь',
+        'february': 'Февраль',
+        'march': 'Март',
+        'april': 'Апрель',
+        'may': 'Май',
+        'june': 'Июнь',
+        'july': 'Июль',
+        'august': 'Август',
+        'september': 'Сентябрь',
+        'october': 'Октябрь',
+        'november': 'Ноябрь',
+        'december': 'Декабрь',
         
         # Footer messages
         'images_refreshed': 'Изображения обновлены',
@@ -2375,6 +3424,117 @@ class LocalizedUI:
     @property
     def artwork_artist(self) -> str:
         return self._get('artwork_artist')
+    
+    # Critter labels
+    @property
+    def location(self) -> str:
+        return self._get('location')
+    
+    @property
+    def shadow_size(self) -> str:
+        return self._get('shadow_size')
+    
+    @property
+    def time_label(self) -> str:
+        return self._get('time_label')
+    
+    @property
+    def catch_info(self) -> str:
+        return self._get('catch_info')
+    
+    @property
+    def difficulty(self) -> str:
+        return self._get('difficulty')
+    
+    @property
+    def vision(self) -> str:
+        return self._get('vision')
+    
+    @property
+    def movement(self) -> str:
+        return self._get('movement')
+    
+    @property
+    def type_fish(self) -> str:
+        return self._get('type_fish')
+    
+    @property
+    def type_bug(self) -> str:
+        return self._get('type_bug')
+    
+    @property
+    def type_sea_creature(self) -> str:
+        return self._get('type_sea_creature')
+    
+    # Availability view
+    @property
+    def availability(self) -> str:
+        return self._get('availability')
+    
+    @property
+    def hemisphere(self) -> str:
+        return self._get('hemisphere')
+    
+    @property
+    def month_label(self) -> str:
+        return self._get('month')
+    
+    @property
+    def northern_hemisphere(self) -> str:
+        return self._get('northern_hemisphere')
+    
+    @property
+    def southern_hemisphere(self) -> str:
+        return self._get('southern_hemisphere')
+    
+    @property
+    def available(self) -> str:
+        return self._get('available')
+    
+    def not_available_in(self, month: str) -> str:
+        """Get 'Not Available in {month}' with the month name substituted"""
+        return self._get('not_available_in').format(month=month)
+    
+    @property
+    def full_year_overview(self) -> str:
+        return self._get('full_year_overview')
+    
+    @property
+    def additional_info(self) -> str:
+        return self._get('additional_info')
+    
+    @property
+    def weather(self) -> str:
+        return self._get('weather')
+    
+    @property
+    def view_availability(self) -> str:
+        return self._get('view_availability')
+    
+    @property
+    def back_to_details(self) -> str:
+        return self._get('back_to_details')
+    
+    @property
+    def choose_hemisphere(self) -> str:
+        return self._get('choose_hemisphere')
+    
+    @property
+    def choose_month(self) -> str:
+        return self._get('choose_month')
+    
+    def get_month_name(self, month_key: str) -> str:
+        """Get localized month name from month key (jan, feb, etc.)"""
+        month_map = {
+            'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april',
+            'may': 'may', 'jun': 'june', 'jul': 'july', 'aug': 'august',
+            'sep': 'september', 'oct': 'october', 'nov': 'november', 'dec': 'december'
+        }
+        return self._get(month_map.get(month_key, month_key))
+    
+    def get_month_short(self, month_key: str) -> str:
+        """Get abbreviated month name (first 3 chars of localized name)"""
+        return self.get_month_name(month_key)[:3]
     
     # Preference dialogs
     @property

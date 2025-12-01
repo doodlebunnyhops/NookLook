@@ -159,6 +159,13 @@ class NooklookService:
             'artwork', artwork_id, language, fallback_name
         )
     
+    async def get_localized_critter_name(self, critter_id: int, user_id: int, fallback_name: str) -> str:
+        """Get critter name in user's preferred language"""
+        language = await self.get_user_language(user_id)
+        return await self.translation_service.get_localized_name_or_fallback(
+            'critters', critter_id, language, fallback_name
+        )
+    
     async def get_item_suggestions_localized(self, query: str, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
         """
         Get item suggestions for autocomplete in user's language.

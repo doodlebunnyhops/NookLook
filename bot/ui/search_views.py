@@ -340,7 +340,7 @@ class SearchResultsView(UserRestrictedView, MessageTrackingMixin, TimeoutPreserv
             if localized_name and localized_name != result.name:
                 embed.title = f"{localized_name} ({result.name})"
         elif isinstance(result, Critter):
-            embed = result.to_embed()
+            embed = result.to_embed(language=self.language)
         elif isinstance(result, Recipe):
             embed = result.to_embed()
         elif isinstance(result, Villager):

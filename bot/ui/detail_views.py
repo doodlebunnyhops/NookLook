@@ -8,6 +8,7 @@ import discord
 import logging
 from .base import UserRestrictedView, MessageTrackingMixin, RefreshableView, TimeoutPreservingView
 from .common import get_combined_view
+from bot.utils.localization import get_ui, translate_critter_detail
 
 logger = logging.getLogger(__name__)
 
@@ -343,12 +344,14 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             await interaction.response.edit_message(view=new_view)
     """
     
-    def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False):
+    def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False, language: str = 'en'):
         super().__init__(interaction_user=interaction_user, timeout=120, refresh_cooldown=30)
         self.critter = critter
         self.current_hemisphere = "NH"  # Default to Northern Hemisphere
         self.current_month = "jan"  # Default to January
         self.show_availability = show_availability
+        self.language = language
+        self.ui = get_ui(language)
         
         # Note: Buttons are added later via add_view_availability_button() or 
         # add_availability_action_buttons() to control ordering properly
@@ -356,42 +359,39 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     def get_availability_embed(self) -> discord.Embed:
         """Create embed showing availability for selected hemisphere and month"""
         embed = discord.Embed(
-            title=f"🗓️ {self.critter.name} Availability",
+            title=f"🗓️ {self.critter.name} {self.ui.availability}",
             color=discord.Color.green()
         )
 
         if self.critter.icon_url:
             embed.set_thumbnail(url=self.critter.icon_url)
         
-        # Get hemisphere display name
-        hemisphere_name = "Northern Hemisphere" if self.current_hemisphere == "NH" else "Southern Hemisphere"
+        # Get hemisphere display name (localized)
+        hemisphere_name = self.ui.northern_hemisphere if self.current_hemisphere == "NH" else self.ui.southern_hemisphere
         
-        # Get month display name
-        month_names = {
-            "jan": "January", "feb": "February", "mar": "March", "apr": "April",
-            "may": "May", "jun": "June", "jul": "July", "aug": "August",
-            "sep": "September", "oct": "October", "nov": "November", "dec": "December"
-        }
-        month_name = month_names.get(self.current_month, self.current_month.title())
+        # Get month display name (localized)
+        month_name = self.ui.get_month_name(self.current_month)
         
-        embed.description = f"**Hemisphere:** {hemisphere_name}\n**Month:** {month_name}"
+        embed.description = f"**{self.ui.hemisphere}:** {hemisphere_name}\n**{self.ui.month_label}:** {month_name}"
         
         # Get availability for current selection
         field_name = f"{self.current_hemisphere.lower()}_{self.current_month}"
         availability = getattr(self.critter, field_name, None)
         
         if availability and availability.lower() not in ['none', 'null', '']:
+            # Translate availability if translation exists
+            availability = translate_critter_detail(availability, self.language) or availability
             # Available - show the time information
             embed.add_field(
-                name="✅ Available", 
-                value=f"**Time:** {availability}", 
+                name=f"✅ {self.ui.available}", 
+                value=f"**{self.ui.time_label}:** {availability}", 
                 inline=False
             )
             embed.color = discord.Color.green()
         else:
             # Not available
             embed.add_field(
-                name=f"❌ Not Available in {month_name}.", 
+                name=f"❌ {self.ui.not_available_in(month_name)}", 
                 value="", 
                 inline=False
             )
@@ -402,32 +402,33 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         for month in ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]:
             field = f"{self.current_hemisphere.lower()}_{month}"
             month_avail = getattr(self.critter, field, None)
+            month_short = self.ui.get_month_short(month)
             if month_avail and month_avail.lower() not in ['none', 'null', '']:
-                year_data.append(f"✅ {month_names[month][:3]}")
+                year_data.append(f"✅ {month_short}")
             else:
-                year_data.append(f"❌ {month_names[month][:3]}")
+                year_data.append(f"❌ {month_short}")
         
         # Split into quarters for better formatting
         quarters = [year_data[i:i+3] for i in range(0, 12, 3)]
         year_overview = "\n".join([" ".join(quarter) for quarter in quarters])
         
         embed.add_field(
-            name=f"📅 Full Year Overview ({hemisphere_name})",
+            name=f"📅 {self.ui.full_year_overview} ({hemisphere_name})",
             value=f"```\n{year_overview}\n```",
             inline=False
         )
         
-        # Add additional info if available
+        # Add additional info if available (with translations)
         info_lines = []
         if self.critter.time_of_day:
-            info_lines.append(f"**Time:** {self.critter.time_of_day}")
+            info_lines.append(f"**{self.ui.time_label}:** {translate_critter_detail(self.critter.time_of_day, self.language)}")
         if self.critter.location:
-            info_lines.append(f"**Location:** {self.critter.location}")
+            info_lines.append(f"**{self.ui.location}:** {translate_critter_detail(self.critter.location, self.language)}")
         if self.critter.weather:
-            info_lines.append(f"**Weather:** {self.critter.weather}")
+            info_lines.append(f"**{self.ui.weather}:** {translate_critter_detail(self.critter.weather, self.language)}")
         
         if info_lines:
-            embed.add_field(name="ℹ️ Additional Info", value="\n".join(info_lines), inline=False)
+            embed.add_field(name=f"ℹ️ {self.ui.additional_info}", value="\n".join(info_lines), inline=False)
         
         return embed
     
@@ -437,18 +438,14 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             return self.get_availability_embed()
         else:
             # Main critter details view
-            embed = self.critter.to_discord_embed()
+            embed = self.critter.to_discord_embed(language=self.language)
             
-            # Add critter type info in footer
-            critter_type = {
-                'fish': 'Fish',
-                'insect': 'Bug', 
-                'sea': 'Sea Creature'
-            }.get(self.critter.kind, self.critter.kind.title())
+            # Add critter type info in footer (localized)
+            critter_type = self.critter.get_type_display(self.language)
             
             footer_text = f"{critter_type}"
             if self.critter.location:
-                footer_text += f" • {self.critter.location}"
+                footer_text += f" • {translate_critter_detail(self.critter.location, self.language) or self.critter.location}"
             embed.set_footer(text=footer_text)
             
             return embed
@@ -460,30 +457,30 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     def add_availability_controls(self):
         """Add hemisphere and month selects for availability view"""
         hemisphere_select = discord.ui.Select(
-            placeholder="Choose hemisphere...",
+            placeholder=self.ui.choose_hemisphere,
             options=[
-                discord.SelectOption(label="Northern Hemisphere", value="NH", emoji="🌎"),
-                discord.SelectOption(label="Southern Hemisphere", value="SH", emoji="🌏")
+                discord.SelectOption(label=self.ui.northern_hemisphere, value="NH", emoji="🌎"),
+                discord.SelectOption(label=self.ui.southern_hemisphere, value="SH", emoji="🌏")
             ],
             row=0
         )
         hemisphere_select.callback = self.hemisphere_callback
         
         month_select = discord.ui.Select(
-            placeholder="Choose month...",
+            placeholder=self.ui.choose_month,
             options=[
-                discord.SelectOption(label="January", value="jan"),
-                discord.SelectOption(label="February", value="feb"),
-                discord.SelectOption(label="March", value="mar"),
-                discord.SelectOption(label="April", value="apr"),
-                discord.SelectOption(label="May", value="may"),
-                discord.SelectOption(label="June", value="jun"),
-                discord.SelectOption(label="July", value="jul"),
-                discord.SelectOption(label="August", value="aug"),
-                discord.SelectOption(label="September", value="sep"),
-                discord.SelectOption(label="October", value="oct"),
-                discord.SelectOption(label="November", value="nov"),
-                discord.SelectOption(label="December", value="dec")
+                discord.SelectOption(label=self.ui.get_month_name("jan"), value="jan"),
+                discord.SelectOption(label=self.ui.get_month_name("feb"), value="feb"),
+                discord.SelectOption(label=self.ui.get_month_name("mar"), value="mar"),
+                discord.SelectOption(label=self.ui.get_month_name("apr"), value="apr"),
+                discord.SelectOption(label=self.ui.get_month_name("may"), value="may"),
+                discord.SelectOption(label=self.ui.get_month_name("jun"), value="jun"),
+                discord.SelectOption(label=self.ui.get_month_name("jul"), value="jul"),
+                discord.SelectOption(label=self.ui.get_month_name("aug"), value="aug"),
+                discord.SelectOption(label=self.ui.get_month_name("sep"), value="sep"),
+                discord.SelectOption(label=self.ui.get_month_name("oct"), value="oct"),
+                discord.SelectOption(label=self.ui.get_month_name("nov"), value="nov"),
+                discord.SelectOption(label=self.ui.get_month_name("dec"), value="dec")
             ],
             row=1
         )
@@ -517,7 +514,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     
     def add_back_button(self):
         """Add only the back to details button"""
-        back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
+        back_button = discord.ui.Button(label=f"📋 {self.ui.back_to_details}", style=discord.ButtonStyle.secondary, row=2)
         back_button.callback = self.back_callback
         self.add_item(back_button)
     
@@ -526,7 +523,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         Back to Details → Add to Stash → Refresh Images → Nookipedia
         """
         # 1. Back to Details (primary action for this view)
-        back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
+        back_button = discord.ui.Button(label=f"📋 {self.ui.back_to_details}", style=discord.ButtonStyle.secondary, row=2)
         back_button.callback = self.back_callback
         self.add_item(back_button)
         
@@ -536,12 +533,13 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             ref_table="critters",
             ref_id=self.critter.id,
             display_name=self.critter.name,
-            row=2
+            row=2,
+            language=self.language
         ))
         
         # 3. Refresh Images
         refresh_button = discord.ui.Button(
-            label="🔄 Refresh Images", 
+            label=self.ui.refresh, 
             style=discord.ButtonStyle.secondary, 
             row=2
         )
@@ -561,7 +559,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     
     def add_view_availability_button(self):
         """Add only the view availability button (used when called from critters_commands)"""
-        availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
+        availability_button = discord.ui.Button(label=f"🗓️ {self.ui.view_availability}", style=discord.ButtonStyle.primary)
         availability_button.callback = self.availability_callback
         self.add_item(availability_button)
     
@@ -570,7 +568,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         View Availability → Add to Stash → Refresh Images → Nookipedia
         """
         # 1. View Availability (primary action for this view)
-        availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
+        availability_button = discord.ui.Button(label=f"🗓️ {self.ui.view_availability}", style=discord.ButtonStyle.primary)
         availability_button.callback = self.availability_callback
         self.add_item(availability_button)
         
@@ -579,12 +577,13 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         self.add_item(AddToStashButton(
             ref_table="critters",
             ref_id=self.critter.id,
-            display_name=self.critter.name
+            display_name=self.critter.name,
+            language=self.language
         ))
         
         # 3. Refresh Images
         refresh_button = discord.ui.Button(
-            label="🔄 Refresh Images", 
+            label=self.ui.refresh, 
             style=discord.ButtonStyle.secondary
         )
         refresh_button.callback = self.refresh_main_images_callback
@@ -609,22 +608,18 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         # Stop the current view's timeout since we're replacing it
         self.stop()
         
-        embed = self.critter.to_discord_embed()
+        embed = self.critter.to_discord_embed(language=self.language)
         
-        # Add critter type info in footer
-        critter_type = {
-            'fish': 'Fish',
-            'insect': 'Bug', 
-            'sea': 'Sea Creature'
-        }.get(self.critter.kind, self.critter.kind.title())
+        # Add critter type info in footer (localized)
+        critter_type = self.critter.get_type_display(self.language)
         
         footer_text = f"{critter_type}"
         if self.critter.location:
-            footer_text += f" • {self.critter.location}"
+            footer_text += f" • {translate_critter_detail(self.critter.location, self.language)}"
         embed.set_footer(text=footer_text)
         
         # Create a new view with buttons in correct order
-        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=False)
+        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=False, language=self.language)
         view.add_details_action_buttons(self.critter.nookipedia_url)
         
         # Transfer the message reference to the new view for timeout handling
@@ -642,7 +637,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         self.stop()
         
         # Create new view with availability controls
-        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True)
+        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True, language=self.language)
         view.add_availability_controls()
         
         # Add action buttons in correct order: Back → Stash → Refresh → Nookipedia
