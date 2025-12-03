@@ -41,14 +41,14 @@ class LookupCommands(commands.Cog):
     @app_commands.autocomplete(item=item_name_autocomplete)
     async def lookup(self, interaction: discord.Interaction, item: str):
         """Look up a specific item with autocomplete"""
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
+        if await self._check_new_user(interaction):
+            return  # Language prompt shown, user can run command again after selecting
+        
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
-        
-        # Check if this is a new user - show language prompt first
-        if await self._check_new_user(interaction):
-            return  # Language prompt shown, user can run command again after selecting
         
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         logger.info(f"lookup command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{item}'")

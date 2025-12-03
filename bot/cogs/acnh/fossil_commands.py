@@ -38,13 +38,13 @@ class FossilCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def fossil_command(self, interaction: discord.Interaction, name: str):
         """Look up a fossil by name"""
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
+        if await self._check_new_user(interaction):
+            return
+        
         user_id = getattr(interaction.user, 'id', 'unknown')
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        
-        # Check if this is a new user - show language prompt first
-        if await self._check_new_user(interaction):
-            return
         
         # Get user's language preference
         user_id = interaction.user.id

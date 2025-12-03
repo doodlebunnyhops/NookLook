@@ -37,16 +37,19 @@ class VillagerCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def villager(self, interaction: discord.Interaction, name: str):
         """Look up villager details"""
-        ephemeral = await check_guild_ephemeral(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
-        
-        # Check if this is a new user - show language prompt first
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
         if await self._check_new_user(interaction):
             return
+        
+        ephemeral = await check_guild_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'
         logger.info(f"villager command used by:\n\t{interaction.user.display_name} ({user_id})\n\tin {guild_name or 'Unknown Guild'}\n\tsearching for: '{name}'")
+        
+        # Get user's preferred language
+        user_language = await self.service.get_user_language(user_id)
         
         try:
             # Convert name to villager ID if it's numeric (from autocomplete)
@@ -70,14 +73,17 @@ class VillagerCommands(commands.Cog):
                 return
             logger.info(f"found villager: {villager.name} ({villager.species})")
             
-            # Create the main villager embed
-            embed = villager.to_discord_embed()
+            # Create the main villager embed with user's language
+            embed = villager.to_discord_embed(user_language)
             
             # Create view with details buttons and Nookipedia link
-            view = VillagerDetailsView(villager, interaction.user, self.service)
+            view = VillagerDetailsView(villager, interaction.user, self.service, language=user_language)
             get_combined_view(
-                view, villager.nookipedia_url,
-                stash_info={"ref_table": "villagers", "ref_id": villager.id, "display_name": villager.name}
+                existing_view=view,
+                nookipedia_url=villager.nookipedia_url,
+                add_refresh=True,
+                stash_info={"ref_table": "villagers", "ref_id": villager.id, "display_name": villager.name},
+                language=user_language
             )  # Adds Nookipedia and Stash buttons in-place
             
             # Send and store message reference for timeout handling

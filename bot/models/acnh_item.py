@@ -826,8 +826,11 @@ class Villager:
         emoji = "♂️" if self.gender == "Male" else "♀️" if self.gender == "Female" else ""
         return f"{emoji} {self.name}".strip()
     
-    def to_discord_embed(self) -> discord.Embed:
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
         """Create Discord embed for this villager"""
+        from bot.utils.localization import LocalizedUI, translate_villager_detail
+        ui = LocalizedUI(language)
+        
         embed = discord.Embed(
             title=f"🏘️ {self.display_name}",
             color=discord.Color.purple()
@@ -836,19 +839,19 @@ class Villager:
         # Basic info in simple format (no bold)
         info_lines = []
         if self.species:
-            info_lines.append(f"Species: {self.species}")
+            info_lines.append(f"{ui.species}: {translate_villager_detail(self.species, language)}")
         
         if self.personality:
-            info_lines.append(f"Personality: {self.personality}")
+            info_lines.append(f"{ui.personality}: {translate_villager_detail(self.personality, language)}")
         
         if self.hobby:
-            info_lines.append(f"Hobby: {self.hobby}")
+            info_lines.append(f"{ui.hobby}: {translate_villager_detail(self.hobby, language)}")
         
         if self.birthday:
-            info_lines.append(f"Birthday: {self.birthday}")
+            info_lines.append(f"{ui.birthday}: {self.birthday}")
         
         if self.catchphrase:
-            info_lines.append(f"Catchphrase: \"{self.catchphrase}\"")
+            info_lines.append(f"{ui.catchphrase}: \"{self.catchphrase}\"")
         
         embed.description = "\n".join(info_lines)
         
@@ -856,28 +859,28 @@ class Villager:
         if self.style1 or self.style2 or self.color1 or self.color2:
             prefs = []
             if self.style1:
-                style_text = self.style1
+                style_text = translate_villager_detail(self.style1, language)
                 if self.style2:
-                    style_text += f", {self.style2}"
-                prefs.append(f"Style: {style_text}")
+                    style_text += f", {translate_villager_detail(self.style2, language)}"
+                prefs.append(f"{ui.style}: {style_text}")
             
             if self.color1:
-                color_text = self.color1
+                color_text = translate_villager_detail(self.color1, language)
                 if self.color2:
-                    color_text += f", {self.color2}"
-                prefs.append(f"Colors: {color_text}")
+                    color_text += f", {translate_villager_detail(self.color2, language)}"
+                prefs.append(f"{ui.colors}: {color_text}")
             
-            embed.add_field(name="Preferences", value="\n".join(prefs), inline=True)
+            embed.add_field(name=ui.preferences, value="\n".join(prefs), inline=True)
         
         # Add favorite things
         if self.favorite_song or self.favorite_saying:
             favorites = []
             if self.favorite_song:
-                favorites.append(f"Song: {self.favorite_song}")
+                favorites.append(f"{ui.song}: {self.favorite_song}")
             if self.favorite_saying:
-                favorites.append(f"Saying: \"{self.favorite_saying}\"")
+                favorites.append(f"{ui.saying}: \"{self.favorite_saying}\"")
             
-            embed.add_field(name="Favorites", value="\n".join(favorites), inline=True)
+            embed.add_field(name=ui.favorites, value="\n".join(favorites), inline=True)
         
         # Set image with fallback handling
         if self.icon_image:
@@ -885,9 +888,9 @@ class Villager:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this villager to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language)
 
 @dataclass(slots=True)
 class Artwork:

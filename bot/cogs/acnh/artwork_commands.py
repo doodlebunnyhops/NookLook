@@ -39,12 +39,12 @@ class ArtworkCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def artwork(self, interaction: discord.Interaction, name: str):
         """Look up artwork details"""
-        ephemeral = await check_guild_ephemeral(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
-        
-        # Check if this is a new user - show language prompt first
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
         if await self._check_new_user(interaction):
             return
+        
+        ephemeral = await check_guild_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         
         logger.info(f"artwork command used by:\n\t{interaction.user.display_name} ({interaction.user.id})\n\tsearching for: '{name}'")
         

@@ -68,14 +68,14 @@ class SearchCommands(commands.Cog):
     async def search(self, interaction: discord.Interaction, 
                     query: str, category: Optional[str] = None):
         """Search across all ACNH content using FTS5"""
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
+        if await self._check_new_user(interaction):
+            return  # Language prompt shown, user can run command again after selecting
+        
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
-        
-        # Check if this is a new user - show language prompt first
-        if await self._check_new_user(interaction):
-            return  # Language prompt shown, user can run command again after selecting
         
         # Get user's preferred language
         user_language = await self.service.get_user_language(user_id)

@@ -31,11 +31,12 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
         the automatic timeout handling.
     """
     
-    def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main"):
+    def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main", language: str = 'en'):
         super().__init__(interaction_user=interaction_user, timeout=120, refresh_cooldown=30)
         self.villager = villager
         self.service = service  # Business logic layer for database access
         self.current_view = current_view
+        self.language = language
     
     async def resolve_clothing_name(self, clothing_id_str: str) -> str:
         """Resolve clothing ID to name using the service layer
@@ -59,7 +60,12 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             
             # If that didn't work, try regular table ID as fallback
             if not clothing_name:
-                clothing_name = await self.service.get_item_name_by_id(clothing_id)
+                clothing_name = await self.service.get_item_translation(
+                        ref_table="items",
+                        ref_id=clothing_id,
+                        language=self.language
+                    ) or await self.service.get_item_name_by_id(clothing_id)
+
             
             logger.debug(f"Resolving ID {clothing_id}: found name '{clothing_name}'")
             
@@ -274,7 +280,7 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
                 embed.description = "No additional details available."
                 
         else:  # main view
-            embed = self.villager.to_discord_embed()
+            embed = self.villager.to_discord_embed(self.language)
         
         return embed
     

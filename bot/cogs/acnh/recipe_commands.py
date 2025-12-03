@@ -37,12 +37,12 @@ class RecipeCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def recipe(self, interaction: discord.Interaction, name: str):
         """Look up recipe details"""
-        ephemeral = await check_guild_ephemeral(interaction)
-        await interaction.response.defer(ephemeral=ephemeral)
-        
-        # Check if this is a new user - show language prompt first
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
         if await self._check_new_user(interaction):
             return
+        
+        ephemeral = await check_guild_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
 
         user_id = interaction.user.id
         guild_name = getattr(interaction.guild, 'name', 'DM') if interaction.guild else 'DM'

@@ -1121,6 +1121,696 @@ FOSSIL_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
 }
 
 
+# Villager details translations (English -> localized)
+# These are villager-specific attributes from the database
+VILLAGER_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
+    'ja': {
+        # Species
+        'Alligator': 'ワニ',
+        'Anteater': 'アリクイ',
+        'Bear': 'クマ',
+        'Bear cub': 'コグマ',
+        'Bird': 'トリ',
+        'Bull': 'ウシ',
+        'Cat': 'ネコ',
+        'Chicken': 'ニワトリ',
+        'Cow': 'ウシ',
+        'Deer': 'シカ',
+        'Dog': 'イヌ',
+        'Duck': 'アヒル',
+        'Eagle': 'ワシ',
+        'Elephant': 'ゾウ',
+        'Frog': 'カエル',
+        'Goat': 'ヤギ',
+        'Gorilla': 'ゴリラ',
+        'Hamster': 'ハムスター',
+        'Hippo': 'カバ',
+        'Horse': 'ウマ',
+        'Kangaroo': 'カンガルー',
+        'Koala': 'コアラ',
+        'Lion': 'ライオン',
+        'Monkey': 'サル',
+        'Mouse': 'ネズミ',
+        'Octopus': 'タコ',
+        'Ostrich': 'ダチョウ',
+        'Penguin': 'ペンギン',
+        'Pig': 'ブタ',
+        'Rabbit': 'ウサギ',
+        'Rhinoceros': 'サイ',
+        'Sheep': 'ヒツジ',
+        'Squirrel': 'リス',
+        'Tiger': 'トラ',
+        'Wolf': 'オオカミ',
+        # Personality
+        'Big Sister': 'アネキ',
+        'Cranky': 'コワイ',
+        'Jock': 'ハキハキ',
+        'Lazy': 'ボンヤリ',
+        'Normal': 'フツウ',
+        'Peppy': 'ゲンキ',
+        'Smug': 'キザ',
+        'Snooty': 'オトナ',
+        # Hobby
+        'Nature': 'しぜん',
+        'Fitness': 'フィットネス',
+        'Play': 'あそび',
+        'Education': 'べんきょう',
+        'Fashion': 'ファッション',
+        'Music': 'おんがく',
+        # Style
+        'Active': 'アクティブ',
+        'Cool': 'クール',
+        'Simple': 'シンプル',
+        'Cute': 'キュート',
+        'Gorgeous': 'ゴージャス',
+        'Elegant': 'エレガント',
+        # Color
+        'Aqua': 'アクア',
+        'Beige': 'ベージュ',
+        'Black': 'ブラック',
+        'Blue': 'ブルー',
+        'Brown': 'ブラウン',
+        'Colorful': 'カラフル',
+        'Gray': 'グレー',
+        'Green': 'グリーン',
+        'Orange': 'オレンジ',
+        'Pink': 'ピンク',
+        'Purple': 'パープル',
+        'Red': 'レッド',
+        'White': 'ホワイト',
+        'Yellow': 'イエロー',
+    },
+    'zh': {
+        # Species
+        'Alligator': '鳄鱼',
+        'Anteater': '食蚁兽',
+        'Bear': '熊',
+        'Bear cub': '小熊',
+        'Bird': '鸟',
+        'Bull': '公牛',
+        'Cat': '猫',
+        'Chicken': '鸡',
+        'Cow': '牛',
+        'Deer': '鹿',
+        'Dog': '狗',
+        'Duck': '鸭',
+        'Eagle': '鹰',
+        'Elephant': '象',
+        'Frog': '青蛙',
+        'Goat': '山羊',
+        'Gorilla': '猩猩',
+        'Hamster': '仓鼠',
+        'Hippo': '河马',
+        'Horse': '马',
+        'Kangaroo': '袋鼠',
+        'Koala': '考拉',
+        'Lion': '狮子',
+        'Monkey': '猴子',
+        'Mouse': '老鼠',
+        'Octopus': '章鱼',
+        'Ostrich': '鸵鸟',
+        'Penguin': '企鹅',
+        'Pig': '猪',
+        'Rabbit': '兔子',
+        'Rhinoceros': '犀牛',
+        'Sheep': '绵羊',
+        'Squirrel': '松鼠',
+        'Tiger': '老虎',
+        'Wolf': '狼',
+        # Personality
+        'Big Sister': '大姐姐',
+        'Cranky': '暴躁',
+        'Jock': '运动',
+        'Lazy': '悠闲',
+        'Normal': '普通',
+        'Peppy': '元气',
+        'Smug': '自恋',
+        'Snooty': '成熟',
+        # Hobby
+        'Nature': '自然',
+        'Fitness': '健身',
+        'Play': '玩耍',
+        'Education': '学习',
+        'Fashion': '时尚',
+        'Music': '音乐',
+        # Style
+        'Active': '活力',
+        'Cool': '酷',
+        'Simple': '简单',
+        'Cute': '可爱',
+        'Gorgeous': '华丽',
+        'Elegant': '优雅',
+        # Color
+        'Aqua': '水色',
+        'Beige': '米色',
+        'Black': '黑色',
+        'Blue': '蓝色',
+        'Brown': '棕色',
+        'Colorful': '彩色',
+        'Gray': '灰色',
+        'Green': '绿色',
+        'Orange': '橙色',
+        'Pink': '粉色',
+        'Purple': '紫色',
+        'Red': '红色',
+        'White': '白色',
+        'Yellow': '黄色',
+    },
+    'ko': {
+        # Species
+        'Alligator': '악어',
+        'Anteater': '개미핥기',
+        'Bear': '곰',
+        'Bear cub': '아기곰',
+        'Bird': '새',
+        'Bull': '황소',
+        'Cat': '고양이',
+        'Chicken': '닭',
+        'Cow': '소',
+        'Deer': '사슴',
+        'Dog': '개',
+        'Duck': '오리',
+        'Eagle': '독수리',
+        'Elephant': '코끼리',
+        'Frog': '개구리',
+        'Goat': '염소',
+        'Gorilla': '고릴라',
+        'Hamster': '햄스터',
+        'Hippo': '하마',
+        'Horse': '말',
+        'Kangaroo': '캥거루',
+        'Koala': '코알라',
+        'Lion': '사자',
+        'Monkey': '원숭이',
+        'Mouse': '쥐',
+        'Octopus': '문어',
+        'Ostrich': '타조',
+        'Penguin': '펭귄',
+        'Pig': '돼지',
+        'Rabbit': '토끼',
+        'Rhinoceros': '코뿔소',
+        'Sheep': '양',
+        'Squirrel': '다람쥐',
+        'Tiger': '호랑이',
+        'Wolf': '늑대',
+        # Personality
+        'Big Sister': '단순활발',
+        'Cranky': '무뚝뚝',
+        'Jock': '운동광',
+        'Lazy': '먹보',
+        'Normal': '친절함',
+        'Peppy': '아이돌',
+        'Smug': '느끼함',
+        'Snooty': '성숙함',
+        # Hobby
+        'Nature': '자연',
+        'Fitness': '운동',
+        'Play': '놀이',
+        'Education': '공부',
+        'Fashion': '패션',
+        'Music': '음악',
+        # Style
+        'Active': '액티브',
+        'Cool': '쿨',
+        'Simple': '심플',
+        'Cute': '큐트',
+        'Gorgeous': '고저스',
+        'Elegant': '엘레강스',
+        # Color
+        'Aqua': '아쿠아',
+        'Beige': '베이지',
+        'Black': '블랙',
+        'Blue': '블루',
+        'Brown': '브라운',
+        'Colorful': '컬러풀',
+        'Gray': '그레이',
+        'Green': '그린',
+        'Orange': '오렌지',
+        'Pink': '핑크',
+        'Purple': '퍼플',
+        'Red': '레드',
+        'White': '화이트',
+        'Yellow': '옐로',
+    },
+    'fr': {
+        # Species
+        'Alligator': 'Alligator',
+        'Anteater': 'Tamanoir',
+        'Bear': 'Ours',
+        'Bear cub': 'Ourson',
+        'Bird': 'Oiseau',
+        'Bull': 'Taureau',
+        'Cat': 'Chat',
+        'Chicken': 'Poule',
+        'Cow': 'Vache',
+        'Deer': 'Cerf',
+        'Dog': 'Chien',
+        'Duck': 'Canard',
+        'Eagle': 'Aigle',
+        'Elephant': 'Éléphant',
+        'Frog': 'Grenouille',
+        'Goat': 'Chèvre',
+        'Gorilla': 'Gorille',
+        'Hamster': 'Hamster',
+        'Hippo': 'Hippopotame',
+        'Horse': 'Cheval',
+        'Kangaroo': 'Kangourou',
+        'Koala': 'Koala',
+        'Lion': 'Lion',
+        'Monkey': 'Singe',
+        'Mouse': 'Souris',
+        'Octopus': 'Pieuvre',
+        'Ostrich': 'Autruche',
+        'Penguin': 'Pingouin',
+        'Pig': 'Cochon',
+        'Rabbit': 'Lapin',
+        'Rhinoceros': 'Rhinocéros',
+        'Sheep': 'Mouton',
+        'Squirrel': 'Écureuil',
+        'Tiger': 'Tigre',
+        'Wolf': 'Loup',
+        # Personality
+        'Big Sister': 'Grande sœur',
+        'Cranky': 'Grognon',
+        'Jock': 'Sportif',
+        'Lazy': 'Paresseux',
+        'Normal': 'Normale',
+        'Peppy': 'Pétillante',
+        'Smug': 'Suffisant',
+        'Snooty': 'Snob',
+        # Hobby
+        'Nature': 'Nature',
+        'Fitness': 'Fitness',
+        'Play': 'Jeu',
+        'Education': 'Éducation',
+        'Fashion': 'Mode',
+        'Music': 'Musique',
+        # Style
+        'Active': 'Actif',
+        'Cool': 'Cool',
+        'Simple': 'Simple',
+        'Cute': 'Mignon',
+        'Gorgeous': 'Magnifique',
+        'Elegant': 'Élégant',
+        # Color
+        'Aqua': 'Turquoise',
+        'Beige': 'Beige',
+        'Black': 'Noir',
+        'Blue': 'Bleu',
+        'Brown': 'Marron',
+        'Colorful': 'Coloré',
+        'Gray': 'Gris',
+        'Green': 'Vert',
+        'Orange': 'Orange',
+        'Pink': 'Rose',
+        'Purple': 'Violet',
+        'Red': 'Rouge',
+        'White': 'Blanc',
+        'Yellow': 'Jaune',
+    },
+    'de': {
+        # Species
+        'Alligator': 'Alligator',
+        'Anteater': 'Ameisenbär',
+        'Bear': 'Bär',
+        'Bear cub': 'Bärenjunges',
+        'Bird': 'Vogel',
+        'Bull': 'Stier',
+        'Cat': 'Katze',
+        'Chicken': 'Huhn',
+        'Cow': 'Kuh',
+        'Deer': 'Hirsch',
+        'Dog': 'Hund',
+        'Duck': 'Ente',
+        'Eagle': 'Adler',
+        'Elephant': 'Elefant',
+        'Frog': 'Frosch',
+        'Goat': 'Ziege',
+        'Gorilla': 'Gorilla',
+        'Hamster': 'Hamster',
+        'Hippo': 'Nilpferd',
+        'Horse': 'Pferd',
+        'Kangaroo': 'Känguru',
+        'Koala': 'Koala',
+        'Lion': 'Löwe',
+        'Monkey': 'Affe',
+        'Mouse': 'Maus',
+        'Octopus': 'Oktopus',
+        'Ostrich': 'Strauß',
+        'Penguin': 'Pinguin',
+        'Pig': 'Schwein',
+        'Rabbit': 'Hase',
+        'Rhinoceros': 'Nashorn',
+        'Sheep': 'Schaf',
+        'Squirrel': 'Eichhörnchen',
+        'Tiger': 'Tiger',
+        'Wolf': 'Wolf',
+        # Personality
+        'Big Sister': 'Große Schwester',
+        'Cranky': 'Miesepeter',
+        'Jock': 'Sportlich',
+        'Lazy': 'Faul',
+        'Normal': 'Normal',
+        'Peppy': 'Fröhlich',
+        'Smug': 'Eingebildet',
+        'Snooty': 'Hochnäsig',
+        # Hobby
+        'Nature': 'Natur',
+        'Fitness': 'Fitness',
+        'Play': 'Spielen',
+        'Education': 'Bildung',
+        'Fashion': 'Mode',
+        'Music': 'Musik',
+        # Style
+        'Active': 'Aktiv',
+        'Cool': 'Cool',
+        'Simple': 'Einfach',
+        'Cute': 'Süß',
+        'Gorgeous': 'Prächtig',
+        'Elegant': 'Elegant',
+        # Color
+        'Aqua': 'Aqua',
+        'Beige': 'Beige',
+        'Black': 'Schwarz',
+        'Blue': 'Blau',
+        'Brown': 'Braun',
+        'Colorful': 'Bunt',
+        'Gray': 'Grau',
+        'Green': 'Grün',
+        'Orange': 'Orange',
+        'Pink': 'Rosa',
+        'Purple': 'Lila',
+        'Red': 'Rot',
+        'White': 'Weiß',
+        'Yellow': 'Gelb',
+    },
+    'es': {
+        # Species
+        'Alligator': 'Caimán',
+        'Anteater': 'Oso hormiguero',
+        'Bear': 'Oso',
+        'Bear cub': 'Osito',
+        'Bird': 'Pájaro',
+        'Bull': 'Toro',
+        'Cat': 'Gato',
+        'Chicken': 'Gallina',
+        'Cow': 'Vaca',
+        'Deer': 'Ciervo',
+        'Dog': 'Perro',
+        'Duck': 'Pato',
+        'Eagle': 'Águila',
+        'Elephant': 'Elefante',
+        'Frog': 'Rana',
+        'Goat': 'Cabra',
+        'Gorilla': 'Gorila',
+        'Hamster': 'Hámster',
+        'Hippo': 'Hipopótamo',
+        'Horse': 'Caballo',
+        'Kangaroo': 'Canguro',
+        'Koala': 'Koala',
+        'Lion': 'León',
+        'Monkey': 'Mono',
+        'Mouse': 'Ratón',
+        'Octopus': 'Pulpo',
+        'Ostrich': 'Avestruz',
+        'Penguin': 'Pingüino',
+        'Pig': 'Cerdo',
+        'Rabbit': 'Conejo',
+        'Rhinoceros': 'Rinoceronte',
+        'Sheep': 'Oveja',
+        'Squirrel': 'Ardilla',
+        'Tiger': 'Tigre',
+        'Wolf': 'Lobo',
+        # Personality
+        'Big Sister': 'Hermana mayor',
+        'Cranky': 'Gruñón',
+        'Jock': 'Atlético',
+        'Lazy': 'Perezoso',
+        'Normal': 'Normal',
+        'Peppy': 'Alegre',
+        'Smug': 'Presumido',
+        'Snooty': 'Esnob',
+        # Hobby
+        'Nature': 'Naturaleza',
+        'Fitness': 'Ejercicio',
+        'Play': 'Jugar',
+        'Education': 'Educación',
+        'Fashion': 'Moda',
+        'Music': 'Música',
+        # Style
+        'Active': 'Activo',
+        'Cool': 'Genial',
+        'Simple': 'Simple',
+        'Cute': 'Mono',
+        'Gorgeous': 'Fabuloso',
+        'Elegant': 'Elegante',
+        # Color
+        'Aqua': 'Aguamarina',
+        'Beige': 'Beige',
+        'Black': 'Negro',
+        'Blue': 'Azul',
+        'Brown': 'Marrón',
+        'Colorful': 'Colorido',
+        'Gray': 'Gris',
+        'Green': 'Verde',
+        'Orange': 'Naranja',
+        'Pink': 'Rosa',
+        'Purple': 'Morado',
+        'Red': 'Rojo',
+        'White': 'Blanco',
+        'Yellow': 'Amarillo',
+    },
+    'it': {
+        # Species
+        'Alligator': 'Alligatore',
+        'Anteater': 'Formichiere',
+        'Bear': 'Orso',
+        'Bear cub': 'Orsetto',
+        'Bird': 'Uccello',
+        'Bull': 'Toro',
+        'Cat': 'Gatto',
+        'Chicken': 'Gallina',
+        'Cow': 'Mucca',
+        'Deer': 'Cervo',
+        'Dog': 'Cane',
+        'Duck': 'Anatra',
+        'Eagle': 'Aquila',
+        'Elephant': 'Elefante',
+        'Frog': 'Rana',
+        'Goat': 'Capra',
+        'Gorilla': 'Gorilla',
+        'Hamster': 'Criceto',
+        'Hippo': 'Ippopotamo',
+        'Horse': 'Cavallo',
+        'Kangaroo': 'Canguro',
+        'Koala': 'Koala',
+        'Lion': 'Leone',
+        'Monkey': 'Scimmia',
+        'Mouse': 'Topo',
+        'Octopus': 'Polpo',
+        'Ostrich': 'Struzzo',
+        'Penguin': 'Pinguino',
+        'Pig': 'Maiale',
+        'Rabbit': 'Coniglio',
+        'Rhinoceros': 'Rinoceronte',
+        'Sheep': 'Pecora',
+        'Squirrel': 'Scoiattolo',
+        'Tiger': 'Tigre',
+        'Wolf': 'Lupo',
+        # Personality
+        'Big Sister': 'Sorella maggiore',
+        'Cranky': 'Burbero',
+        'Jock': 'Sportivo',
+        'Lazy': 'Pigro',
+        'Normal': 'Normale',
+        'Peppy': 'Vivace',
+        'Smug': 'Vanitoso',
+        'Snooty': 'Snob',
+        # Hobby
+        'Nature': 'Natura',
+        'Fitness': 'Fitness',
+        'Play': 'Gioco',
+        'Education': 'Istruzione',
+        'Fashion': 'Moda',
+        'Music': 'Musica',
+        # Style
+        'Active': 'Attivo',
+        'Cool': 'Figo',
+        'Simple': 'Semplice',
+        'Cute': 'Carino',
+        'Gorgeous': 'Splendido',
+        'Elegant': 'Elegante',
+        # Color
+        'Aqua': 'Acqua',
+        'Beige': 'Beige',
+        'Black': 'Nero',
+        'Blue': 'Blu',
+        'Brown': 'Marrone',
+        'Colorful': 'Colorato',
+        'Gray': 'Grigio',
+        'Green': 'Verde',
+        'Orange': 'Arancione',
+        'Pink': 'Rosa',
+        'Purple': 'Viola',
+        'Red': 'Rosso',
+        'White': 'Bianco',
+        'Yellow': 'Giallo',
+    },
+    'nl': {
+        # Species
+        'Alligator': 'Alligator',
+        'Anteater': 'Miereneter',
+        'Bear': 'Beer',
+        'Bear cub': 'Berenwelp',
+        'Bird': 'Vogel',
+        'Bull': 'Stier',
+        'Cat': 'Kat',
+        'Chicken': 'Kip',
+        'Cow': 'Koe',
+        'Deer': 'Hert',
+        'Dog': 'Hond',
+        'Duck': 'Eend',
+        'Eagle': 'Arend',
+        'Elephant': 'Olifant',
+        'Frog': 'Kikker',
+        'Goat': 'Geit',
+        'Gorilla': 'Gorilla',
+        'Hamster': 'Hamster',
+        'Hippo': 'Nijlpaard',
+        'Horse': 'Paard',
+        'Kangaroo': 'Kangoeroe',
+        'Koala': 'Koala',
+        'Lion': 'Leeuw',
+        'Monkey': 'Aap',
+        'Mouse': 'Muis',
+        'Octopus': 'Octopus',
+        'Ostrich': 'Struisvogel',
+        'Penguin': 'Pinguïn',
+        'Pig': 'Varken',
+        'Rabbit': 'Konijn',
+        'Rhinoceros': 'Neushoorn',
+        'Sheep': 'Schaap',
+        'Squirrel': 'Eekhoorn',
+        'Tiger': 'Tijger',
+        'Wolf': 'Wolf',
+        # Personality
+        'Big Sister': 'Grote zus',
+        'Cranky': 'Chagrijnig',
+        'Jock': 'Sportief',
+        'Lazy': 'Lui',
+        'Normal': 'Normaal',
+        'Peppy': 'Vrolijk',
+        'Smug': 'Zelfingenomen',
+        'Snooty': 'Verwaand',
+        # Hobby
+        'Nature': 'Natuur',
+        'Fitness': 'Fitness',
+        'Play': 'Spelen',
+        'Education': 'Onderwijs',
+        'Fashion': 'Mode',
+        'Music': 'Muziek',
+        # Style
+        'Active': 'Actief',
+        'Cool': 'Cool',
+        'Simple': 'Eenvoudig',
+        'Cute': 'Schattig',
+        'Gorgeous': 'Prachtig',
+        'Elegant': 'Elegant',
+        # Color
+        'Aqua': 'Aqua',
+        'Beige': 'Beige',
+        'Black': 'Zwart',
+        'Blue': 'Blauw',
+        'Brown': 'Bruin',
+        'Colorful': 'Kleurrijk',
+        'Gray': 'Grijs',
+        'Green': 'Groen',
+        'Orange': 'Oranje',
+        'Pink': 'Roze',
+        'Purple': 'Paars',
+        'Red': 'Rood',
+        'White': 'Wit',
+        'Yellow': 'Geel',
+    },
+    'ru': {
+        # Species
+        'Alligator': 'Аллигатор',
+        'Anteater': 'Муравьед',
+        'Bear': 'Медведь',
+        'Bear cub': 'Медвежонок',
+        'Bird': 'Птица',
+        'Bull': 'Бык',
+        'Cat': 'Кошка',
+        'Chicken': 'Курица',
+        'Cow': 'Корова',
+        'Deer': 'Олень',
+        'Dog': 'Собака',
+        'Duck': 'Утка',
+        'Eagle': 'Орёл',
+        'Elephant': 'Слон',
+        'Frog': 'Лягушка',
+        'Goat': 'Коза',
+        'Gorilla': 'Горилла',
+        'Hamster': 'Хомяк',
+        'Hippo': 'Бегемот',
+        'Horse': 'Лошадь',
+        'Kangaroo': 'Кенгуру',
+        'Koala': 'Коала',
+        'Lion': 'Лев',
+        'Monkey': 'Обезьяна',
+        'Mouse': 'Мышь',
+        'Octopus': 'Осьминог',
+        'Ostrich': 'Страус',
+        'Penguin': 'Пингвин',
+        'Pig': 'Свинья',
+        'Rabbit': 'Кролик',
+        'Rhinoceros': 'Носорог',
+        'Sheep': 'Овца',
+        'Squirrel': 'Белка',
+        'Tiger': 'Тигр',
+        'Wolf': 'Волк',
+        # Personality
+        'Big Sister': 'Старшая сестра',
+        'Cranky': 'Ворчун',
+        'Jock': 'Спортсмен',
+        'Lazy': 'Лентяй',
+        'Normal': 'Обычный',
+        'Peppy': 'Задорный',
+        'Smug': 'Самодовольный',
+        'Snooty': 'Высокомерный',
+        # Hobby
+        'Nature': 'Природа',
+        'Fitness': 'Фитнес',
+        'Play': 'Игры',
+        'Education': 'Образование',
+        'Fashion': 'Мода',
+        'Music': 'Музыка',
+        # Style
+        'Active': 'Активный',
+        'Cool': 'Крутой',
+        'Simple': 'Простой',
+        'Cute': 'Милый',
+        'Gorgeous': 'Шикарный',
+        'Elegant': 'Элегантный',
+        # Color
+        'Aqua': 'Аква',
+        'Beige': 'Бежевый',
+        'Black': 'Чёрный',
+        'Blue': 'Синий',
+        'Brown': 'Коричневый',
+        'Colorful': 'Разноцветный',
+        'Gray': 'Серый',
+        'Green': 'Зелёный',
+        'Orange': 'Оранжевый',
+        'Pink': 'Розовый',
+        'Purple': 'Фиолетовый',
+        'Red': 'Красный',
+        'White': 'Белый',
+        'Yellow': 'Жёлтый',
+    },
+}
+
+
 # Critter details translations (English -> localized)
 # These are critter-specific attributes from the database
 CRITTER_DETAILS_TRANSLATIONS: Dict[str, Dict[str, str]] = {
@@ -1760,6 +2450,36 @@ def translate_fossil_detail(value: str, language: str) -> str:
     return value
 
 
+def translate_villager_detail(value: str, language: str) -> str:
+    """Translate a villager detail value to the user's language.
+    
+    Used for species, personality, hobby, style, and color values.
+    
+    Args:
+        value: English value from database
+        language: Target language code
+    
+    Returns:
+        Translated value or original if no translation found
+    """
+    if language == 'en' or not value:
+        return value
+    
+    lang_details = VILLAGER_DETAILS_TRANSLATIONS.get(language, {})
+    
+    # Try exact match first
+    if value in lang_details:
+        return lang_details[value]
+    
+    # Try case-insensitive match
+    value_lower = value.lower()
+    for eng_val, translated in lang_details.items():
+        if eng_val.lower() == value_lower:
+            return translated
+    
+    return value
+
+
 def translate_critter_detail(value: str, language: str) -> str:
     """Translate a critter detail value to the user's language.
     
@@ -1975,6 +2695,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_bug': 'Bug',
         'type_sea_creature': 'Sea Creature',
         
+        # Villager labels
+        'species': 'Species',
+        'personality': 'Personality',
+        'hobby': 'Hobby',
+        'birthday': 'Birthday',
+        'catchphrase': 'Catchphrase',
+        'preferences': 'Preferences',
+        'style': 'Style',
+        'colors': 'Colors',
+        'favorites': 'Favorites',
+        'song': 'Song',
+        'saying': 'Saying',
+        
         # Availability view
         'availability': 'Availability',
         'hemisphere': 'Hemisphere',
@@ -2118,6 +2851,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_fish': 'さかな',
         'type_bug': 'ムシ',
         'type_sea_creature': 'うみのさち',
+        
+        # Villager labels
+        'species': '種族',
+        'personality': '性格',
+        'hobby': '趣味',
+        'birthday': '誕生日',
+        'catchphrase': '口ぐせ',
+        'preferences': '好み',
+        'style': 'スタイル',
+        'colors': '色',
+        'favorites': 'お気に入り',
+        'song': '曲',
+        'saying': '座右の銘',
         
         # Availability view
         'availability': '出現時期',
@@ -2263,6 +3009,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_bug': '虫类',
         'type_sea_creature': '海洋生物',
         
+        # Villager labels
+        'species': '种族',
+        'personality': '性格',
+        'hobby': '爱好',
+        'birthday': '生日',
+        'catchphrase': '口头禅',
+        'preferences': '偏好',
+        'style': '风格',
+        'colors': '颜色',
+        'favorites': '最爱',
+        'song': '歌曲',
+        'saying': '座右铭',
+        
         # Availability view
         'availability': '出现时间',
         'hemisphere': '半球',
@@ -2406,6 +3165,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_fish': '물고기',
         'type_bug': '곤충',
         'type_sea_creature': '해산물',
+        
+        # Villager labels
+        'species': '종족',
+        'personality': '성격',
+        'hobby': '취미',
+        'birthday': '생일',
+        'catchphrase': '말버릇',
+        'preferences': '취향',
+        'style': '스타일',
+        'colors': '색상',
+        'favorites': '좋아하는 것',
+        'song': '노래',
+        'saying': '좌우명',
         
         # Availability view
         'availability': '출현 시기',
@@ -2551,6 +3323,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_bug': 'Insecte',
         'type_sea_creature': 'Créature marine',
         
+        # Villager labels
+        'species': 'Espèce',
+        'personality': 'Personnalité',
+        'hobby': 'Loisir',
+        'birthday': 'Anniversaire',
+        'catchphrase': 'Phrase fétiche',
+        'preferences': 'Préférences',
+        'style': 'Style',
+        'colors': 'Couleurs',
+        'favorites': 'Favoris',
+        'song': 'Chanson',
+        'saying': 'Citation',
+        
         # Availability view
         'availability': 'Disponibilité',
         'hemisphere': 'Hémisphère',
@@ -2694,6 +3479,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_fish': 'Fisch',
         'type_bug': 'Insekt',
         'type_sea_creature': 'Meerestier',
+        
+        # Villager labels
+        'species': 'Spezies',
+        'personality': 'Persönlichkeit',
+        'hobby': 'Hobby',
+        'birthday': 'Geburtstag',
+        'catchphrase': 'Spruch',
+        'preferences': 'Vorlieben',
+        'style': 'Stil',
+        'colors': 'Farben',
+        'favorites': 'Favoriten',
+        'song': 'Lied',
+        'saying': 'Motto',
         
         # Availability view
         'availability': 'Verfügbarkeit',
@@ -2839,6 +3637,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_bug': 'Insecto',
         'type_sea_creature': 'Criatura marina',
         
+        # Villager labels
+        'species': 'Especie',
+        'personality': 'Personalidad',
+        'hobby': 'Afición',
+        'birthday': 'Cumpleaños',
+        'catchphrase': 'Frase',
+        'preferences': 'Preferencias',
+        'style': 'Estilo',
+        'colors': 'Colores',
+        'favorites': 'Favoritos',
+        'song': 'Canción',
+        'saying': 'Lema',
+        
         # Availability view
         'availability': 'Disponibilidad',
         'hemisphere': 'Hemisferio',
@@ -2982,6 +3793,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_fish': 'Pesce',
         'type_bug': 'Insetto',
         'type_sea_creature': 'Creatura marina',
+        
+        # Villager labels
+        'species': 'Specie',
+        'personality': 'Personalità',
+        'hobby': 'Hobby',
+        'birthday': 'Compleanno',
+        'catchphrase': 'Tormentone',
+        'preferences': 'Preferenze',
+        'style': 'Stile',
+        'colors': 'Colori',
+        'favorites': 'Preferiti',
+        'song': 'Canzone',
+        'saying': 'Motto',
         
         # Availability view
         'availability': 'Disponibilità',
@@ -3127,6 +3951,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_bug': 'Insect',
         'type_sea_creature': 'Zeedier',
         
+        # Villager labels
+        'species': 'Soort',
+        'personality': 'Persoonlijkheid',
+        'hobby': 'Hobby',
+        'birthday': 'Verjaardag',
+        'catchphrase': 'Stopwoordje',
+        'preferences': 'Voorkeuren',
+        'style': 'Stijl',
+        'colors': 'Kleuren',
+        'favorites': 'Favorieten',
+        'song': 'Liedje',
+        'saying': 'Motto',
+        
         # Availability view
         'availability': 'Beschikbaarheid',
         'hemisphere': 'Halfrond',
@@ -3270,6 +4107,19 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'type_fish': 'Рыба',
         'type_bug': 'Насекомое',
         'type_sea_creature': 'Морское существо',
+        
+        # Villager labels
+        'species': 'Вид',
+        'personality': 'Характер',
+        'hobby': 'Хобби',
+        'birthday': 'День рождения',
+        'catchphrase': 'Коронная фраза',
+        'preferences': 'Предпочтения',
+        'style': 'Стиль',
+        'colors': 'Цвета',
+        'favorites': 'Избранное',
+        'song': 'Песня',
+        'saying': 'Девиз',
         
         # Availability view
         'availability': 'Доступность',
@@ -3736,6 +4586,51 @@ class LocalizedUI:
     @property
     def unknown_category(self) -> str:
         return self._get('unknown_category')
+    
+    # Villager labels
+    @property
+    def species(self) -> str:
+        return self._get('species')
+    
+    @property
+    def personality(self) -> str:
+        return self._get('personality')
+    
+    @property
+    def hobby(self) -> str:
+        return self._get('hobby')
+    
+    @property
+    def birthday(self) -> str:
+        return self._get('birthday')
+    
+    @property
+    def catchphrase(self) -> str:
+        return self._get('catchphrase')
+    
+    @property
+    def preferences(self) -> str:
+        return self._get('preferences')
+    
+    @property
+    def style(self) -> str:
+        return self._get('style')
+    
+    @property
+    def colors(self) -> str:
+        return self._get('colors')
+    
+    @property
+    def favorites(self) -> str:
+        return self._get('favorites')
+    
+    @property
+    def song(self) -> str:
+        return self._get('song')
+    
+    @property
+    def saying(self) -> str:
+        return self._get('saying')
     
     # Critter labels
     @property
