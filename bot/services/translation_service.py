@@ -190,6 +190,50 @@ class TranslationService:
         result = await self.db.execute_query_one(query, (ref_table, ref_id))
         return result is not None
     
+    async def translate_by_english_name(
+        self, 
+        english_name: str, 
+        language: str = 'en',
+        ref_table: str = None
+    ) -> Optional[str]:
+        """Translate an item by its English name.
+        
+        Args:
+            english_name: The English name of the item
+            language: Target language code
+            ref_table: Optional table to restrict search (e.g., 'items', 'songs')
+            
+        Returns:
+            Translated name or None if not found
+        """
+        if language == 'en' or not english_name:
+            return english_name
+        
+        field = self._get_language_field(language)
+        
+        if ref_table:
+            query = f"""
+                SELECT {field} as translated_name
+                FROM item_translations
+                WHERE ref_table = ? AND lower(en_name) = lower(?)
+                LIMIT 1
+            """
+            result = await self.db.execute_query_one(query, (ref_table, english_name))
+        else:
+            # Search across all tables
+            query = f"""
+                SELECT {field} as translated_name
+                FROM item_translations
+                WHERE lower(en_name) = lower(?)
+                LIMIT 1
+            """
+            result = await self.db.execute_query_one(query, (english_name,))
+        
+        if result and result['translated_name']:
+            return result['translated_name']
+        
+        return None
+
     async def get_translation_stats(self) -> Dict[str, Any]:
         """Get statistics about translation coverage"""
         # Total translations

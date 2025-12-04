@@ -37,6 +37,13 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
         self.service = service  # Business logic layer for database access
         self.current_view = current_view
         self.language = language
+        self.ui = get_ui(language)
+        
+        # Update button labels with localized text
+        self.about_villager.label = f"🏘️ {self.ui.about}"
+        self.house_details.label = f"🏠 {self.ui.house}"
+        self.clothing_details.label = f"👕 {self.ui.clothing}"
+        self.other_details.label = f"🔧 {self.ui.other}"
     
     async def resolve_clothing_name(self, clothing_id_str: str) -> str:
         """Resolve clothing ID to name using the service layer
@@ -126,6 +133,27 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             logger.error(f"Error resolving equipment name for '{equipment_str}': {e}")
             return f"Error ({equipment_str})"
     
+    async def translate_item_name(self, item_name: str) -> str:
+        """Translate an item name to the user's language.
+        
+        Args:
+            item_name: English item name
+            
+        Returns:
+            Translated name or original if no translation found
+        """
+        if not item_name or self.language == 'en':
+            return item_name
+        
+        try:
+            translated = await self.service.translation_service.translate_by_english_name(
+                item_name, self.language
+            )
+            return translated or item_name
+        except Exception as e:
+            logger.error(f"Error translating item name '{item_name}': {e}")
+            return item_name
+    
     async def get_embed_for_view(self, view_type: str) -> discord.Embed:
         """Get the appropriate embed based on view type
         
@@ -141,38 +169,40 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
                 color=discord.Color.blue()
             )
             
-            # Add wallpaper as its own field
+            # Add wallpaper as its own field (translated)
             if self.villager.wallpaper:
+                wallpaper_name = await self.translate_item_name(self.villager.wallpaper)
                 embed.add_field(
-                    name="Wallpaper",
-                    value=self.villager.wallpaper.title(),
+                    name=self.ui.wallpaper,
+                    value=wallpaper_name.title(),
                     inline=True
                 )
             
-            # Add flooring as its own field
+            # Add flooring as its own field (translated)
             if self.villager.flooring:
+                flooring_name = await self.translate_item_name(self.villager.flooring)
                 embed.add_field(
-                    name="Flooring", 
-                    value=self.villager.flooring.title(),
+                    name=self.ui.flooring, 
+                    value=flooring_name.title(),
                     inline=True
                 )
             
-            # Add music as its own field (if available)
+            # Add music as its own field (translated)
             if hasattr(self.villager, 'favorite_song') and self.villager.favorite_song:
+                music_name = await self.translate_item_name(self.villager.favorite_song)
                 embed.add_field(
-                    name="Music",
-                    value=self.villager.favorite_song,
+                    name=self.ui.music,
+                    value=music_name,
                     inline=True
                 )
             
-            # Format furniture list nicely
+            # Format furniture list nicely (translated)
             if self.villager.furniture_name_list:
                 # Split furniture items and format them
                 furniture_items = [item.strip().lower() for item in self.villager.furniture_name_list.split(';') if item.strip()]
                 
                 if furniture_items:
                     # Group similar items and format nicely
-                    formatted_furniture = []
                     item_counts = {}
                     
                     # Count occurrences of each item (case-insensitive)
@@ -180,19 +210,21 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
                         normalized_item = item.strip().lower()
                         item_counts[normalized_item] = item_counts.get(normalized_item, 0) + 1
                     
-                    # Format with counts, sorted alphabetically
+                    # Translate and format with counts, sorted alphabetically
+                    formatted_furniture = []
                     for item, count in sorted(item_counts.items()):
+                        translated_item = await self.translate_item_name(item)
                         if count > 1:
-                            formatted_furniture.append(f"• {item.title()} ×{count}")
+                            formatted_furniture.append(f"• {translated_item.title()} ×{count}")
                         else:
-                            formatted_furniture.append(f"• {item.title()}")
+                            formatted_furniture.append(f"• {translated_item.title()}")
                     
                     # Split furniture into manageable chunks (max 8 items per field)
                     chunk_size = 6
                     furniture_chunks = [formatted_furniture[i:i + chunk_size] for i in range(0, len(formatted_furniture), chunk_size)]
                     
                     embed.add_field(
-                        name="Furniture",
+                        name=self.ui.furniture,
                         value="",
                         inline=False
                     )
@@ -236,10 +268,10 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             clothing_info = []
             if self.villager.default_clothing:
                 clothing_name = await self.resolve_clothing_name(self.villager.default_clothing)
-                clothing_info.append(f"**Default Clothing:** {clothing_name}")
+                clothing_info.append(f"**{self.ui.default_clothing}:** {clothing_name}")
             if self.villager.default_umbrella:
                 umbrella_name = await self.resolve_clothing_name(self.villager.default_umbrella)
-                clothing_info.append(f"**Default Umbrella:** {umbrella_name}")
+                clothing_info.append(f"**{self.ui.default_umbrella}:** {umbrella_name}")
             
             if clothing_info:
                 embed.description = "\n".join(clothing_info)
@@ -265,14 +297,14 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             other_info = []
             if self.villager.diy_workbench:
                 workbench_name = await self.resolve_equipment_name(self.villager.diy_workbench)
-                other_info.append(f"**DIY Workbench:** {workbench_name}")
+                other_info.append(f"**{self.ui.diy_workbench}:** {workbench_name}")
             if self.villager.kitchen_equipment:
                 kitchen_name = await self.resolve_equipment_name(self.villager.kitchen_equipment)
-                other_info.append(f"**Kitchen Equipment:** {kitchen_name}")
+                other_info.append(f"**{self.ui.kitchen_equipment}:** {kitchen_name}")
             if self.villager.version_added:
-                other_info.append(f"**Version Added:** {self.villager.version_added}")
+                other_info.append(f"**{self.ui.version_added}:** {self.villager.version_added}")
             if self.villager.subtype:
-                other_info.append(f"**Subtype:** {self.villager.subtype}")
+                other_info.append(f"**{self.ui.subtype}:** {self.villager.subtype}")
             
             if other_info:
                 embed.description = "\n".join(other_info)
@@ -319,11 +351,6 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
         self.current_view = "other"
         embed = await self.get_embed_for_view("other")
         await interaction.response.edit_message(embed=embed, view=self)
-    
-    @discord.ui.button(label="🔄 Refresh Images", style=discord.ButtonStyle.secondary, row=1)
-    async def refresh_images(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Refresh images in case Discord CDN fails to load them (30s cooldown)"""
-        await self._handle_refresh(interaction)
 
 
 class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, RefreshableView,TimeoutPreservingView):

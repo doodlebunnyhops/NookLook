@@ -2708,6 +2708,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'song': 'Song',
         'saying': 'Saying',
         
+        # Villager view buttons
+        'about': 'About',
+        'house': 'House',
+        'clothing': 'Clothing',
+        'other': 'Other',
+        
+        # House details
+        'wallpaper': 'Wallpaper',
+        'flooring': 'Flooring',
+        'music': 'Music',
+        'furniture': 'Furniture',
+        
+        # Clothing details
+        'default_clothing': 'Default Clothing',
+        'default_umbrella': 'Default Umbrella',
+        
+        # Other details
+        'diy_workbench': 'DIY Workbench',
+        'kitchen_equipment': 'Kitchen Equipment',
+        'version_added': 'Version Added',
+        'subtype': 'Subtype',
+        
         # Availability view
         'availability': 'Availability',
         'hemisphere': 'Hemisphere',
@@ -2864,6 +2886,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'favorites': 'お気に入り',
         'song': '曲',
         'saying': '座右の銘',
+        
+        # Villager view buttons
+        'about': '紹介',
+        'house': '家',
+        'clothing': '服',
+        'other': 'その他',
+        
+        # House details
+        'wallpaper': '壁紙',
+        'flooring': '床',
+        'music': '音楽',
+        'furniture': '家具',
+        
+        # Clothing details
+        'default_clothing': 'デフォルトの服',
+        'default_umbrella': 'デフォルトの傘',
+        
+        # Other details
+        'diy_workbench': 'DIY作業台',
+        'kitchen_equipment': 'キッチン設備',
+        'version_added': '追加バージョン',
+        'subtype': 'サブタイプ',
         
         # Availability view
         'availability': '出現時期',
@@ -3022,6 +3066,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'song': '歌曲',
         'saying': '座右铭',
         
+        # Villager view buttons
+        'about': '关于',
+        'house': '房屋',
+        'clothing': '服装',
+        'other': '其他',
+        
+        # House details
+        'wallpaper': '壁纸',
+        'flooring': '地板',
+        'music': '音乐',
+        'furniture': '家具',
+        
+        # Clothing details
+        'default_clothing': '默认服装',
+        'default_umbrella': '默认雨伞',
+        
+        # Other details
+        'diy_workbench': 'DIY工作台',
+        'kitchen_equipment': '厨房设备',
+        'version_added': '添加版本',
+        'subtype': '子类型',
+        
         # Availability view
         'availability': '出现时间',
         'hemisphere': '半球',
@@ -3178,6 +3244,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'favorites': '좋아하는 것',
         'song': '노래',
         'saying': '좌우명',
+        
+        # Villager view buttons
+        'about': '소개',
+        'house': '집',
+        'clothing': '옷',
+        'other': '기타',
+        
+        # House details
+        'wallpaper': '벽지',
+        'flooring': '바닥',
+        'music': '음악',
+        'furniture': '가구',
+        
+        # Clothing details
+        'default_clothing': '기본 옷',
+        'default_umbrella': '기본 우산',
+        
+        # Other details
+        'diy_workbench': 'DIY 작업대',
+        'kitchen_equipment': '주방 장비',
+        'version_added': '추가 버전',
+        'subtype': '서브타입',
         
         # Availability view
         'availability': '출현 시기',
@@ -3336,6 +3424,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'song': 'Chanson',
         'saying': 'Citation',
         
+        # Villager view buttons
+        'about': 'À propos',
+        'house': 'Maison',
+        'clothing': 'Vêtements',
+        'other': 'Autre',
+        
+        # House details
+        'wallpaper': 'Papier peint',
+        'flooring': 'Sol',
+        'music': 'Musique',
+        'furniture': 'Meubles',
+        
+        # Clothing details
+        'default_clothing': 'Vêtement par défaut',
+        'default_umbrella': 'Parapluie par défaut',
+        
+        # Other details
+        'diy_workbench': 'Établi bricolage',
+        'kitchen_equipment': 'Équipement cuisine',
+        'version_added': 'Version ajoutée',
+        'subtype': 'Sous-type',
+        
         # Availability view
         'availability': 'Disponibilité',
         'hemisphere': 'Hémisphère',
@@ -3492,6 +3602,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'favorites': 'Favoriten',
         'song': 'Lied',
         'saying': 'Motto',
+        
+        # Villager view buttons
+        'about': 'Über',
+        'house': 'Haus',
+        'clothing': 'Kleidung',
+        'other': 'Sonstiges',
+        
+        # House details
+        'wallpaper': 'Tapete',
+        'flooring': 'Boden',
+        'music': 'Musik',
+        'furniture': 'Möbel',
+        
+        # Clothing details
+        'default_clothing': 'Standardkleidung',
+        'default_umbrella': 'Standardschirm',
+        
+        # Other details
+        'diy_workbench': 'DIY-Werkbank',
+        'kitchen_equipment': 'Küchenausstattung',
+        'version_added': 'Version hinzugefügt',
+        'subtype': 'Untertyp',
         
         # Availability view
         'availability': 'Verfügbarkeit',
@@ -3650,6 +3782,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'song': 'Canción',
         'saying': 'Lema',
         
+        # Villager view buttons
+        'about': 'Acerca de',
+        'house': 'Casa',
+        'clothing': 'Ropa',
+        'other': 'Otro',
+        
+        # House details
+        'wallpaper': 'Papel tapiz',
+        'flooring': 'Suelo',
+        'music': 'Música',
+        'furniture': 'Muebles',
+        
+        # Clothing details
+        'default_clothing': 'Ropa predeterminada',
+        'default_umbrella': 'Paraguas predeterminado',
+        
+        # Other details
+        'diy_workbench': 'Mesa de bricolaje',
+        'kitchen_equipment': 'Equipo de cocina',
+        'version_added': 'Versión añadida',
+        'subtype': 'Subtipo',
+        
         # Availability view
         'availability': 'Disponibilidad',
         'hemisphere': 'Hemisferio',
@@ -3806,6 +3960,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'favorites': 'Preferiti',
         'song': 'Canzone',
         'saying': 'Motto',
+        
+        # Villager view buttons
+        'about': 'Info',
+        'house': 'Casa',
+        'clothing': 'Abbigliamento',
+        'other': 'Altro',
+        
+        # House details
+        'wallpaper': 'Carta da parati',
+        'flooring': 'Pavimento',
+        'music': 'Musica',
+        'furniture': 'Mobili',
+        
+        # Clothing details
+        'default_clothing': 'Abbigliamento predefinito',
+        'default_umbrella': 'Ombrello predefinito',
+        
+        # Other details
+        'diy_workbench': 'Banco fai da te',
+        'kitchen_equipment': 'Attrezzatura cucina',
+        'version_added': 'Versione aggiunta',
+        'subtype': 'Sottotipo',
         
         # Availability view
         'availability': 'Disponibilità',
@@ -3964,6 +4140,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'song': 'Liedje',
         'saying': 'Motto',
         
+        # Villager view buttons
+        'about': 'Over',
+        'house': 'Huis',
+        'clothing': 'Kleding',
+        'other': 'Overig',
+        
+        # House details
+        'wallpaper': 'Behang',
+        'flooring': 'Vloer',
+        'music': 'Muziek',
+        'furniture': 'Meubels',
+        
+        # Clothing details
+        'default_clothing': 'Standaardkleding',
+        'default_umbrella': 'Standaardparaplu',
+        
+        # Other details
+        'diy_workbench': 'Doe-het-zelf werkbank',
+        'kitchen_equipment': 'Keukenapparatuur',
+        'version_added': 'Versie toegevoegd',
+        'subtype': 'Subtype',
+        
         # Availability view
         'availability': 'Beschikbaarheid',
         'hemisphere': 'Halfrond',
@@ -4120,6 +4318,28 @@ UI_STRINGS: Dict[str, Dict[str, str]] = {
         'favorites': 'Избранное',
         'song': 'Песня',
         'saying': 'Девиз',
+        
+        # Villager view buttons
+        'about': 'О себе',
+        'house': 'Дом',
+        'clothing': 'Одежда',
+        'other': 'Другое',
+        
+        # House details
+        'wallpaper': 'Обои',
+        'flooring': 'Пол',
+        'music': 'Музыка',
+        'furniture': 'Мебель',
+        
+        # Clothing details
+        'default_clothing': 'Одежда по умолчанию',
+        'default_umbrella': 'Зонт по умолчанию',
+        
+        # Other details
+        'diy_workbench': 'Верстак DIY',
+        'kitchen_equipment': 'Кухонное оборудование',
+        'version_added': 'Добавлено в версии',
+        'subtype': 'Подтип',
         
         # Availability view
         'availability': 'Доступность',
@@ -4631,6 +4851,66 @@ class LocalizedUI:
     @property
     def saying(self) -> str:
         return self._get('saying')
+    
+    # Villager view buttons
+    @property
+    def about(self) -> str:
+        return self._get('about')
+    
+    @property
+    def house(self) -> str:
+        return self._get('house')
+    
+    @property
+    def clothing(self) -> str:
+        return self._get('clothing')
+    
+    @property
+    def other(self) -> str:
+        return self._get('other')
+    
+    # House details
+    @property
+    def wallpaper(self) -> str:
+        return self._get('wallpaper')
+    
+    @property
+    def flooring(self) -> str:
+        return self._get('flooring')
+    
+    @property
+    def music(self) -> str:
+        return self._get('music')
+    
+    @property
+    def furniture(self) -> str:
+        return self._get('furniture')
+    
+    # Clothing details
+    @property
+    def default_clothing(self) -> str:
+        return self._get('default_clothing')
+    
+    @property
+    def default_umbrella(self) -> str:
+        return self._get('default_umbrella')
+    
+    # Other details
+    @property
+    def diy_workbench(self) -> str:
+        return self._get('diy_workbench')
+    
+    @property
+    def kitchen_equipment(self) -> str:
+        return self._get('kitchen_equipment')
+    
+    @property
+    def version_added(self) -> str:
+        return self._get('version_added')
+    
+    @property
+    def subtype(self) -> str:
+        return self._get('subtype')
     
     # Critter labels
     @property

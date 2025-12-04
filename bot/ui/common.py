@@ -586,6 +586,7 @@ def get_combined_view(
                 "Refresh" in (getattr(item, 'label', '') or "")
                 for item in existing_view.children
             )
+            logger.info(f"get_combined_view: has_refresh={has_refresh} for content_type={content_type}")
             if not has_refresh:
                 existing_view.add_item(RefreshImagesButton(language=language))
         
