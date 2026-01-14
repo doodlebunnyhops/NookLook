@@ -8,6 +8,7 @@ import discord
 import logging
 from .base import UserRestrictedView, MessageTrackingMixin, RefreshableView, TimeoutPreservingView
 from .common import get_combined_view
+from bot.utils.localization import get_ui, translate_critter_detail
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,19 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
         the automatic timeout handling.
     """
     
-    def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main"):
+    def __init__(self, villager, interaction_user: discord.Member, service, current_view: str = "main", language: str = 'en'):
         super().__init__(interaction_user=interaction_user, timeout=120, refresh_cooldown=30)
         self.villager = villager
         self.service = service  # Business logic layer for database access
         self.current_view = current_view
+        self.language = language
+        self.ui = get_ui(language)
+        
+        # Update button labels with localized text
+        self.about_villager.label = f"🏘️ {self.ui.about}"
+        self.house_details.label = f"🏠 {self.ui.house}"
+        self.clothing_details.label = f"👕 {self.ui.clothing}"
+        self.other_details.label = f"🔧 {self.ui.other}"
     
     async def resolve_clothing_name(self, clothing_id_str: str) -> str:
         """Resolve clothing ID to name using the service layer
@@ -58,7 +67,12 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             
             # If that didn't work, try regular table ID as fallback
             if not clothing_name:
-                clothing_name = await self.service.get_item_name_by_id(clothing_id)
+                clothing_name = await self.service.get_item_translation(
+                        ref_table="items",
+                        ref_id=clothing_id,
+                        language=self.language
+                    ) or await self.service.get_item_name_by_id(clothing_id)
+
             
             logger.debug(f"Resolving ID {clothing_id}: found name '{clothing_name}'")
             
@@ -119,6 +133,27 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             logger.error(f"Error resolving equipment name for '{equipment_str}': {e}")
             return f"Error ({equipment_str})"
     
+    async def translate_item_name(self, item_name: str) -> str:
+        """Translate an item name to the user's language.
+        
+        Args:
+            item_name: English item name
+            
+        Returns:
+            Translated name or original if no translation found
+        """
+        if not item_name or self.language == 'en':
+            return item_name
+        
+        try:
+            translated = await self.service.translation_service.translate_by_english_name(
+                item_name, self.language
+            )
+            return translated or item_name
+        except Exception as e:
+            logger.error(f"Error translating item name '{item_name}': {e}")
+            return item_name
+    
     async def get_embed_for_view(self, view_type: str) -> discord.Embed:
         """Get the appropriate embed based on view type
         
@@ -134,38 +169,40 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
                 color=discord.Color.blue()
             )
             
-            # Add wallpaper as its own field
+            # Add wallpaper as its own field (translated)
             if self.villager.wallpaper:
+                wallpaper_name = await self.translate_item_name(self.villager.wallpaper)
                 embed.add_field(
-                    name="Wallpaper",
-                    value=self.villager.wallpaper.title(),
+                    name=self.ui.wallpaper,
+                    value=wallpaper_name.title(),
                     inline=True
                 )
             
-            # Add flooring as its own field
+            # Add flooring as its own field (translated)
             if self.villager.flooring:
+                flooring_name = await self.translate_item_name(self.villager.flooring)
                 embed.add_field(
-                    name="Flooring", 
-                    value=self.villager.flooring.title(),
+                    name=self.ui.flooring, 
+                    value=flooring_name.title(),
                     inline=True
                 )
             
-            # Add music as its own field (if available)
+            # Add music as its own field (translated)
             if hasattr(self.villager, 'favorite_song') and self.villager.favorite_song:
+                music_name = await self.translate_item_name(self.villager.favorite_song)
                 embed.add_field(
-                    name="Music",
-                    value=self.villager.favorite_song,
+                    name=self.ui.music,
+                    value=music_name,
                     inline=True
                 )
             
-            # Format furniture list nicely
+            # Format furniture list nicely (translated)
             if self.villager.furniture_name_list:
                 # Split furniture items and format them
                 furniture_items = [item.strip().lower() for item in self.villager.furniture_name_list.split(';') if item.strip()]
                 
                 if furniture_items:
                     # Group similar items and format nicely
-                    formatted_furniture = []
                     item_counts = {}
                     
                     # Count occurrences of each item (case-insensitive)
@@ -173,19 +210,21 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
                         normalized_item = item.strip().lower()
                         item_counts[normalized_item] = item_counts.get(normalized_item, 0) + 1
                     
-                    # Format with counts, sorted alphabetically
+                    # Translate and format with counts, sorted alphabetically
+                    formatted_furniture = []
                     for item, count in sorted(item_counts.items()):
+                        translated_item = await self.translate_item_name(item)
                         if count > 1:
-                            formatted_furniture.append(f"• {item.title()} ×{count}")
+                            formatted_furniture.append(f"• {translated_item.title()} ×{count}")
                         else:
-                            formatted_furniture.append(f"• {item.title()}")
+                            formatted_furniture.append(f"• {translated_item.title()}")
                     
                     # Split furniture into manageable chunks (max 8 items per field)
                     chunk_size = 6
                     furniture_chunks = [formatted_furniture[i:i + chunk_size] for i in range(0, len(formatted_furniture), chunk_size)]
                     
                     embed.add_field(
-                        name="Furniture",
+                        name=self.ui.furniture,
                         value="",
                         inline=False
                     )
@@ -229,10 +268,10 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             clothing_info = []
             if self.villager.default_clothing:
                 clothing_name = await self.resolve_clothing_name(self.villager.default_clothing)
-                clothing_info.append(f"**Default Clothing:** {clothing_name}")
+                clothing_info.append(f"**{self.ui.default_clothing}:** {clothing_name}")
             if self.villager.default_umbrella:
                 umbrella_name = await self.resolve_clothing_name(self.villager.default_umbrella)
-                clothing_info.append(f"**Default Umbrella:** {umbrella_name}")
+                clothing_info.append(f"**{self.ui.default_umbrella}:** {umbrella_name}")
             
             if clothing_info:
                 embed.description = "\n".join(clothing_info)
@@ -258,14 +297,14 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
             other_info = []
             if self.villager.diy_workbench:
                 workbench_name = await self.resolve_equipment_name(self.villager.diy_workbench)
-                other_info.append(f"**DIY Workbench:** {workbench_name}")
+                other_info.append(f"**{self.ui.diy_workbench}:** {workbench_name}")
             if self.villager.kitchen_equipment:
                 kitchen_name = await self.resolve_equipment_name(self.villager.kitchen_equipment)
-                other_info.append(f"**Kitchen Equipment:** {kitchen_name}")
+                other_info.append(f"**{self.ui.kitchen_equipment}:** {kitchen_name}")
             if self.villager.version_added:
-                other_info.append(f"**Version Added:** {self.villager.version_added}")
+                other_info.append(f"**{self.ui.version_added}:** {self.villager.version_added}")
             if self.villager.subtype:
-                other_info.append(f"**Subtype:** {self.villager.subtype}")
+                other_info.append(f"**{self.ui.subtype}:** {self.villager.subtype}")
             
             if other_info:
                 embed.description = "\n".join(other_info)
@@ -273,7 +312,7 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
                 embed.description = "No additional details available."
                 
         else:  # main view
-            embed = self.villager.to_discord_embed()
+            embed = self.villager.to_discord_embed(self.language)
         
         return embed
     
@@ -312,11 +351,6 @@ class VillagerDetailsView(UserRestrictedView, MessageTrackingMixin, RefreshableV
         self.current_view = "other"
         embed = await self.get_embed_for_view("other")
         await interaction.response.edit_message(embed=embed, view=self)
-    
-    @discord.ui.button(label="🔄 Refresh Images", style=discord.ButtonStyle.secondary, row=1)
-    async def refresh_images(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Refresh images in case Discord CDN fails to load them (30s cooldown)"""
-        await self._handle_refresh(interaction)
 
 
 class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, RefreshableView,TimeoutPreservingView):
@@ -343,12 +377,14 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             await interaction.response.edit_message(view=new_view)
     """
     
-    def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False):
+    def __init__(self, critter, interaction_user: discord.Member, show_availability: bool = False, language: str = 'en'):
         super().__init__(interaction_user=interaction_user, timeout=120, refresh_cooldown=30)
         self.critter = critter
         self.current_hemisphere = "NH"  # Default to Northern Hemisphere
         self.current_month = "jan"  # Default to January
         self.show_availability = show_availability
+        self.language = language
+        self.ui = get_ui(language)
         
         # Note: Buttons are added later via add_view_availability_button() or 
         # add_availability_action_buttons() to control ordering properly
@@ -356,42 +392,39 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     def get_availability_embed(self) -> discord.Embed:
         """Create embed showing availability for selected hemisphere and month"""
         embed = discord.Embed(
-            title=f"🗓️ {self.critter.name} Availability",
+            title=f"🗓️ {self.critter.name} {self.ui.availability}",
             color=discord.Color.green()
         )
 
         if self.critter.icon_url:
             embed.set_thumbnail(url=self.critter.icon_url)
         
-        # Get hemisphere display name
-        hemisphere_name = "Northern Hemisphere" if self.current_hemisphere == "NH" else "Southern Hemisphere"
+        # Get hemisphere display name (localized)
+        hemisphere_name = self.ui.northern_hemisphere if self.current_hemisphere == "NH" else self.ui.southern_hemisphere
         
-        # Get month display name
-        month_names = {
-            "jan": "January", "feb": "February", "mar": "March", "apr": "April",
-            "may": "May", "jun": "June", "jul": "July", "aug": "August",
-            "sep": "September", "oct": "October", "nov": "November", "dec": "December"
-        }
-        month_name = month_names.get(self.current_month, self.current_month.title())
+        # Get month display name (localized)
+        month_name = self.ui.get_month_name(self.current_month)
         
-        embed.description = f"**Hemisphere:** {hemisphere_name}\n**Month:** {month_name}"
+        embed.description = f"**{self.ui.hemisphere}:** {hemisphere_name}\n**{self.ui.month_label}:** {month_name}"
         
         # Get availability for current selection
         field_name = f"{self.current_hemisphere.lower()}_{self.current_month}"
         availability = getattr(self.critter, field_name, None)
         
         if availability and availability.lower() not in ['none', 'null', '']:
+            # Translate availability if translation exists
+            availability = translate_critter_detail(availability, self.language) or availability
             # Available - show the time information
             embed.add_field(
-                name="✅ Available", 
-                value=f"**Time:** {availability}", 
+                name=f"✅ {self.ui.available}", 
+                value=f"**{self.ui.time_label}:** {availability}", 
                 inline=False
             )
             embed.color = discord.Color.green()
         else:
             # Not available
             embed.add_field(
-                name=f"❌ Not Available in {month_name}.", 
+                name=f"❌ {self.ui.not_available_in(month_name)}", 
                 value="", 
                 inline=False
             )
@@ -402,32 +435,33 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         for month in ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]:
             field = f"{self.current_hemisphere.lower()}_{month}"
             month_avail = getattr(self.critter, field, None)
+            month_short = self.ui.get_month_short(month)
             if month_avail and month_avail.lower() not in ['none', 'null', '']:
-                year_data.append(f"✅ {month_names[month][:3]}")
+                year_data.append(f"✅ {month_short}")
             else:
-                year_data.append(f"❌ {month_names[month][:3]}")
+                year_data.append(f"❌ {month_short}")
         
         # Split into quarters for better formatting
         quarters = [year_data[i:i+3] for i in range(0, 12, 3)]
         year_overview = "\n".join([" ".join(quarter) for quarter in quarters])
         
         embed.add_field(
-            name=f"📅 Full Year Overview ({hemisphere_name})",
+            name=f"📅 {self.ui.full_year_overview} ({hemisphere_name})",
             value=f"```\n{year_overview}\n```",
             inline=False
         )
         
-        # Add additional info if available
+        # Add additional info if available (with translations)
         info_lines = []
         if self.critter.time_of_day:
-            info_lines.append(f"**Time:** {self.critter.time_of_day}")
+            info_lines.append(f"**{self.ui.time_label}:** {translate_critter_detail(self.critter.time_of_day, self.language)}")
         if self.critter.location:
-            info_lines.append(f"**Location:** {self.critter.location}")
+            info_lines.append(f"**{self.ui.location}:** {translate_critter_detail(self.critter.location, self.language)}")
         if self.critter.weather:
-            info_lines.append(f"**Weather:** {self.critter.weather}")
+            info_lines.append(f"**{self.ui.weather}:** {translate_critter_detail(self.critter.weather, self.language)}")
         
         if info_lines:
-            embed.add_field(name="ℹ️ Additional Info", value="\n".join(info_lines), inline=False)
+            embed.add_field(name=f"ℹ️ {self.ui.additional_info}", value="\n".join(info_lines), inline=False)
         
         return embed
     
@@ -437,18 +471,14 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             return self.get_availability_embed()
         else:
             # Main critter details view
-            embed = self.critter.to_discord_embed()
+            embed = self.critter.to_discord_embed(language=self.language)
             
-            # Add critter type info in footer
-            critter_type = {
-                'fish': 'Fish',
-                'insect': 'Bug', 
-                'sea': 'Sea Creature'
-            }.get(self.critter.kind, self.critter.kind.title())
+            # Add critter type info in footer (localized)
+            critter_type = self.critter.get_type_display(self.language)
             
             footer_text = f"{critter_type}"
             if self.critter.location:
-                footer_text += f" • {self.critter.location}"
+                footer_text += f" • {translate_critter_detail(self.critter.location, self.language) or self.critter.location}"
             embed.set_footer(text=footer_text)
             
             return embed
@@ -460,30 +490,30 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     def add_availability_controls(self):
         """Add hemisphere and month selects for availability view"""
         hemisphere_select = discord.ui.Select(
-            placeholder="Choose hemisphere...",
+            placeholder=self.ui.choose_hemisphere,
             options=[
-                discord.SelectOption(label="Northern Hemisphere", value="NH", emoji="🌎"),
-                discord.SelectOption(label="Southern Hemisphere", value="SH", emoji="🌏")
+                discord.SelectOption(label=self.ui.northern_hemisphere, value="NH", emoji="🌎"),
+                discord.SelectOption(label=self.ui.southern_hemisphere, value="SH", emoji="🌏")
             ],
             row=0
         )
         hemisphere_select.callback = self.hemisphere_callback
         
         month_select = discord.ui.Select(
-            placeholder="Choose month...",
+            placeholder=self.ui.choose_month,
             options=[
-                discord.SelectOption(label="January", value="jan"),
-                discord.SelectOption(label="February", value="feb"),
-                discord.SelectOption(label="March", value="mar"),
-                discord.SelectOption(label="April", value="apr"),
-                discord.SelectOption(label="May", value="may"),
-                discord.SelectOption(label="June", value="jun"),
-                discord.SelectOption(label="July", value="jul"),
-                discord.SelectOption(label="August", value="aug"),
-                discord.SelectOption(label="September", value="sep"),
-                discord.SelectOption(label="October", value="oct"),
-                discord.SelectOption(label="November", value="nov"),
-                discord.SelectOption(label="December", value="dec")
+                discord.SelectOption(label=self.ui.get_month_name("jan"), value="jan"),
+                discord.SelectOption(label=self.ui.get_month_name("feb"), value="feb"),
+                discord.SelectOption(label=self.ui.get_month_name("mar"), value="mar"),
+                discord.SelectOption(label=self.ui.get_month_name("apr"), value="apr"),
+                discord.SelectOption(label=self.ui.get_month_name("may"), value="may"),
+                discord.SelectOption(label=self.ui.get_month_name("jun"), value="jun"),
+                discord.SelectOption(label=self.ui.get_month_name("jul"), value="jul"),
+                discord.SelectOption(label=self.ui.get_month_name("aug"), value="aug"),
+                discord.SelectOption(label=self.ui.get_month_name("sep"), value="sep"),
+                discord.SelectOption(label=self.ui.get_month_name("oct"), value="oct"),
+                discord.SelectOption(label=self.ui.get_month_name("nov"), value="nov"),
+                discord.SelectOption(label=self.ui.get_month_name("dec"), value="dec")
             ],
             row=1
         )
@@ -517,7 +547,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     
     def add_back_button(self):
         """Add only the back to details button"""
-        back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
+        back_button = discord.ui.Button(label=f"📋 {self.ui.back_to_details}", style=discord.ButtonStyle.secondary, row=2)
         back_button.callback = self.back_callback
         self.add_item(back_button)
     
@@ -526,7 +556,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         Back to Details → Add to Stash → Refresh Images → Nookipedia
         """
         # 1. Back to Details (primary action for this view)
-        back_button = discord.ui.Button(label="📋 Back to Details", style=discord.ButtonStyle.secondary, row=2)
+        back_button = discord.ui.Button(label=f"📋 {self.ui.back_to_details}", style=discord.ButtonStyle.secondary, row=2)
         back_button.callback = self.back_callback
         self.add_item(back_button)
         
@@ -536,12 +566,13 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
             ref_table="critters",
             ref_id=self.critter.id,
             display_name=self.critter.name,
-            row=2
+            row=2,
+            language=self.language
         ))
         
         # 3. Refresh Images
         refresh_button = discord.ui.Button(
-            label="🔄 Refresh Images", 
+            label=self.ui.refresh, 
             style=discord.ButtonStyle.secondary, 
             row=2
         )
@@ -561,7 +592,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
     
     def add_view_availability_button(self):
         """Add only the view availability button (used when called from critters_commands)"""
-        availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
+        availability_button = discord.ui.Button(label=f"🗓️ {self.ui.view_availability}", style=discord.ButtonStyle.primary)
         availability_button.callback = self.availability_callback
         self.add_item(availability_button)
     
@@ -570,7 +601,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         View Availability → Add to Stash → Refresh Images → Nookipedia
         """
         # 1. View Availability (primary action for this view)
-        availability_button = discord.ui.Button(label="🗓️ View Availability", style=discord.ButtonStyle.primary)
+        availability_button = discord.ui.Button(label=f"🗓️ {self.ui.view_availability}", style=discord.ButtonStyle.primary)
         availability_button.callback = self.availability_callback
         self.add_item(availability_button)
         
@@ -579,12 +610,13 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         self.add_item(AddToStashButton(
             ref_table="critters",
             ref_id=self.critter.id,
-            display_name=self.critter.name
+            display_name=self.critter.name,
+            language=self.language
         ))
         
         # 3. Refresh Images
         refresh_button = discord.ui.Button(
-            label="🔄 Refresh Images", 
+            label=self.ui.refresh, 
             style=discord.ButtonStyle.secondary
         )
         refresh_button.callback = self.refresh_main_images_callback
@@ -609,22 +641,18 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         # Stop the current view's timeout since we're replacing it
         self.stop()
         
-        embed = self.critter.to_discord_embed()
+        embed = self.critter.to_discord_embed(language=self.language)
         
-        # Add critter type info in footer
-        critter_type = {
-            'fish': 'Fish',
-            'insect': 'Bug', 
-            'sea': 'Sea Creature'
-        }.get(self.critter.kind, self.critter.kind.title())
+        # Add critter type info in footer (localized)
+        critter_type = self.critter.get_type_display(self.language)
         
         footer_text = f"{critter_type}"
         if self.critter.location:
-            footer_text += f" • {self.critter.location}"
+            footer_text += f" • {translate_critter_detail(self.critter.location, self.language)}"
         embed.set_footer(text=footer_text)
         
         # Create a new view with buttons in correct order
-        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=False)
+        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=False, language=self.language)
         view.add_details_action_buttons(self.critter.nookipedia_url)
         
         # Transfer the message reference to the new view for timeout handling
@@ -642,7 +670,7 @@ class CritterAvailabilityView(UserRestrictedView, MessageTrackingMixin, Refresha
         self.stop()
         
         # Create new view with availability controls
-        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True)
+        view = CritterAvailabilityView(self.critter, self.interaction_user, show_availability=True, language=self.language)
         view.add_availability_controls()
         
         # Add action buttons in correct order: Back → Stash → Refresh → Nookipedia

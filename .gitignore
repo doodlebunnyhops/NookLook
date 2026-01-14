@@ -215,3 +215,4 @@ data/nooklook.db
 data/*.db
 data/*.db-*
 backups/*.db
+*.code-workspace

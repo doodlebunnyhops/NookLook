@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 import discord
 
+from bot.utils.localization import get_ui, translate_critter_detail, translate_fossil_detail
+
 @dataclass(slots=True)
 class ItemVariant:
     """Represents a color/pattern variant of an item"""
@@ -180,6 +182,72 @@ class Item:
             # Fallback to total variant count if we can't determine variations/patterns
             return f" {len(self.variants)} variants"
     
+    def get_variation_footer(self, ui) -> str:
+        """Get localized variation/pattern footer text.
+        
+        Args:
+            ui: LocalizedUI instance for the target language
+        
+        Returns:
+            Localized footer like "This item has 7 variations and 4 patterns"
+        """
+        if not self.variants or len(self.variants) <= 1:
+            return ""
+        
+        # Count unique variations and patterns
+        variations = set()
+        patterns = set()
+        
+        for variant in self.variants:
+            if variant.variation_label and variant.variation_label.strip():
+                variations.add(variant.variation_label)
+            if variant.pattern_label and variant.pattern_label.strip():
+                patterns.add(variant.pattern_label)
+        
+        variations.discard(None)
+        variations.discard('')
+        patterns.discard(None)
+        patterns.discard('')
+        
+        return ui.format_variation_footer(
+            variation_count=len(variations),
+            pattern_count=len(patterns),
+            total_variants=len(self.variants)
+        )
+    
+    def get_variants_available_text(self, ui) -> str:
+        """Get localized 'X variations available' text for embed field.
+        
+        Args:
+            ui: LocalizedUI instance for the target language
+        
+        Returns:
+            Localized text like "8 variations available" or "7 variations and 4 patterns"
+        """
+        if not self.variants or len(self.variants) <= 1:
+            return ""
+        
+        # Count unique variations and patterns
+        variations = set()
+        patterns = set()
+        
+        for variant in self.variants:
+            if variant.variation_label and variant.variation_label.strip():
+                variations.add(variant.variation_label)
+            if variant.pattern_label and variant.pattern_label.strip():
+                patterns.add(variant.pattern_label)
+        
+        variations.discard(None)
+        variations.discard('')
+        patterns.discard(None)
+        patterns.discard('')
+        
+        return ui.format_variants_available(
+            variation_count=len(variations),
+            pattern_count=len(patterns),
+            total_variants=len(self.variants)
+        )
+    
     @property
     def primary_variant(self) -> Optional[ItemVariant]:
         """Get the primary/default variant"""
@@ -199,9 +267,16 @@ class Item:
             return primary.image_url
         return self.image_url
     
-    def to_discord_embed(self, variant: Optional[ItemVariant] = None, is_variant_view: bool = False) -> discord.Embed:
-        """Create Discord embed for this item"""
+    def to_discord_embed(self, variant: Optional[ItemVariant] = None, is_variant_view: bool = False, language: str = 'en') -> discord.Embed:
+        """Create Discord embed for this item
+        
+        Args:
+            variant: Optional specific variant to display
+            is_variant_view: Whether this is a variant-specific view
+            language: User's preferred language for UI labels (default: 'en')
+        """
         selected_variant = variant or self.primary_variant
+        ui = get_ui(language)
         
         # Build title
         if self.name:
@@ -212,27 +287,29 @@ class Item:
             color=discord.Color.green()
         )
         
-        # Add basic info
+        # Add basic info with localized labels
         info_lines = []
         
         if self.category:
-            info_lines.append(f"Category: {self.category}")
+            translated_category = ui.translate_category(self.category)
+            info_lines.append(f"{ui.category}: {translated_category}")
         
         if self.sell_price:
-            info_lines.append(f"Sell Price: {self.sell_price:,} Bells")
+            info_lines.append(f"{ui.sell_price}: {self.sell_price:,} {ui.bells}")
         
         if self.buy_price:
-            info_lines.append(f"Buy Price: {self.buy_price:,} Bells")
+            info_lines.append(f"{ui.buy_price}: {self.buy_price:,} {ui.bells}")
             
         if self.source:
-            info_lines.append(f"Source: {self.source}")
+            translated_source = ui.translate_source(self.source)
+            info_lines.append(f"{ui.source}: {translated_source}")
         
         embed.description = "\n".join(info_lines)
         
         if is_variant_view and variant:
             # Variant view format - cleaner with emoji sections
             variant_info = []
-            variant_info.append("Details")
+            variant_info.append(ui.details)
             
             # Show variant name
             default_parts = []
@@ -242,11 +319,11 @@ class Item:
                 default_parts.append(variant.pattern_label)
             
             if default_parts:
-                variant_info.append(f"Variant: {', '.join(default_parts)}")
+                variant_info.append(f"{ui.variant}: {', '.join(default_parts)}")
             
             # Show hex code
             if variant.item_hex:
-                variant_info.append(f"Hex: {variant.item_hex}")
+                variant_info.append(f"{ui.hex}: {variant.item_hex}")
             
             # Show customize command with $ prefix
             if variant.item_hex and variant.ti_customize_str:
@@ -267,26 +344,26 @@ class Item:
                     default_parts.append(selected_variant.pattern_label)
                 
                 if default_parts:
-                    variant_info.append(f"Default: {', '.join(default_parts)}")
+                    variant_info.append(f"{ui.default}: {', '.join(default_parts)}")
                 
                 # Show only item hex (not all TI codes)
                 if selected_variant.item_hex:
-                    variant_info.append(f"Item Hex: {selected_variant.item_hex}")
+                    variant_info.append(f"{ui.item_hex}: {selected_variant.item_hex}")
                 
                 if variant_info:
-                    embed.add_field(name="Details", value="\n".join(variant_info), inline=False)
+                    embed.add_field(name=ui.details, value="\n".join(variant_info), inline=False)
             
             # Add variant count if multiple (base view only)
             if self.has_variants:
-                # Remove parentheses and format nicely
-                variant_summary = self.variation_pattern_summary.strip("()")
-                embed.add_field(name="Variants", value=f"{variant_summary} available", inline=True)
+                # Get localized variants available text
+                variant_text = self.get_variants_available_text(ui)
+                embed.add_field(name=ui.variants, value=variant_text, inline=True)
             
             # Add HHA info if available (base view only)
             if self.hha_base or (selected_variant and (selected_variant.body_customizable or selected_variant.pattern_customizable)):
                 hha_info = []
                 if self.hha_base:
-                    hha_info.append(f"HHA Points: {self.hha_base:,}")
+                    hha_info.append(f"{ui.hha_points}: {self.hha_base:,}")
                 
                 if selected_variant:
                     customization = []
@@ -298,10 +375,10 @@ class Item:
                         customization.append("Cyrus")
                     
                     if customization:
-                        hha_info.append(f"Customizable: {', '.join(customization)}")
+                        hha_info.append(f"{ui.customizable}: {', '.join(customization)}")
                 
                 if hha_info:
-                    embed.add_field(name="HHA Info", value="\n".join(hha_info), inline=True)
+                    embed.add_field(name=ui.hha_info, value="\n".join(hha_info), inline=True)
         
         # Set image with fallback handling
         thumbnail_image_url = selected_variant.image_url_alt if selected_variant else self.display_image_url
@@ -459,15 +536,26 @@ class Critter:
     
     @property
     def type_display(self) -> str:
-        """Get user-friendly type display"""
+        """Get user-friendly type display (English default)"""
         return {
             'fish': 'Fish',
             'insect': 'Bug',
             'sea': 'Sea Creature'
         }.get(self.kind, self.kind.title())
     
-    def to_discord_embed(self) -> discord.Embed:
+    def get_type_display(self, language: str = 'en') -> str:
+        """Get user-friendly type display in the specified language"""
+        ui = get_ui(language)
+        return {
+            'fish': ui.type_fish,
+            'insect': ui.type_bug,
+            'sea': ui.type_sea_creature
+        }.get(self.kind, self.kind.title())
+    
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
         """Create Discord embed for this critter"""
+        ui = get_ui(language)
+        
         embed = discord.Embed(
             title=f"{self.name}",
             color=discord.Color.blue()
@@ -476,34 +564,34 @@ class Critter:
         # Basic info
         info_lines = []
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"**{ui.sell_price}:** {self.sell_price:,} {ui.bells}")
         
         if self.location:
-            info_lines.append(f"**Location:** {self.location}")
+            info_lines.append(f"**{ui.location}:** {translate_critter_detail(self.location, language)}")
             
         if self.shadow_size:
-            info_lines.append(f"**Shadow Size:** {self.shadow_size}")
+            info_lines.append(f"**{ui.shadow_size}:** {translate_critter_detail(self.shadow_size, language)}")
             
         if self.time_of_day:
-            info_lines.append(f"**Time:** {self.time_of_day}")
+            info_lines.append(f"**{ui.time_label}:** {translate_critter_detail(self.time_of_day, language)}")
         
         embed.description = "\n".join(info_lines)
         
         # Add item hex if available
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Add catch info if available  
         if self.catch_difficulty or self.vision or self.movement_speed:
             catch_info = []
             if self.catch_difficulty:
-                catch_info.append(f"**Difficulty:** {self.catch_difficulty}")
+                catch_info.append(f"**{ui.difficulty}:** {translate_critter_detail(self.catch_difficulty, language)}")
             if self.vision:
-                catch_info.append(f"**Vision:** {self.vision}")
+                catch_info.append(f"**{ui.vision}:** {translate_critter_detail(self.vision, language)}")
             if self.movement_speed:
-                catch_info.append(f"**Movement:** {self.movement_speed}")
+                catch_info.append(f"**{ui.movement}:** {translate_critter_detail(self.movement_speed, language)}")
             
-            embed.add_field(name="Catch Info", value="\n".join(catch_info), inline=True)
+            embed.add_field(name=ui.catch_info, value="\n".join(catch_info), inline=True)
         
         # Set image with fallback handling
         if self.icon_url:
@@ -513,9 +601,9 @@ class Critter:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this critter to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language)
 
 @dataclass(slots=True)
 class Recipe:
@@ -579,41 +667,51 @@ class Recipe:
             return False
         return self.category.lower() in ['savory', 'sweet']
     
-    def to_discord_embed(self) -> discord.Embed:
-        """Create Discord embed for this recipe"""
+    def to_discord_embed(self, language: str = 'en', ingredient_translations: Dict[str, str] = None) -> discord.Embed:
+        """Create Discord embed for this recipe
+        
+        Args:
+            language: User's preferred language for UI labels (default: 'en')
+            ingredient_translations: Optional dict mapping English ingredient names to translated names
+        """
+        ui = get_ui(language)
+        
         # Choose emoji and color based on recipe type
         if self.is_food():
             emoji = "🍳" if self.category and "savory" in self.category.lower() else "🧁"
             color = discord.Color.from_rgb(255, 193, 7)  # Food yellow
-            recipe_type = "Food Recipe"
+            recipe_type = ui.food_recipe
         else:
             emoji = "🛠️"
             color = discord.Color.orange()
-            recipe_type = "DIY Recipe"
+            recipe_type = ui.diy_recipe
         
         embed = discord.Embed(
             title=f"{self.name}",
             color=color
         )
-        embed.set_footer(text=f"{emoji} {recipe_type} • {self.category or 'Unknown Category'}")
+        
+        # Translate category
+        category_display = ui.translate_category(self.category) if self.category else ui.unknown_category
+        embed.set_footer(text=f"{emoji} {recipe_type} • {category_display}")
         
         # Basic info
         info_lines = []
 
         if recipe_type:
-            info_lines.append(f"**Type:** {recipe_type}")
+            info_lines.append(f"**{ui.category}:** {recipe_type}")
 
         if self.category:
-            info_lines.append(f"**Category:** {self.category}")
+            info_lines.append(f"**{ui.category}:** {category_display}")
         
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"**{ui.sell_price}:** {self.sell_price:,} {ui.bells}")
         
         if self.source:
-            source_text = self.source
+            source_text = ui.translate_source(self.source)
             if self.source_notes:
                 source_text += f" ({self.source_notes})"
-            info_lines.append(f"**Source:** {source_text}")
+            info_lines.append(f"**{ui.source}:** {source_text}")
         
         embed.description = "\n".join(info_lines)
         
@@ -621,17 +719,21 @@ class Recipe:
         if self.ingredients:
             ingredient_lines = []
             for ingredient_name, quantity in self.ingredients:
-                ingredient_lines.append(f"• {quantity}x {ingredient_name}")
+                # Use translated name if available, otherwise use original
+                display_name = ingredient_name
+                if ingredient_translations and ingredient_name in ingredient_translations:
+                    display_name = ingredient_translations[ingredient_name]
+                ingredient_lines.append(f"• {quantity}x {display_name}")
             
             embed.add_field(
-                name="Ingredients", 
+                name=ui.ingredients, 
                 value="\n".join(ingredient_lines), 
                 inline=False
             )
         
         # Add item hex if available
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Set image with fallback handling
         if self.image_url:
@@ -639,9 +741,9 @@ class Recipe:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this recipe to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language=language)
 
 @dataclass(slots=True)
 class Villager:
@@ -724,8 +826,11 @@ class Villager:
         emoji = "♂️" if self.gender == "Male" else "♀️" if self.gender == "Female" else ""
         return f"{emoji} {self.name}".strip()
     
-    def to_discord_embed(self) -> discord.Embed:
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
         """Create Discord embed for this villager"""
+        from bot.utils.localization import LocalizedUI, translate_villager_detail
+        ui = LocalizedUI(language)
+        
         embed = discord.Embed(
             title=f"🏘️ {self.display_name}",
             color=discord.Color.purple()
@@ -734,19 +839,19 @@ class Villager:
         # Basic info in simple format (no bold)
         info_lines = []
         if self.species:
-            info_lines.append(f"Species: {self.species}")
+            info_lines.append(f"{ui.species}: {translate_villager_detail(self.species, language)}")
         
         if self.personality:
-            info_lines.append(f"Personality: {self.personality}")
+            info_lines.append(f"{ui.personality}: {translate_villager_detail(self.personality, language)}")
         
         if self.hobby:
-            info_lines.append(f"Hobby: {self.hobby}")
+            info_lines.append(f"{ui.hobby}: {translate_villager_detail(self.hobby, language)}")
         
         if self.birthday:
-            info_lines.append(f"Birthday: {self.birthday}")
+            info_lines.append(f"{ui.birthday}: {self.birthday}")
         
         if self.catchphrase:
-            info_lines.append(f"Catchphrase: \"{self.catchphrase}\"")
+            info_lines.append(f"{ui.catchphrase}: \"{self.catchphrase}\"")
         
         embed.description = "\n".join(info_lines)
         
@@ -754,28 +859,28 @@ class Villager:
         if self.style1 or self.style2 or self.color1 or self.color2:
             prefs = []
             if self.style1:
-                style_text = self.style1
+                style_text = translate_villager_detail(self.style1, language)
                 if self.style2:
-                    style_text += f", {self.style2}"
-                prefs.append(f"Style: {style_text}")
+                    style_text += f", {translate_villager_detail(self.style2, language)}"
+                prefs.append(f"{ui.style}: {style_text}")
             
             if self.color1:
-                color_text = self.color1
+                color_text = translate_villager_detail(self.color1, language)
                 if self.color2:
-                    color_text += f", {self.color2}"
-                prefs.append(f"Colors: {color_text}")
+                    color_text += f", {translate_villager_detail(self.color2, language)}"
+                prefs.append(f"{ui.colors}: {color_text}")
             
-            embed.add_field(name="Preferences", value="\n".join(prefs), inline=True)
+            embed.add_field(name=ui.preferences, value="\n".join(prefs), inline=True)
         
         # Add favorite things
         if self.favorite_song or self.favorite_saying:
             favorites = []
             if self.favorite_song:
-                favorites.append(f"Song: {self.favorite_song}")
+                favorites.append(f"{ui.song}: {self.favorite_song}")
             if self.favorite_saying:
-                favorites.append(f"Saying: \"{self.favorite_saying}\"")
+                favorites.append(f"{ui.saying}: \"{self.favorite_saying}\"")
             
-            embed.add_field(name="Favorites", value="\n".join(favorites), inline=True)
+            embed.add_field(name=ui.favorites, value="\n".join(favorites), inline=True)
         
         # Set image with fallback handling
         if self.icon_image:
@@ -783,9 +888,9 @@ class Villager:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this villager to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language)
 
 @dataclass(slots=True)
 class Artwork:
@@ -872,17 +977,21 @@ class Artwork:
             extra_json=data.get('extra_json')
         )
     
-    def to_discord_embed(self) -> discord.Embed:
-        """Create Discord embed for this artwork"""
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
+        """Create Discord embed for this artwork
+        
+        Args:
+            language: User's preferred language for UI labels (default: 'en')
+        """
+        ui = get_ui(language)
+        
         # Choose color and emoji based on authenticity
         if self.genuine:
             color = discord.Color.from_rgb(52, 152, 219)  # Blue for genuine
-            # emoji = "🎨"
-            authenticity = "Genuine"
+            authenticity = ui.genuine
         else:
             color = discord.Color.from_rgb(231, 76, 60)  # Red for fake
-            # emoji = "🎭"
-            authenticity = "Fake"
+            authenticity = ui.fake
         
         embed = discord.Embed(
             title=f"{self.name} ({authenticity})",
@@ -892,19 +1001,21 @@ class Artwork:
         # Basic info
         info_lines = []
         if self.art_category:
-            info_lines.append(f"**Category:** {self.art_category}")
+            translated_category = ui.translate_category(self.art_category)
+            info_lines.append(f"{ui.category}: {translated_category}")
         
         if self.buy_price:
-            info_lines.append(f"**Buy Price:** {self.buy_price:,} Bells")
+            info_lines.append(f"{ui.buy_price}: {self.buy_price:,} {ui.bells}")
         
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"{ui.sell_price}: {self.sell_price:,} {ui.bells}")
         
         if self.source:
-            source_text = self.source
+            translated_source = ui.translate_source(self.source)
+            source_text = translated_source
             if self.source_notes:
                 source_text += f" ({self.source_notes})"
-            info_lines.append(f"**Source:** {source_text}")
+            info_lines.append(f"{ui.source}: {source_text}")
         
         embed.description = "\n".join(info_lines)
         
@@ -912,27 +1023,19 @@ class Artwork:
         if self.real_artwork_title or self.artist:
             real_info = []
             if self.real_artwork_title:
-                real_info.append(f"**Title:** {self.real_artwork_title}")
+                real_info.append(f"{ui.artwork_title}: {self.real_artwork_title}")
             if self.artist:
-                real_info.append(f"**Artist:** {self.artist}")
+                real_info.append(f"{ui.artwork_artist}: {self.artist}")
             
             embed.add_field(
-                name="Real Artwork Info",
+                name=ui.real_artwork_info,
                 value="\n".join(real_info),
                 inline=False
             )
         
-        # Add description if available
-        # if self.description:
-        #     embed.add_field(
-        #         name="Description",
-        #         value=self.description,
-        #         inline=False
-        #     )
-        
         # Add item hex if available (no TI codes as requested)
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Set image with fallback handling
         if self.image_url:
@@ -940,9 +1043,9 @@ class Artwork:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this artwork to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language=language)
 
 @dataclass(slots=True)
 class Fossil:
@@ -1005,8 +1108,10 @@ class Fossil:
             extra_json=data.get('extra_json')
         )
     
-    def to_discord_embed(self) -> discord.Embed:
+    def to_discord_embed(self, language: str = 'en') -> discord.Embed:
         """Create Discord embed for this fossil"""
+        ui = get_ui(language)
+        
         embed = discord.Embed(
             title=f"{self.name}",
             color=discord.Color.from_rgb(139, 69, 19)  # Brown for fossils
@@ -1015,37 +1120,29 @@ class Fossil:
         # Basic info
         info_lines = []
         if self.sell_price:
-            info_lines.append(f"**Sell Price:** {self.sell_price:,} Bells")
+            info_lines.append(f"**{ui.sell_price}:** {self.sell_price:,} {ui.bells}")
         
         if self.fossil_group:
-            info_lines.append(f"**Fossil Group:** {self.fossil_group}")
+            info_lines.append(f"**{ui.fossil_group}:** {self.fossil_group}")
         
         if self.size:
-            info_lines.append(f"**Size:** {self.size}")
+            info_lines.append(f"**{ui.size}:** {self.size}")
         
         if self.source:
-            info_lines.append(f"**Source:** {self.source}")
+            info_lines.append(f"**{ui.source}:** {translate_fossil_detail(self.source, language)}")
         
         embed.description = "\n".join(info_lines)
         
-        # Add description if available
-        # if self.description:
-        #     embed.add_field(
-        #         name="Description",
-        #         value=self.description,
-        #         inline=False
-        #     )
-        
-        # Add museum info if available
+        # Add museum info if available (with translations for room and interaction)
         museum_info = []
         if self.museum:
-            museum_info.append(f"**Museum:** {self.museum}")
+            museum_info.append(f"**{ui.museum}:** {translate_fossil_detail(self.museum, language)}")
         if self.interact:
-            museum_info.append(f"**Interaction:** {self.interact}")
+            museum_info.append(f"**{ui.interaction}:** {translate_fossil_detail(self.interact, language)}")
         
         if museum_info:
             embed.add_field(
-                name="🏛️ Museum Info",
+                name=f"🏛️ {ui.museum_info}",
                 value="\n".join(museum_info),
                 inline=True
             )
@@ -1053,14 +1150,14 @@ class Fossil:
         # Add HHA info if available
         if self.hha_base_points:
             embed.add_field(
-                name="🏠 HHA Points",
-                value=f"{self.hha_base_points:,} points",
+                name=f"🏠 {ui.hha_points}",
+                value=f"{self.hha_base_points:,} {ui.points}",
                 inline=True
             )
         
         # Add item hex if available
         if self.item_hex:
-            embed.add_field(name="Item Hex", value=f"`{self.item_hex}`", inline=True)
+            embed.add_field(name=ui.item_hex, value=f"`{self.item_hex}`", inline=True)
         
         # Set image with fallback handling
         if self.image_url:
@@ -1068,6 +1165,6 @@ class Fossil:
         
         return embed
     
-    def to_embed(self) -> discord.Embed:
+    def to_embed(self, language: str = 'en') -> discord.Embed:
         """Convert this fossil to a Discord embed (compatibility method)"""
-        return self.to_discord_embed()
+        return self.to_discord_embed(language=language)

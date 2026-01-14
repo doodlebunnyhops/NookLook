@@ -4,9 +4,11 @@ from discord import app_commands
 import logging
 
 from bot.services.acnh_service import NooklookService
-from bot.ui.common import get_combined_view
+from bot.ui.common import get_combined_view, LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import fossil_name_autocomplete
+from bot.repos.user_repo import UserRepository
+from bot.utils.localization import get_ui
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +18,18 @@ class FossilCommands(commands.Cog):
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.user_repo = UserRepository()
     
     @property
     def service(self) -> NooklookService:
         """Get the shared NooklookService from the bot instance"""
         return self.bot.nooklook_service
+    
+    async def _check_new_user(self, interaction: discord.Interaction) -> bool:
+        from bot.ui.common import check_new_user_language
+        if await check_new_user_language(interaction, self.user_repo):
+            return True
+        return False
 
 
     @app_commands.command(name="fossil", description="Look up a specific ACNH fossil")
@@ -29,9 +38,18 @@ class FossilCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def fossil_command(self, interaction: discord.Interaction, name: str):
         """Look up a fossil by name"""
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
+        if await self._check_new_user(interaction):
+            return
+        
         user_id = getattr(interaction.user, 'id', 'unknown')
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        
+        # Get user's language preference
+        user_id = interaction.user.id
+        user_language = await self.service.get_user_language(user_id)
+        ui = get_ui(user_language)
         
         try:
             logger.info(f"fossil command used by:\n\t{interaction.user.display_name} ({user_id})\n\tsearching for: '{name}'")
@@ -64,12 +82,11 @@ class FossilCommands(commands.Cog):
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
-            # Create the fossil embed
-            embed = fossil.to_discord_embed()
-            # embed = await safe_embed_images(embed, 'fossil')
+            # Create the fossil embed with user's language
+            embed = fossil.to_discord_embed(language=user_language)
             
-            # Add fossil info in footer
-            footer_text = f"🦴 Museum Fossil"
+            # Add fossil info in footer (localized)
+            footer_text = f"🦴 {ui.museum_fossil}"
             if fossil.fossil_group:
                 footer_text += f" • {fossil.fossil_group}"
             embed.set_footer(text=footer_text)
@@ -78,7 +95,8 @@ class FossilCommands(commands.Cog):
             view = get_combined_view(
                 None, fossil.nookipedia_url, 
                 add_refresh=True, content_type="fossil",
-                stash_info={'ref_table': 'fossils', 'ref_id': fossil.id, 'display_name': fossil.name}
+                stash_info={'ref_table': 'fossils', 'ref_id': fossil.id, 'display_name': fossil.name},
+                language=user_language
             )
             
             logger.info(f"found fossil: {fossil.name}")

@@ -14,7 +14,18 @@ This module provides tools to fetch URLs from the Nookipedia API and integrate t
     NOOKIPEDIA_API=YOUR-API-KEY
     ```
 
-## Usage
+## Automatic Integration
+
+When you run the main dataset importer, Nookipedia URLs are automatically added if the API key is set:
+
+```bash
+# Full import with automatic Nookipedia enrichment
+python db_tools/import_all_datasets.py
+```
+
+If `NOOKIPEDIA_API` is not set, the import will skip Nookipedia enrichment and continue normally.
+
+## Manual Usage
 
 ### Option 1: Run Everything at Once
 

@@ -3,6 +3,8 @@ from bot.repos.acnh_items_repo import NooklookRepository
 from bot.models.acnh_item import Item, ItemVariant, Critter, Recipe, Villager, Artwork, Fossil
 import logging
 from bot.repos.acnh_items_repo import CLOTHING_CATEGORIES
+from bot.services.translation_service import TranslationService
+from bot.repos.user_repo import UserRepository
 
 logger = logging.getLogger("bot.acnh_service")
 
@@ -11,6 +13,12 @@ class NooklookService:
     
     def __init__(self):
         self.repo = NooklookRepository()
+        self.translation_service = TranslationService()
+        self.user_repo = UserRepository()
+    
+    async def get_user_language(self, user_id: int) -> str:
+        """Get user's preferred language code"""
+        return await self.user_repo.get_user_language(user_id)
     
     async def init_database(self) -> bool:
         """Initialize and validate the database.
@@ -29,10 +37,37 @@ class NooklookService:
         await self.repo.db.close()
         logger.info("Database connections closed")
     
-    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None, item_subcategory: str = None) -> List[Any]:
-        """Search across all content types using FTS5 with prefix matching"""
+    async def search_all(self, query: str, category_filter: str = None, recipe_subtype: str = None, item_subcategory: str = None, user_id: int = None) -> List[Any]:
+        """Search across all content types using FTS5 with prefix matching.
+        
+        If user_id is provided and user has non-English language, also searches translations.
+        """
         try:
+            # Get user's language for translation search
+            search_language = 'en'
+            if user_id:
+                search_language = await self.get_user_language(user_id)
+            
+            # Always do English FTS search first
             search_results = await self.repo.search_fts_autocomplete(query, category_filter, limit=50)
+            
+            # If user has non-English language and we're searching items, also search translations
+            translation_item_ids = set()
+            if search_language != 'en' and (category_filter is None or category_filter == 'item'):
+                translated_matches = await self.translation_service.search_by_translation(
+                    query, language=search_language, ref_table='items', limit=25
+                )
+                translation_item_ids = {match['ref_id'] for match in translated_matches}
+                
+                # Add translation matches that aren't already in results
+                existing_item_ids = {r['ref_id'] for r in search_results if r['ref_table'] == 'items'}
+                for match in translated_matches:
+                    if match['ref_id'] not in existing_item_ids:
+                        search_results.append({
+                            'ref_table': 'items',
+                            'ref_id': match['ref_id'],
+                            'name': match['en_name']
+                        })
             
             # Batch resolve all search results (optimized - reduces N+1 queries to ~6)
             resolved_map = await self.repo.resolve_search_results_batch(search_results)
@@ -77,6 +112,95 @@ class NooklookService:
         """Get a specific item by ID with variants"""
         return await self.repo.get_item_by_id(item_id, load_variants=True)
     
+    # ==================== Translation Methods ====================
+    
+    async def search_items_localized(self, query: str, user_id: int, limit: int = 25) -> List[Dict[str, Any]]:
+        """
+        Search items using the user's preferred language.
+        Returns items with both English and localized names.
+        """
+        language = await self.get_user_language(user_id)
+        
+        # If user's language is English, just do normal search
+        if language == 'en':
+            results = await self.repo.get_base_item_suggestions(query)
+            return [{'id': item_id, 'name': name, 'localized_name': name} for name, item_id in results[:limit]]
+        
+        # Search in user's language first
+        translated_matches = await self.translation_service.search_by_translation(
+            query, language=language, ref_table='items', limit=limit
+        )
+        
+        if translated_matches:
+            return [
+                {
+                    'id': match['ref_id'],
+                    'name': match['en_name'],
+                    'localized_name': match['matched_name']
+                }
+                for match in translated_matches
+            ]
+        
+        # Fallback to English search if no translated matches
+        results = await self.repo.get_base_item_suggestions(query)
+        return [{'id': item_id, 'name': name, 'localized_name': name} for name, item_id in results[:limit]]
+    
+    async def get_localized_item_name(self, item_id: int, user_id: int, fallback_name: str) -> str:
+        """Get item name in user's preferred language"""
+        language = await self.get_user_language(user_id)
+        return await self.translation_service.get_localized_name_or_fallback(
+            'items', item_id, language, fallback_name
+        )
+    
+    async def get_localized_artwork_name(self, artwork_id: int, user_id: int, fallback_name: str) -> str:
+        """Get artwork name in user's preferred language"""
+        language = await self.get_user_language(user_id)
+        return await self.translation_service.get_localized_name_or_fallback(
+            'artwork', artwork_id, language, fallback_name
+        )
+    
+    async def get_localized_critter_name(self, critter_id: int, user_id: int, fallback_name: str) -> str:
+        """Get critter name in user's preferred language"""
+        language = await self.get_user_language(user_id)
+        return await self.translation_service.get_localized_name_or_fallback(
+            'critters', critter_id, language, fallback_name
+        )
+    
+    async def get_item_suggestions_localized(self, query: str, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
+        """
+        Get item suggestions for autocomplete in user's language.
+        Returns (display_name, item_id) tuples where display_name shows localized name.
+        """
+        language = await self.get_user_language(user_id)
+        
+        # If English, use normal suggestions
+        if language == 'en':
+            return await self.get_base_item_suggestions(query)
+        
+        # Search in translated names
+        translated_matches = await self.translation_service.search_by_translation(
+            query, language=language, ref_table='items', limit=limit
+        )
+        
+        if translated_matches:
+            # Return localized name for display, with English in parentheses if different
+            results = []
+            for match in translated_matches:
+                localized = match['matched_name']
+                english = match['en_name']
+                if localized and localized != english:
+                    # Show: "Localized Name (English)"
+                    display = f"{localized} ({english})" if len(f"{localized} ({english})") <= 100 else localized
+                else:
+                    display = english
+                results.append((display, match['ref_id']))
+            return results
+        
+        # Fallback to English
+        return await self.get_base_item_suggestions(query)
+    
+    # ==================== End Translation Methods ====================
+    
     async def get_villager_by_id(self, villager_id: int) -> Optional[Villager]:
         """Get a specific villager by ID"""
         return await self.repo.get_villager_by_id(villager_id)
@@ -96,6 +220,27 @@ class NooklookService:
     async def get_recipe_by_id(self, recipe_id: int) -> Optional[Recipe]:
         """Get a specific recipe by ID with ingredients"""
         return await self.repo.get_recipe_by_id(recipe_id)
+    
+    async def get_ingredient_translations(self, ingredient_names: List[str], language: str) -> Dict[str, str]:
+        """Get translated names for recipe ingredients.
+        
+        Args:
+            ingredient_names: List of English ingredient names
+            language: Target language code
+            
+        Returns:
+            Dict mapping English names to translated names (or original if no translation)
+        """
+        if language == 'en' or not ingredient_names:
+            return {name: name for name in ingredient_names}
+        
+        translations = {}
+        for name in ingredient_names:
+            # Look up the item by name and get its translation
+            translated = await self.repo.get_ingredient_translation(name, language)
+            translations[name] = translated or name
+        
+        return translations
     
     async def get_recipe_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
         """Get recipe name suggestions for autocomplete"""
@@ -119,19 +264,61 @@ class NooklookService:
         return await self.repo.get_artwork_by_id(artwork_id)
     
     async def get_artwork_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
-        """Get artwork name suggestions for autocomplete"""
+        """Get artwork name suggestions for autocomplete (English labels)"""
         try:
             return await self.repo.get_artwork_suggestions(search_term, limit)
         except Exception as e:
             logger.error(f"Error getting artwork suggestions: {e}")
             return []
     
+    async def get_artwork_suggestions_localized(self, search_term: str, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
+        """Get artwork name suggestions with localized Genuine/Fake labels"""
+        from bot.utils.localization import get_ui
+        try:
+            language = await self.get_user_language(user_id)
+            ui = get_ui(language)
+            
+            # Get raw artwork data from repo
+            raw_results = await self.repo.get_artwork_suggestions_raw(search_term, limit)
+            
+            # Format with localized labels
+            suggestions = []
+            for name, artwork_id, genuine in raw_results:
+                authenticity = f" ({ui.genuine})" if genuine else f" ({ui.fake})"
+                display_name = f"{name}{authenticity}"
+                suggestions.append((display_name, artwork_id))
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error getting localized artwork suggestions: {e}")
+            return []
+    
     async def get_random_artwork_suggestions(self, limit: int = 25) -> List[tuple[str, int]]:
-        """Get random artwork suggestions for autocomplete when query is too short"""
+        """Get random artwork suggestions for autocomplete when query is too short (English labels)"""
         try:
             return await self.repo.get_random_artwork(limit)
         except Exception as e:
             logger.error(f"Error getting random artwork suggestions: {e}")
+            return []
+    
+    async def get_random_artwork_suggestions_localized(self, user_id: int, limit: int = 25) -> List[tuple[str, int]]:
+        """Get random artwork suggestions with localized Genuine/Fake labels"""
+        from bot.utils.localization import get_ui
+        try:
+            language = await self.get_user_language(user_id)
+            ui = get_ui(language)
+            
+            # Get raw artwork data from repo
+            raw_results = await self.repo.get_random_artwork_raw(limit)
+            
+            # Format with localized labels
+            suggestions = []
+            for name, artwork_id, genuine in raw_results:
+                authenticity = f" ({ui.genuine})" if genuine else f" ({ui.fake})"
+                display_name = f"{name}{authenticity}"
+                suggestions.append((display_name, artwork_id))
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error getting random localized artwork suggestions: {e}")
             return []
     
     async def get_critter_by_id(self, critter_id: int) -> Optional[Critter]:
@@ -346,6 +533,49 @@ class NooklookService:
                 "error": str(e),
                 "database_active": False
             }
+    
+    async def get_source_suggestions(self, search_term: str = "", limit: int = 25) -> List[str]:
+        """Get distinct item sources for autocomplete"""
+        try:
+            return await self.repo.get_distinct_sources(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting source suggestions: {e}")
+            return []
+    
+    async def get_item_suggestions_by_source(self, source: str, search_term: str = "", limit: int = 25, user_id: int = None) -> List[tuple[str, int]]:
+        """Get items filtered by source for autocomplete.
+        
+        Args:
+            source: The source to filter by
+            search_term: Optional search term to filter item names
+            limit: Maximum number of suggestions to return
+            user_id: Optional user ID for localized item names
+            
+        Returns:
+            List of (item_name, item_id) tuples
+        """
+        try:
+            # Get base items from repo
+            base_items = await self.repo.get_items_by_source(source, search_term, limit)
+            
+            # If user_id provided, get localized names for display
+            if user_id:
+                language = await self.get_user_language(user_id)
+                if language != 'en':
+                    localized_items = []
+                    for item_name, item_id in base_items:
+                        # Get localized name
+                        localized_name = await self.get_localized_item_name(item_id, user_id, item_name)
+                        # Use format "Localized Name (English Name)" if different
+                        display_name = f"{localized_name} ({item_name})" if localized_name != item_name else item_name
+                        localized_items.append((display_name, item_id))
+                    return localized_items
+            
+            return base_items
+            
+        except Exception as e:
+            logger.error(f"Error getting item suggestions by source: {e}")
+            return []
 
 # Backward compatibility alias
 ACNHService = NooklookService

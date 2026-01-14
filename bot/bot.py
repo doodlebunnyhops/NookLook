@@ -83,6 +83,9 @@ class ACNHBot(commands.Bot):
             await self.load_extension("bot.cogs.stash_commands")
             self.logger.info("Loaded stash commands cog successfully")
             
+            await self.load_extension("bot.cogs.preferences")
+            self.logger.info("Loaded preferences cog successfully")
+            
             # CDN monitoring task will be started in on_ready
             self.logger.info("CDN monitoring task defined (will start when bot ready)")
             

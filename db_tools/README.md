@@ -29,6 +29,23 @@ This directory contains all database import, export, and management utilities fo
   - Includes duplicate detection checks
   - Useful for testing bot update logic
 
+### Events Import (Submodule)
+
+- **`events/`** - Structured events import system
+  - `importer.py` - Core EventImporter from Google Sheets
+  - `nookipedia_enricher.py` - Optional Nookipedia URL enrichment
+  - `event_items.py` - Event items import from Nookipedia HTML
+  - `url_mappings.py` - Manual URL mappings (zodiac, blooming, etc.)
+  - See `events/README.md` for detailed documentation
+
+```bash
+# Run events import standalone
+python -m db_tools.events
+
+# Check events status
+python -m db_tools.events --check
+```
+
 ## Usage
 
 ### First-time setup:

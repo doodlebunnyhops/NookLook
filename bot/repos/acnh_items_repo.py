@@ -476,6 +476,40 @@ class NooklookRepository:
         
         return [(row['ingredient_name'], row['quantity']) for row in results]
     
+    async def get_ingredient_translation(self, ingredient_name: str, language: str) -> Optional[str]:
+        """Get translated name for an ingredient by looking up the item.
+        
+        Args:
+            ingredient_name: English ingredient name
+            language: Target language code (e.g., 'ja', 'fr')
+            
+        Returns:
+            Translated name or None if not found
+        """
+        from bot.repos.user_repo import SUPPORTED_LANGUAGES
+        
+        lang_info = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES.get('en'))
+        if not lang_info:
+            return None
+        
+        field = lang_info['field']
+        
+        # Look up item by name (case-insensitive) and get its translation
+        query = f"""
+            SELECT it.{field} as translated_name
+            FROM item_translations it
+            JOIN items i ON it.ref_table = 'items' AND it.ref_id = i.id
+            WHERE lower(i.name) = lower(?)
+            LIMIT 1
+        """
+        
+        result = await self.db.execute_query_one(query, (ingredient_name,))
+        
+        if result and result['translated_name']:
+            return result['translated_name']
+        
+        return None
+    
     async def browse_villagers(self, species: str = None, personality: str = None, 
                               offset: int = 0, limit: int = 10) -> Tuple[List[Villager], int]:
         """Browse villagers with filtering - returns (villagers, total_count)"""
@@ -730,7 +764,17 @@ class NooklookRepository:
         return recipes
     
     async def get_artwork_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
-        """Get artwork name suggestions for autocomplete"""
+        """Get artwork name suggestions for autocomplete (with English labels)"""
+        raw = await self.get_artwork_suggestions_raw(search_term, limit)
+        suggestions = []
+        for name, artwork_id, genuine in raw:
+            authenticity = " (Genuine)" if genuine else " (Fake)"
+            display_name = f"{name}{authenticity}"
+            suggestions.append((display_name, artwork_id))
+        return suggestions
+    
+    async def get_artwork_suggestions_raw(self, search_term: str, limit: int = 25) -> List[tuple[str, int, bool]]:
+        """Get raw artwork data for autocomplete (name, id, genuine flag)"""
         # Use FTS5 search with fallback to LIKE search
         try:
             # First try FTS5 search on artwork
@@ -745,12 +789,7 @@ class NooklookRepository:
             results = await self.db.execute_query(fts_query, (search_term, limit))
             
             if results:
-                suggestions = []
-                for row in results:
-                    authenticity = " (Genuine)" if row['genuine'] else " (Fake)"
-                    display_name = f"{row['name']}{authenticity}"
-                    suggestions.append((display_name, row['id']))
-                return suggestions
+                return [(row['name'], row['id'], bool(row['genuine'])) for row in results]
             
         except Exception:
             pass  # Fall back to LIKE search
@@ -763,25 +802,23 @@ class NooklookRepository:
             LIMIT ?
         """
         results = await self.db.execute_query(like_query, (f"%{search_term}%", limit))
-        suggestions = []
-        for row in results:
-            authenticity = " (Genuine)" if row['genuine'] else " (Fake)"
-            display_name = f"{row['name']}{authenticity}"
-            suggestions.append((display_name, row['id']))
-        return suggestions
+        return [(row['name'], row['id'], bool(row['genuine'])) for row in results]
     
     async def get_random_artwork(self, limit: int = 25) -> List[tuple[str, int]]:
-        """Get random artwork for autocomplete when query is too short"""
+        """Get random artwork for autocomplete (with English labels)"""
+        raw = await self.get_random_artwork_raw(limit)
+        suggestions = []
+        for name, artwork_id, genuine in raw:
+            authenticity = " (Genuine)" if genuine else " (Fake)"
+            display_name = f"{name}{authenticity}"
+            suggestions.append((display_name, artwork_id))
+        return suggestions
+    
+    async def get_random_artwork_raw(self, limit: int = 25) -> List[tuple[str, int, bool]]:
+        """Get random raw artwork data (name, id, genuine flag)"""
         query = "SELECT name, id, genuine FROM artwork ORDER BY RANDOM() LIMIT ?"
         results = await self.db.execute_query(query, (limit,))
-        
-        suggestions = []
-        for row in results:
-            authenticity = " (Genuine)" if row['genuine'] else " (Fake)"
-            display_name = f"{row['name']}{authenticity}"
-            suggestions.append((display_name, row['id']))
-        
-        return suggestions
+        return [(row['name'], row['id'], bool(row['genuine'])) for row in results]
     
     async def get_critter_suggestions(self, search_term: str, limit: int = 25) -> List[tuple[str, int]]:
         """Get critter name suggestions for autocomplete"""
@@ -912,3 +949,52 @@ class NooklookRepository:
         stats['artwork'] = result['count'] if result else 0
         
         return stats
+    
+    async def get_distinct_sources(self, search_term: str = "", limit: int = 25) -> List[str]:
+        """Get distinct item sources for autocomplete"""
+        if search_term:
+            query = """
+                SELECT DISTINCT source
+                FROM items
+                WHERE source IS NOT NULL 
+                  AND source != ''
+                  AND source LIKE ?
+                ORDER BY source
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (f"%{search_term}%", limit))
+        else:
+            query = """
+                SELECT DISTINCT source
+                FROM items
+                WHERE source IS NOT NULL AND source != ''
+                ORDER BY source
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (limit,))
+        
+        return [row['source'] for row in results]
+    
+    async def get_items_by_source(self, source: str, search_term: str = "", limit: int = 25) -> List[tuple[str, int]]:
+        """Get items filtered by source for autocomplete"""
+        if search_term:
+            query = """
+                SELECT DISTINCT name, id
+                FROM items
+                WHERE source = ?
+                  AND name LIKE ?
+                ORDER BY name
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (source, f"%{search_term}%", limit))
+        else:
+            query = """
+                SELECT DISTINCT name, id
+                FROM items
+                WHERE source = ?
+                ORDER BY name
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (source, limit))
+        
+        return [(row['name'], row['id']) for row in results]

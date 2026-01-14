@@ -5,8 +5,11 @@ import logging
 
 from bot.services.acnh_service import NooklookService
 from bot.ui.detail_views import CritterAvailabilityView
+from bot.ui.common import LanguageSelectView
 from bot.cogs.acnh.base import check_guild_ephemeral
 from bot.cogs.acnh.autocomplete import critter_name_autocomplete
+from bot.repos.user_repo import UserRepository
+from bot.utils.localization import get_ui, translate_critter_detail, translate_critter_detail
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +19,18 @@ class CritterCommands(commands.Cog):
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.user_repo = UserRepository()
     
     @property
     def service(self) -> NooklookService:
         """Get the shared NooklookService from the bot instance"""
         return self.bot.nooklook_service
+    
+    async def _check_new_user(self, interaction: discord.Interaction) -> bool:
+        from bot.ui.common import check_new_user_language
+        if await check_new_user_language(interaction, self.user_repo):
+            return True
+        return False
 
     @app_commands.command(name="critter", description="Look up a specific ACNH critter (fish, bug, or sea creature)")
     @app_commands.describe(name="The critter name to look up")
@@ -28,6 +38,10 @@ class CritterCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def critter(self, interaction: discord.Interaction, name: str):
         """Look up critter details"""
+        # Check if this is a new user - show language prompt first (before defer for ephemeral)
+        if await self._check_new_user(interaction):
+            return
+        
         ephemeral = await check_guild_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
 
@@ -65,24 +79,30 @@ class CritterCommands(commands.Cog):
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             
-            # Create the critter embed
-            embed = critter.to_discord_embed()
-            # embed = await safe_embed_images(embed, 'critter')
+            # Get user's preferred language
+            language = await self.service.get_user_language(user_id)
+            ui = get_ui(language)
             
-            # Add critter type info in footer
-            critter_type = {
-                'fish': 'Fish',
-                'insect': 'Bug', 
-                'sea': 'Sea Creature'
-            }.get(critter.kind, critter.kind.title())
+            # Create the critter embed with localization
+            embed = critter.to_discord_embed(language=language)
+            
+            # Get localized critter name if available
+            localized_name = await self.service.get_localized_critter_name(
+                critter.id, user_id, critter.name
+            )
+            if localized_name != critter.name:
+                embed.title = f"{localized_name} ({critter.name})"
+            
+            # Add critter type info in footer (localized)
+            critter_type = critter.get_type_display(language)
             
             footer_text = f"{critter_type}"
             if critter.location:
-                footer_text += f" • {critter.location}"
+                footer_text += f" • {translate_critter_detail(critter.location, language) or critter.location}"
             embed.set_footer(text=footer_text)
             
             # Create view with buttons in correct order: Availability → Stash → Refresh → Nookipedia
-            view = CritterAvailabilityView(critter, interaction.user)
+            view = CritterAvailabilityView(critter, interaction.user, language=language)
             view.add_details_action_buttons(critter.nookipedia_url)
             
             logger.info(f"found critter: {critter.name}")
