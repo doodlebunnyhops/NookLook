@@ -949,3 +949,52 @@ class NooklookRepository:
         stats['artwork'] = result['count'] if result else 0
         
         return stats
+    
+    async def get_distinct_sources(self, search_term: str = "", limit: int = 25) -> List[str]:
+        """Get distinct item sources for autocomplete"""
+        if search_term:
+            query = """
+                SELECT DISTINCT source
+                FROM items
+                WHERE source IS NOT NULL 
+                  AND source != ''
+                  AND source LIKE ?
+                ORDER BY source
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (f"%{search_term}%", limit))
+        else:
+            query = """
+                SELECT DISTINCT source
+                FROM items
+                WHERE source IS NOT NULL AND source != ''
+                ORDER BY source
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (limit,))
+        
+        return [row['source'] for row in results]
+    
+    async def get_items_by_source(self, source: str, search_term: str = "", limit: int = 25) -> List[tuple[str, int]]:
+        """Get items filtered by source for autocomplete"""
+        if search_term:
+            query = """
+                SELECT DISTINCT name, id
+                FROM items
+                WHERE source = ?
+                  AND name LIKE ?
+                ORDER BY name
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (source, f"%{search_term}%", limit))
+        else:
+            query = """
+                SELECT DISTINCT name, id
+                FROM items
+                WHERE source = ?
+                ORDER BY name
+                LIMIT ?
+            """
+            results = await self.db.execute_query(query, (source, limit))
+        
+        return [(row['name'], row['id']) for row in results]

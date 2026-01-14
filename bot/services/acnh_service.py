@@ -533,6 +533,49 @@ class NooklookService:
                 "error": str(e),
                 "database_active": False
             }
+    
+    async def get_source_suggestions(self, search_term: str = "", limit: int = 25) -> List[str]:
+        """Get distinct item sources for autocomplete"""
+        try:
+            return await self.repo.get_distinct_sources(search_term, limit)
+        except Exception as e:
+            logger.error(f"Error getting source suggestions: {e}")
+            return []
+    
+    async def get_item_suggestions_by_source(self, source: str, search_term: str = "", limit: int = 25, user_id: int = None) -> List[tuple[str, int]]:
+        """Get items filtered by source for autocomplete.
+        
+        Args:
+            source: The source to filter by
+            search_term: Optional search term to filter item names
+            limit: Maximum number of suggestions to return
+            user_id: Optional user ID for localized item names
+            
+        Returns:
+            List of (item_name, item_id) tuples
+        """
+        try:
+            # Get base items from repo
+            base_items = await self.repo.get_items_by_source(source, search_term, limit)
+            
+            # If user_id provided, get localized names for display
+            if user_id:
+                language = await self.get_user_language(user_id)
+                if language != 'en':
+                    localized_items = []
+                    for item_name, item_id in base_items:
+                        # Get localized name
+                        localized_name = await self.get_localized_item_name(item_id, user_id, item_name)
+                        # Use format "Localized Name (English Name)" if different
+                        display_name = f"{localized_name} ({item_name})" if localized_name != item_name else item_name
+                        localized_items.append((display_name, item_id))
+                    return localized_items
+            
+            return base_items
+            
+        except Exception as e:
+            logger.error(f"Error getting item suggestions by source: {e}")
+            return []
 
 # Backward compatibility alias
 ACNHService = NooklookService

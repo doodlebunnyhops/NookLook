@@ -189,44 +189,49 @@ async def fossil_name_autocomplete(interaction: Interaction, current: str) -> Li
     logger.debug(f"Fossil autocomplete called by user {user_id} with query: '{current}'")
     
     try:
-        # Use cache with fossil-specific key
-        cache_key = f"fossil_autocomplete:{current.lower()}"
-        cached_results = autocomplete_cache.get(cache_key)
+        # Normalize query for consistent caching
+        query = current.lower().strip()
+        cache_key = f"fossil:{query}"
         
-        if cached_results is not None:
-            logger.debug(f"Fossil autocomplete cache hit for user {user_id}, query '{current}' - returning {len(cached_results)} results")
-            return cached_results[:25]  # Discord limit
+        # Check cache first
+        cached_result = autocomplete_cache.get(cache_key)
+        if cached_result:
+            logger.debug(f"Fossil autocomplete: returning {len(cached_result)} cached results for '{query}'")
+            return cached_result
         
         # Get service from bot
-        if not hasattr(interaction.client, 'nooklook_service'):
-            logger.warning("Nooklook service not available for fossil autocomplete")
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Fossil autocomplete: NooklookService not found on bot instance")
             return []
         
-        service = interaction.client.nooklook_service
+        # Get fossil suggestions - show random if query is too short
+        if not query or len(query) <= 2:
+            cache_key = "fossil:random"
+            cached_result = autocomplete_cache.get(cache_key)
+            if cached_result:
+                logger.debug(f"Fossil autocomplete: returning {len(cached_result)} cached random results")
+                return cached_result
+            suggestions = await service.get_random_fossil_suggestions(25)
+        else:
+            logger.debug(f"Fossil autocomplete: searching database for '{current}'")
+            suggestions = await service.get_fossil_suggestions(current, 25)
         
-        # Search fossils specifically using category filter
-        results = await service.search_all(current, category_filter="fossil")
-        
-        # Create choices with fossil ID for exact lookup
+        # Convert to choices with fossil ID for exact lookup
         choices = []
-        for fossil in results[:25]:  # Discord autocomplete limit
-            choice_name = fossil.name
-            if fossil.fossil_group and fossil.fossil_group != fossil.name:
-                choice_name += f" ({fossil.fossil_group})"
-            
+        for name, fossil_id in suggestions[:25]:  # Discord autocomplete limit
             # Truncate if too long for Discord
-            if len(choice_name) > 100:
-                choice_name = choice_name[:97] + "..."
+            display_name = name[:100] if len(name) > 100 else name
             
             choices.append(app_commands.Choice(
-                name=choice_name,
-                value=str(fossil.id)
+                name=display_name,
+                value=str(fossil_id)
             ))
         
         # Cache the results
         autocomplete_cache.set(cache_key, choices)
         
-        logger.debug(f"Fossil autocomplete for user {user_id}, query '{current}' - found {len(choices)} results")
+        logger.info(f"Fossil autocomplete: found {len(choices)} results for '{current}', caching...")
         return choices
         
     except Exception as e:
@@ -274,4 +279,73 @@ async def item_name_autocomplete(interaction: Interaction, current: str) -> list
 
     except Exception as e:
         logger.error(f"Error in item_name_autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
+        return []
+
+
+async def source_autocomplete(interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+    """Autocomplete for item sources"""
+    user_id = getattr(interaction.user, 'id', 'unknown')
+    logger.debug(f"Source autocomplete called by user {user_id} with query: '{current}'")
+    
+    try:
+        # Get service from bot instance
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Source autocomplete: NooklookService not found on bot instance")
+            return []
+        
+        # Get source suggestions
+        sources = await service.get_source_suggestions(current, limit=25)
+        
+        # Create choices
+        choices = [
+            app_commands.Choice(name=source, value=source)
+            for source in sources
+        ]
+        
+        logger.debug(f"Source autocomplete: found {len(choices)} results for '{current}'")
+        return choices
+        
+    except Exception as e:
+        logger.error(f"Error in source_autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
+        return []
+
+
+async def item_by_source_autocomplete(interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+    """Autocomplete for items filtered by selected source - supports user's language"""
+    user_id = interaction.user.id
+    logger.debug(f"Item by source autocomplete called by user {user_id} with query: '{current}'")
+    
+    try:
+        # Get service from bot instance
+        service = getattr(interaction.client, 'nooklook_service', None)
+        if not service:
+            logger.error("Item by source autocomplete: NooklookService not found on bot instance")
+            return []
+        
+        # Get the selected source from the namespace
+        # The namespace contains previously filled parameters
+        source = interaction.namespace.source if hasattr(interaction.namespace, 'source') else None
+        
+        if not source:
+            logger.debug("Item by source autocomplete: no source selected yet")
+            return [app_commands.Choice(name="Please select a source first", value="none")]
+        
+        logger.debug(f"Item by source autocomplete: source='{source}', query='{current}'")
+        
+        # Get items for this source
+        items = await service.get_item_suggestions_by_source(source, current, limit=25, user_id=user_id)
+        
+        # Create choices
+        choices = []
+        for item_name, item_id in items:
+            # Truncate if too long for Discord
+            display_name = item_name[:100] if len(item_name) > 100 else item_name
+            choices.append(app_commands.Choice(name=display_name, value=str(item_id)))
+        
+        logger.debug(f"Item by source autocomplete: found {len(choices)} results")
+        return choices
+        
+    except Exception as e:
+        logger.error(f"Error in item_by_source_autocomplete for user {user_id}, query '{current}': {e}", exc_info=True)
         return []
