@@ -1,5 +1,5 @@
 discord.py>=2.6.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 aiohttp>=3.8.0
 aiosqlite>=0.17.0
 requests>=2.25.0
